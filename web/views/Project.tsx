@@ -1,7 +1,7 @@
-import { useRef, useState } from "react";
-import type { Artifact, ArtifactDetail, InboxNote, MemoryEntry, ProjectSnapshot, RunMeta, Task } from "../../server/types";
+import { useEffect, useRef, useState } from "react";
+import type { Artifact, ArtifactDetail, InboxNote, MemoryEntry, ProjectSnapshot, RunMeta, Source, Task } from "../../server/types";
 import { PROJECT_STATUSES } from "../../server/types";
-import { ago, api, docHref, enc, go, isLive, onSubmitKey, stamp, taskHref, useApp, useData } from "../lib";
+import { ago, api, docHref, enc, go, isLive, onSubmitKey, stamp, taskHref, useApp, useData, useRoute } from "../lib";
 import { editable, Empty, KindBadge, Markdown, RunList, TaskGroups } from "../ui";
 import { Graph } from "./Graph";
 
@@ -95,7 +95,7 @@ export function ProjectPage({ project: p, tab }: { project: ProjectSnapshot; tab
       {current === "tasks" && <TasksTab p={p} />}
       {current === "graph" && <Graph project={p} />}
       {current === "artifacts" && <ArtifactsTab slug={p.slug} />}
-      {current === "memory" && <MemoryTab slug={p.slug} />}
+      {current === "memory" && <MemoryTab slug={p.slug} sources={p.sources} />}
       {current === "context" && <ContextTab p={p} />}
       {current === "activity" && <RunList runs={runs} />}
     </div>
@@ -243,8 +243,8 @@ function MemoryForm({ slug, entry, onDone }: { slug: string; entry?: MemoryEntry
         <input value={f.name} onChange={set("name")} placeholder="entry-name" disabled={!!entry} />
         <select value={f.type} onChange={set("type")}>{MEMORY_TYPES.map((t) => <option key={t}>{t}</option>)}</select>
       </div>
-      <input value={f.description} onChange={set("description")} placeholder="The fact, in one line" />
-      <textarea rows={4} value={f.body} onChange={set("body")} onKeyDown={onSubmitKey(save)} placeholder="Why it matters, where it came from (with a date), how to apply it." />
+      <input value={f.description} onChange={set("description")} placeholder="The fact, in one sentence" />
+      <textarea rows={4} value={f.body} onChange={set("body")} onKeyDown={onSubmitKey(save)} placeholder="Optional, a few lines: why it matters, how to apply it, then Source: where, date." />
       <div className="btn-row end">
         <button onClick={onDone}>Cancel</button>
         <button className="primary" disabled={!f.description.trim()} onClick={save}>{entry ? "Save" : "Remember"}</button>
@@ -253,10 +253,18 @@ function MemoryForm({ slug, entry, onDone }: { slug: string; entry?: MemoryEntry
   );
 }
 
-function MemoryTab({ slug }: { slug: string }) {
+function MemoryTab({ slug, sources }: { slug: string; sources: Source[] }) {
   const { act } = useApp();
   const { data } = useData<MemoryEntry[]>(`/projects/${enc(slug)}/memory`);
   const [editing, setEditing] = useState<string | null>(null);
+  // A [[entry]] link lands here as ?entry=<name>: open that entry and bring it into view.
+  const target = useRoute().query.get("entry");
+  useEffect(() => {
+    const el = target && data ? document.getElementById(`memory-${target}`) : null;
+    if (!(el instanceof HTMLDetailsElement)) return;
+    el.open = true;
+    el.scrollIntoView({ block: "center" });
+  }, [target, !!data]);
   if (!data) return null;
   const forget = (e: MemoryEntry) =>
     confirm(`Forget “${e.name}”? It moves to the trash.`) && act(() => api("DELETE", `/projects/${enc(slug)}/memory/${enc(e.file)}`));
@@ -278,13 +286,23 @@ function MemoryTab({ slug }: { slug: string }) {
             editing === e.file ? (
               <MemoryForm key={e.file} slug={slug} entry={e} onDone={() => setEditing(null)} />
             ) : (
-              <details key={e.file} className="memory-entry">
+              <details key={e.file} id={`memory-${e.name}`} className={`memory-entry${e.name === target ? " target" : ""}`}>
                 <summary title="Show the detail">
                   <h4>{e.description || e.name}</h4>
+                  {e.over && <span className="memory-over" title={`Over length: ${e.over}.`}>too long</span>}
                   <span className="id">{e.name}</span>
                 </summary>
                 <div className="memory-more">
                   {e.body && <Markdown text={e.body} slug={slug} />}
+                  {(e.source || e.updated || e.over) && (
+                    <p className="hint memory-origin">
+                      {[
+                        e.source && `from ${sources.find((s) => s.id === e.source)?.title || e.source}`,
+                        e.updated && `checked ${e.updated}`,
+                        e.over && `over length: ${e.over}`,
+                      ].filter(Boolean).join(" · ")}
+                    </p>
+                  )}
                   <span className="btn-row">
                     <button className="link" onClick={() => setEditing(e.file)}>Edit</button>
                     <button className="link danger" onClick={() => forget(e)}>Forget</button>

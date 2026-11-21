@@ -89,6 +89,26 @@ export interface MemoryEntry {
   description: string;
   type: string;
   body: string;
+  /** The id of the project source the fact was read from, if any. */
+  source?: string;
+  /** The date the entry was last written or checked against its source. */
+  updated?: string;
+  /** What to trim, when the entry is over the length limits. */
+  over?: string;
+}
+
+/** Word counts past which an entry is flagged. The conventions ask for 20 and 80; this is the slack. */
+export const MEMORY_LIMITS = { description: 25, body: 100 };
+
+const words = (s: string) => s.split(/\s+/).filter(Boolean).length;
+
+/** Says which parts of an entry are over length, or nothing when it fits. */
+export function memoryOver(description: string, body: string): string | undefined {
+  const over = [
+    words(description) > MEMORY_LIMITS.description && `the description to 20 words (now ${words(description)})`,
+    words(body) > MEMORY_LIMITS.body && `the body to 80 words (now ${words(body)})`,
+  ].filter(Boolean);
+  return over.length ? `trim ${over.join(" and ")}` : undefined;
 }
 
 export interface InboxNote {

@@ -114,8 +114,8 @@ function linkMentions(root: HTMLElement, slug: string) {
     while ((m = MENTION.exec(text))) {
       frag.append(text.slice(last, m.index));
       const a = document.createElement("a");
-      a.href = m[1] ? docHref(slug, m[1]) : `#/p/${enc(slug)}/memory`;
-      a.textContent = m[0];
+      a.href = m[1] ? docHref(slug, m[1]) : `#/p/${enc(slug)}/memory?entry=${m[2]}`;
+      a.textContent = m[2] ?? m[0];
       frag.append(a);
       last = m.index + m[0].length;
     }

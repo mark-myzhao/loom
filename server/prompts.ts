@@ -29,7 +29,7 @@ Do this:
 2. For each entry in project.json "sources", fetch its current content and work out what is new since its lastSyncedAt (everything, if it has none). For Slack channels and long threads, concentrate on messages after lastSyncedAt.
 3. Read every file directly inside inbox/ (ignore inbox/processed/): they are raw notes from the owner, to be treated as true.
 4. Update tasks: create tasks for new action items that belong to the owner, update tasks whose situation changed, tick checklist items that are now complete, and mark tasks done only on clear evidence. Keep each description short and readable; put technical detail in a task artifact. Append a timeline comment to every existing task you change.
-5. Update memory only for what is durable and project-wide: a new or reversed decision, a change of goal, scope or ownership, a new key resource. Most syncs change no memory. Fix or delete entries that are no longer true.
+5. Update memory only for what is durable and project-wide: a new or reversed decision, a change of goal, scope or ownership, a new key resource. Most syncs change no memory. For each source that changed, re-check the entries whose "source" is its id: correct or delete what is no longer true and set "updated" to today on the ones you confirmed. Trim every entry MEMORY.md marks as over length, and point to the source rather than copy from it.
 6. In project.json: set lastSyncedAt on each source you fetched successfully, fill in missing source titles, rewrite "summary" as two or three sentences on where the project stands today, and set top-level lastSyncedAt and updatedAt to the current ISO time.
 7. Leave the inbox files where they are; the app archives them after this run.
 8. If nothing is new, change nothing except the lastSyncedAt fields.
@@ -61,7 +61,7 @@ Do this:
 2. Register each link in the project's project.json "sources" (skip urls already there), with a real title and lastSyncedAt set to now.
 3. Read the project's memory (MEMORY.md, then its entries) and tasks/.
 4. Create or update tasks for action items that belong to the owner. Keep each description short and readable; put the detail a task needs (research, technical notes, long excerpts) in a task artifact. Append a timeline comment to every existing task you change.
-5. Add or update memory entries only for what is durable and project-wide: what the project is for, decisions with their reasons, who owns what, where key resources live. A new project usually starts with three to six entries.
+5. Add or update memory entries only for what is durable and project-wide: what the project is for, decisions with their reasons, who owns what, where key resources live. A new project usually starts with three to six entries, each a one-sentence fact with a few lines of support at most: point to the source rather than copy from it.
 6. Update the project's "summary", lastSyncedAt and updatedAt.
 
 ${fetching(cfg)}
@@ -196,7 +196,7 @@ ${i.instructions?.trim() ? `\n## Extra instructions from the owner\n\n${i.instru
 ## Agent report
 What you did; the branch name and the absolute path of the working directory; how to verify it (commands and their actual results); each exit criterion and whether it is met; open questions or anything left undone. Keep it to what the owner needs to review the work; longer findings go in a task artifact (artifacts/${lower}-<subject>.md with "task: ${task.id}"), named in the report.
 
-3. If you made a design decision that will matter beyond this task, add one memory entry for it (type "decision").
+3. If you made a design decision that will matter beyond this task, add one memory entry for it (type "decision"): the decision in one sentence, then why and how to apply it in a few lines.
 
 End your final message with the same report.`;
 }

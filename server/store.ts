@@ -7,7 +7,7 @@ import {
 } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import {
-  PRIORITIES, PROJECT_STATUSES, SOURCE_KINDS, TASK_STATUSES,
+  memoryOver, PRIORITIES, PROJECT_STATUSES, SOURCE_KINDS, TASK_STATUSES,
   type AppState, type Artifact, type ArtifactDetail, type Config, type InboxNote, type MemoryEntry,
   type Priority, type Project, type Repo, type Source, type SourceKind, type Task, type TaskStatus,
   type TimelineEvent,
@@ -897,6 +897,9 @@ export function listMemory(slug: string): MemoryEntry[] {
         // Unknown types show up as unsorted notes.
         type: MEMORY_TYPES.includes(data.type ?? "") ? data.type! : "note",
         body: body.trim(),
+        source: data.source || undefined,
+        updated: data.updated || undefined,
+        over: memoryOver(data.description ?? "", body),
       };
     })
     .filter((e): e is MemoryEntry => !!e);
@@ -916,7 +919,13 @@ export function rebuildMemoryIndex(slug: string) {
     const group = entries.filter((e) => e.type === type);
     if (!group.length) continue;
     lines.push(`## ${type}`, "");
-    for (const e of group) lines.push(`- [${e.name}](${e.file}): ${e.description.replace(/\s+/g, " ") || "(no description)"}`);
+    for (const e of group) {
+      const origin = [e.source && `source ${e.source}`, e.updated && `checked ${e.updated}`].filter(Boolean).join(", ");
+      lines.push(
+        `- [${e.name}](${e.file}): ${e.description.replace(/\s+/g, " ") || "(no description)"}` +
+          (origin ? ` (${origin})` : "") + (e.over ? ` **Over length: ${e.over}.**` : ""),
+      );
+    }
     lines.push("");
   }
   const text = lines.join("\n");
@@ -936,9 +945,11 @@ export function saveMemory(
   const body = str(input.body ?? "", "body");
   let target = file;
   let name: string;
+  let source: string | undefined;
   if (target) {
     if (!isSafeFile(target) || !target.endsWith(".md") || target === "MEMORY.md") bad("invalid memory entry");
     if (!existsSync(join(memoryDir(slug), target))) bad("no such memory entry", 404);
+    source = parseFrontmatter(readText(join(memoryDir(slug), target)) ?? "").data.source;
     name = str(input.name ?? "", "name") || target.replace(/\.md$/, "");
   } else {
     name = fileSlug(str(input.name ?? "", "name") || description.split(/\s+/).slice(0, 6).join(" "));
@@ -947,7 +958,7 @@ export function saveMemory(
     if (!MEMORY_FILE_RE.test(target)) bad("invalid memory entry name");
     if (existsSync(join(memoryDir(slug), target))) bad(`an entry named "${name}" already exists; edit it instead`, 409);
   }
-  writeAtomic(join(memoryDir(slug), target), formatFrontmatter({ name, description, type }, body));
+  writeAtomic(join(memoryDir(slug), target), formatFrontmatter({ name, description, type, source, updated: today() }, body));
   rebuildMemoryIndex(slug);
   return listMemory(slug).find((e) => e.file === target)!;
 }

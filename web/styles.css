@@ -310,12 +310,15 @@ a.row-title:hover { text-decoration: underline; text-decoration-color: var(--acc
 .memory-entry summary { display: flex; gap: 24px; align-items: baseline; padding: 14px 6px; cursor: pointer; list-style: none; }
 .memory-entry summary::-webkit-details-marker { display: none; }
 .memory-entry summary:hover { background: var(--card); }
+.memory-entry.target { box-shadow: inset 3px 0 0 var(--accent); }
 .memory-entry summary::after { content: "+"; flex: none; width: 1ch; font: 14px var(--mono); color: var(--ink-3); }
 .memory-entry[open] summary::after { content: "–"; }
 .memory-entry h4 { flex: 1; font: 600 18px/1.35 var(--serif); letter-spacing: -0.01em; }
-.memory-more { padding: 0 6px 16px; max-width: 72ch; }
+.memory-more { padding: 0 6px 16px; }
 .memory-more .prose { color: var(--ink-2); }
 .memory-more .btn-row { gap: 16px; margin-top: 10px; }
+.memory-origin { margin-top: 10px; }
+.memory-over { flex: none; font: 11px var(--mono); color: var(--accent); }
 .memory-form { display: grid; gap: 8px; padding: 16px; margin: 16px 0; }
 .form-row { display: flex; gap: 8px; }
 
