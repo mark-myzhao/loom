@@ -24,10 +24,11 @@ export function Wordmark() {
   return (
     <span className="wordmark" aria-label="Loom">
       <Mark size={26} />
-      <svg width="62" height="26" viewBox="0 0 76 32" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <circle cx="10" cy="20" r="8" />
-        <circle cx="32" cy="20" r="8" />
-        <path d="M48 28V12m0 7a6.5 6.5 0 0 1 13 0v9m0-9a6.5 6.5 0 0 1 13 0v9" />
+      {/* Same 4..28 vertical extent as the L strokes, so every character is one height. */}
+      <svg width="74.75" height="26" viewBox="0 0 92 32" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="14" cy="16" r="12" />
+        <circle cx="44" cy="16" r="12" />
+        <path d="M64 28V4m0 6.5a6.5 6.5 0 0 1 13 0V28m0-17.5a6.5 6.5 0 0 1 13 0V28" />
       </svg>
     </span>
   );
