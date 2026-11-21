@@ -1,0 +1,241 @@
+import DOMPurify from "dompurify";
+import { marked } from "marked";
+import { useMemo, useRef, useState, type ReactNode } from "react";
+import type { Priority, RunMeta, TaskStatus, TaskSummary } from "../server/types";
+import {
+  agentRun, ago, api, buildTree, descendants, docHref, dueLabel, enc, GROUPS, isLive, money, sortTasks, STATUS_LABEL, taskHref, useApp,
+  type Tree,
+} from "./lib";
+
+// ---------- identity ----------
+
+/** Three nested, round-ended L strokes. */
+export function Mark({ size = 28 }: { size?: number }) {
+  return (
+    <svg className="mark" width={size} height={size} viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 4v24h23" />
+      <path d="M12 4v17h16" />
+      <path d="M19 4v10h9" />
+    </svg>
+  );
+}
+/** The mark, completed by "oom" in monoline strokes. */
+export function Wordmark() {
+  return (
+    <span className="wordmark" aria-label="Loom">
+      <Mark size={26} />
+      <svg width="62" height="26" viewBox="0 0 76 32" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="10" cy="20" r="8" />
+        <circle cx="32" cy="20" r="8" />
+        <path d="M48 28V12m0 7a6.5 6.5 0 0 1 13 0v9m0-9a6.5 6.5 0 0 1 13 0v9" />
+      </svg>
+    </span>
+  );
+}
+
+// ---------- status ----------
+
+/** Status by shape as well as colour: empty, half, three-quarters, dashed, checked. */
+export function Ring({ status, size = 16 }: { status: TaskStatus; size?: number }) {
+  const c = `var(--st-${status})`;
+  return (
+    <svg className="ring" width={size} height={size} viewBox="0 0 16 16" role="img" aria-label={STATUS_LABEL[status]}>
+      {status === "done" ? (
+        <>
+          <circle cx="8" cy="8" r="7" fill={c} />
+          <path d="M4.6 8.3l2.3 2.3 4.5-4.9" fill="none" stroke="var(--paper)" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+        </>
+      ) : (
+        <>
+          <circle cx="8" cy="8" r="6.25" fill="none" stroke={c} strokeWidth="1.5" strokeDasharray={status === "blocked" ? "2.6 2.3" : undefined} />
+          {status === "doing" && <path d="M8 4a4 4 0 0 1 0 8z" fill={c} />}
+          {status === "review" && <path d="M8 8V4a4 4 0 1 1-4 4z" fill={c} />}
+        </>
+      )}
+    </svg>
+  );
+}
+
+export function Prio({ p }: { p: Priority }) {
+  return <span className={`prio prio-${p}`}>{p.toUpperCase()}</span>;
+}
+
+export function RunPill({ run }: { run: RunMeta }) {
+  return <span className={`pill run-${run.status}${isLive(run) ? " live" : ""}`}>{run.status}</span>;
+}
+
+export function Empty({ children }: { children: ReactNode }) {
+  return <p className="empty">{children}</p>;
+}
+
+// ---------- markdown ----------
+
+DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+  if (node instanceof HTMLAnchorElement && node.hasAttribute("href")) {
+    if (!node.getAttribute("href")!.startsWith("#")) {
+      node.setAttribute("target", "_blank");
+      node.setAttribute("rel", "noopener noreferrer");
+    }
+  }
+});
+
+const MENTION = /(?:[\w./-]*\/)?artifacts\/([A-Za-z0-9][\w.-]*\.(?:md|html?))|\[\[([a-z0-9][a-z0-9-]*)\]\]/g;
+
+/** Turns artifact paths and [[memory-entry]] references in rendered text into links. */
+function linkMentions(root: HTMLElement, slug: string) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const nodes: Text[] = [];
+  while (walker.nextNode()) {
+    const n = walker.currentNode as Text;
+    if (!n.parentElement?.closest("a, pre")) nodes.push(n);
+  }
+  for (const node of nodes) {
+    const text = node.data;
+    MENTION.lastIndex = 0;
+    let m: RegExpExecArray | null, last = 0;
+    const frag = document.createDocumentFragment();
+    while ((m = MENTION.exec(text))) {
+      frag.append(text.slice(last, m.index));
+      const a = document.createElement("a");
+      a.href = m[1] ? docHref(slug, m[1]) : `#/p/${enc(slug)}/memory`;
+      a.textContent = m[0];
+      frag.append(a);
+      last = m.index + m[0].length;
+    }
+    if (!last) continue;
+    frag.append(text.slice(last));
+    node.replaceWith(frag);
+  }
+}
+
+export function renderMarkdown(text: string, slug?: string): string {
+  const html = DOMPurify.sanitize(marked.parse(text, { gfm: true, async: false }) as string);
+  if (!slug) return html;
+  const box = document.createElement("div");
+  box.innerHTML = html;
+  linkMentions(box, slug);
+  return box.innerHTML;
+}
+
+/** Sanitised markdown. With `onCheck`, task-list checkboxes are live and report their index. */
+export function Markdown({ text, slug, className = "", onCheck }: {
+  text: string; slug?: string; className?: string; onCheck?: (index: number, checked: boolean) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const html = useMemo(() => {
+    const out = renderMarkdown(text, slug);
+    return onCheck ? out.replace(/(<input\b[^>]*?)\sdisabled(="")?/g, "$1") : out;
+  }, [text, slug, !!onCheck]);
+  return (
+    <div
+      ref={ref}
+      className={`prose ${className}`}
+      dangerouslySetInnerHTML={{ __html: html }}
+      onClick={(e) => {
+        const el = e.target as HTMLElement;
+        if (!onCheck || !(el instanceof HTMLInputElement) || el.type !== "checkbox") return;
+        const boxes = [...ref.current!.querySelectorAll('input[type="checkbox"]')];
+        onCheck(boxes.indexOf(el), el.checked);
+      }}
+    />
+  );
+}
+
+// ---------- rows ----------
+
+export function Progress({ done, total, title }: { done: number; total: number; title?: string }) {
+  if (!total) return null;
+  return (
+    <span className="progress" title={title}>
+      <span className="track"><span style={{ width: `${(done / total) * 100}%` }} /></span>
+      {done}/{total}
+    </span>
+  );
+}
+
+export function TaskRow({ slug, task, tree, showProject }: { slug: string; task: TaskSummary; tree: Tree; showProject?: string }) {
+  const { snap, act } = useApp();
+  const run = agentRun(snap.runs, slug, task.id);
+  const kids = descendants(tree, task.id);
+  const due = task.due ? dueLabel(task.due, task.status === "done") : undefined;
+  const toggle = () =>
+    act(() => api("PATCH", `/projects/${enc(slug)}/tasks/${task.id}`, { status: task.status === "done" ? "todo" : "done" }));
+  return (
+    <div className={`row task-row${task.status === "done" ? " is-done" : ""}`}>
+      <button className="ring-btn" onClick={toggle} title={task.status === "done" ? "Reopen" : "Mark done"}>
+        <Ring status={task.status} />
+      </button>
+      <Prio p={task.priority} />
+      <a className="row-title" href={taskHref(slug, task.id)}>{task.title}</a>
+      <span className="row-meta">
+        {run && (isLive(run) || task.status === "doing" || task.status === "review" || task.status === "blocked") && (
+          <span className={`pill run-${run.status}${isLive(run) ? " live" : ""}`}>agent {isLive(run) ? "working" : run.status}</span>
+        )}
+        {kids.length > 0 && <span title="Subtasks done">⤷ {kids.filter((k) => k.status === "done").length}/{kids.length}</span>}
+        <Progress done={task.checked} total={task.total} title="Checklist" />
+        {due && <span className={due.overdue ? "overdue" : ""}>{due.text}</span>}
+        {task.parent && <a href={taskHref(slug, task.parent)} title="Parent task">↑ {task.parent}</a>}
+        {showProject && <a href={`#/p/${enc(slug)}`} className="tag">{showProject}</a>}
+        <span className="id">{task.id}</span>
+      </span>
+    </div>
+  );
+}
+
+/** The five groups, Done collapsed at first. */
+export function TaskGroups({ slug, tasks }: { slug: string; tasks: TaskSummary[] }) {
+  const [showDone, setShowDone] = useState(false);
+  const tree = useMemo(() => buildTree(tasks), [tasks]);
+  return (
+    <>
+      {GROUPS.map(({ status, label }) => {
+        const group = sortTasks(tasks.filter((t) => t.status === status));
+        if (!group.length) return null;
+        const collapsed = status === "done" && !showDone;
+        return (
+          <section key={status} className="group">
+            <h3 className="label">
+              {status === "done" ? (
+                <button className="link" onClick={() => setShowDone(!showDone)}>{collapsed ? "▸" : "▾"} {label}</button>
+              ) : label}
+              <span className="count">{group.length}</span>
+            </h3>
+            {!collapsed && group.map((t) => <TaskRow key={t.id} slug={slug} task={t} tree={tree} />)}
+          </section>
+        );
+      })}
+    </>
+  );
+}
+
+export function RunRow({ run, projectName }: { run: RunMeta; projectName?: string }) {
+  const { openRun } = useApp();
+  return (
+    <button className="row run-row" onClick={() => openRun(run.id)}>
+      <RunPill run={run} />
+      <span className="tag">{run.kind}</span>
+      <span className="row-title">{run.title}</span>
+      <span className="row-meta">
+        {projectName && <span className="tag">{projectName}</span>}
+        {run.costUsd > 0 && <span>{money(run.costUsd)}</span>}
+        <span>{ago(run.endedAt ?? run.startedAt ?? run.createdAt)}</span>
+      </span>
+    </button>
+  );
+}
+
+export function RunList({ runs, withProject }: { runs: RunMeta[]; withProject?: boolean }) {
+  const { snap } = useApp();
+  if (!runs.length) return <Empty>No runs yet. Syncs, drops, questions and delegated tasks will appear here.</Empty>;
+  const names = new Map(snap.projects.map((p) => [p.slug, p.name]));
+  return (
+    <>
+      <p className="label">{runs.length} run{runs.length === 1 ? "" : "s"} · {money(runs.reduce((s, r) => s + r.costUsd, 0))}</p>
+      {runs.map((r) => <RunRow key={r.id} run={r} projectName={withProject && r.project ? names.get(r.project) ?? r.project : undefined} />)}
+    </>
+  );
+}
+
+export function KindBadge({ kind }: { kind: "md" | "html" }) {
+  return <span className={`kind kind-${kind}`}>{kind === "md" ? "MD" : "HTML"}</span>;
+}
