@@ -6,15 +6,39 @@ import { Markdown, RunPill } from "../ui";
 type Line = Record<string, any>;
 
 export function Drawer({ title, label, onClose, children, foot }: { title: ReactNode; label?: ReactNode; onClose: () => void; children: ReactNode; foot?: ReactNode }) {
+  const box = useRef<HTMLElement>(null);
   useEffect(() => {
-    const on = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const on = (e: KeyboardEvent) => {
+      if (e.key === "Escape") return onClose();
+      if (e.key !== "Tab" || !box.current) return;
+      // Tab stays inside the drawer, wrapping at either end.
+      const stops = [...box.current.querySelectorAll<HTMLElement>("a[href], button:not(:disabled), input:not(:disabled), select, textarea, summary")];
+      const first = stops[0], last = stops[stops.length - 1];
+      const at = document.activeElement;
+      if (!first || !last) return;
+      if (!box.current.contains(at) || (e.shiftKey ? at === first || at === box.current : at === last)) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      }
+    };
     window.addEventListener("keydown", on);
     return () => window.removeEventListener("keydown", on);
   }, [onClose]);
+  // Focus moves into the drawer and back to where it was; the page behind does not scroll.
+  useEffect(() => {
+    const before = document.activeElement as HTMLElement | null;
+    const overflow = document.body.style.overflow;
+    box.current?.focus();
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = overflow;
+      before?.focus?.();
+    };
+  }, []);
   return (
     <>
       <div className="scrim" onClick={onClose} />
-      <aside className="drawer" role="dialog" aria-modal="true">
+      <aside ref={box} tabIndex={-1} className="drawer" role="dialog" aria-modal="true" aria-label={typeof title === "string" ? title : undefined}>
         <header className="drawer-head">
           <div>
             {label && <p className="label">{label}</p>}
@@ -158,7 +182,7 @@ export function RunDrawer({ id, onClose }: { id: string; onClose: () => void }) 
           <button className="danger" onClick={() => act(() => api("POST", `/runs/${enc(id)}/stop`))}>Stop</button>
         ) : run.sessionId ? (
           <div className="compose">
-            <textarea rows={2} value={reply} placeholder="Reply to continue this session…" onChange={(e) => setReply(e.target.value)} onKeyDown={onSubmitKey(send)} />
+            <textarea rows={2} value={reply} aria-label="Reply" placeholder="Reply to continue this session…" onChange={(e) => setReply(e.target.value)} onKeyDown={onSubmitKey(send)} />
             <button className="primary" disabled={!reply.trim()} onClick={send}>Send</button>
           </div>
         ) : undefined
@@ -195,7 +219,7 @@ export function Settings({ onClose }: { onClose: () => void }) {
     }
   };
   return (
-    <Drawer title="Settings" label={snap.dataDir} onClose={onClose} foot={<span className="btn-row end"><button onClick={onClose}>Cancel</button><button className="primary" onClick={save}>Save</button></span>}>
+    <Drawer title="Settings" label={<span className="path" title="Data directory">{snap.dataDir}</span>} onClose={onClose} foot={<span className="btn-row end"><button onClick={onClose}>Cancel</button><button className="primary" onClick={save}>Save</button></span>}>
       <div className="settings">
         <h3 className="label">You</h3>
         <label>Your name <small>Tells Claude which action items are yours. Empty: looked up through Slack, if a Slack tool is allowed.</small>

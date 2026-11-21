@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import type { Artifact, ArtifactDetail, InboxNote, MemoryEntry, ProjectSnapshot, RunMeta, Task } from "../../server/types";
 import { PROJECT_STATUSES } from "../../server/types";
 import { ago, api, docHref, enc, go, isLive, onSubmitKey, stamp, taskHref, useApp, useData } from "../lib";
-import { Empty, KindBadge, Markdown, RunList, TaskGroups } from "../ui";
+import { editable, Empty, KindBadge, Markdown, RunList, TaskGroups } from "../ui";
 import { Graph } from "./Graph";
 
 const TABS = ["tasks", "graph", "artifacts", "memory", "context", "activity"] as const;
@@ -68,22 +68,24 @@ export function ProjectPage({ project: p, tab }: { project: ProjectSnapshot; tab
           }}
         />
       ) : (
-        <p className={`summary${p.summary ? "" : " muted"}`} title="Click to edit" onClick={() => !p.error && setEditing(p.summary)}>
-          {p.summary || "No summary yet. Click to write one, or let a sync do it."}
+        <p className={`summary${p.summary ? "" : " muted"}`}>
+          <span {...editable(() => !p.error && setEditing(p.summary), "Click to edit the summary")}>
+            {p.summary || "No summary yet. Click to write one, or let a sync do it."}
+          </span>
         </p>
       )}
 
       <div className="askbox">
         <input
-          value={question} placeholder="Ask Claude about this project, or tell it what to change…"
+          value={question} aria-label={`Ask Claude about ${p.name}`} placeholder={`Ask Claude about ${p.name}, or tell it what to update…`}
           onChange={(e) => setQuestion(e.target.value)} onKeyDown={(e) => e.key === "Enter" && ask()}
         />
-        <button disabled={!question.trim()} onClick={ask}>Ask</button>
+        <button className="primary" disabled={!question.trim()} onClick={ask}>Ask</button>
       </div>
 
       <nav className="tabs">
         {TABS.map((t) => (
-          <a key={t} className={t === current ? "on" : ""} href={`#/p/${enc(p.slug)}${t === "tasks" ? "" : `/${t}`}`}>
+          <a key={t} className={t === current ? "on" : ""} aria-current={t === current ? "page" : undefined} href={`#/p/${enc(p.slug)}${t === "tasks" ? "" : `/${t}`}`}>
             {t[0]!.toUpperCase() + t.slice(1)}
             {counts[t] ? <span className="count">{counts[t]}</span> : null}
           </a>
@@ -113,7 +115,7 @@ function TasksTab({ p }: { p: ProjectSnapshot }) {
   };
   return (
     <>
-      <input className="add-line" value={title} placeholder="Add a task…" onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} />
+      <input className="add-line" value={title} aria-label="Add a task" placeholder="Add a task, then Enter" onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} />
       {p.tasks.length ? (
         <TaskGroups slug={p.slug} tasks={p.tasks} />
       ) : (
@@ -125,39 +127,23 @@ function TasksTab({ p }: { p: ProjectSnapshot }) {
 
 // ---------- artifacts ----------
 
-/** The compose box: ask Claude for a document, or import links. Used on the project and on a task. */
-export function ArtifactCompose({ slug, taskId }: { slug: string; taskId?: string }) {
-  const { act, openRun } = useApp();
-  const [text, setText] = useState("");
-  const submit = async () => {
-    if (!text.trim()) return;
-    const run = await act(() => api<RunMeta>("POST", `/projects/${enc(slug)}/artifacts/generate`, { text, taskId }));
-    if (run) {
-      setText("");
-      openRun(run.id);
-    }
-  };
-  return (
-    <div className="compose">
-      <textarea
-        rows={2} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={onSubmitKey(submit)}
-        placeholder={taskId ? `Describe a document for ${taskId}, or paste a link to import…` : "Describe a document to write, or paste a link to import…"}
-      />
-      <button disabled={!text.trim()} onClick={submit}>Have Claude write one</button>
-    </div>
-  );
-}
+const ORIGIN: Record<string, { text: string; className: string }> = {
+  generated: { text: "By Claude", className: " by-claude" },
+  imported: { text: "Imported", className: " by-import" },
+  written: { text: "By you", className: "" },
+};
 
 export function ArtifactRows({ slug, items, inherited }: { slug: string; items: Artifact[]; inherited?: string }) {
   return (
     <>
       {items.map((a) => (
-        <a key={a.name} className="row" href={docHref(slug, a.name)}>
+        <a key={a.name} className="row doc-row" href={docHref(slug, a.name)}>
           <KindBadge kind={a.kind} />
           <span className="row-title">{a.title}</span>
+          <span className="id">{a.name}</span>
           <span className="row-meta">
             {inherited ? <span>from {inherited}</span> : a.task && <span>{a.task}</span>}
-            {a.origin && <span className="tag">{a.origin}</span>}
+            {a.origin && <span className={`tag${ORIGIN[a.origin]?.className ?? ""}`}>{ORIGIN[a.origin]?.text ?? a.origin}</span>}
             <span>{ago(a.modifiedAt)}</span>
           </span>
         </a>
@@ -166,12 +152,21 @@ export function ArtifactRows({ slug, items, inherited }: { slug: string; items: 
   );
 }
 
-/** Upload a .md/.html file, or start a blank document. */
-export function ArtifactAdd({ slug, taskId }: { slug: string; taskId?: string }) {
-  const { act, toast } = useApp();
+/** The section heading with its three ways to add one: ask Claude (or import links), write a blank document, upload a file. */
+export function ArtifactsHead({ slug, taskId, count }: { slug: string; taskId?: string; count?: number }) {
+  const { act, toast, openRun } = useApp();
   const file = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState<string | null>(null);
+  const [request, setRequest] = useState<string | null>(null);
   const base = `/projects/${enc(slug)}/artifacts`;
+  const generate = async () => {
+    if (!request?.trim()) return;
+    const run = await act(() => api<RunMeta>("POST", `${base}/generate`, { text: request, taskId }));
+    if (run) {
+      setRequest(null);
+      openRun(run.id);
+    }
+  };
   const upload = async (f?: File) => {
     if (!f) return;
     if (!/\.(md|html?)$/i.test(f.name)) return toast("Upload a .md or .html file.");
@@ -184,15 +179,31 @@ export function ArtifactAdd({ slug, taskId }: { slug: string; taskId?: string })
     if (a) go(`${docHref(slug, a.name)}?edit`);
   };
   return (
-    <span className="btn-row">
-      {title === null ? (
-        <button onClick={() => setTitle("")}>Write one</button>
-      ) : (
-        <input autoFocus value={title} placeholder="Document title, then Enter" onChange={(e) => setTitle(e.target.value)} onBlur={() => !title && setTitle(null)} onKeyDown={(e) => (e.key === "Enter" ? create() : e.key === "Escape" && setTitle(null))} />
+    <>
+      <div className="section-head">
+        <h3 className="label">Artifacts{count ? <span className="count">{count}</span> : null}</h3>
+        <span className="btn-row">
+          <button className="link" onClick={() => setRequest(request === null ? "" : null)}>Have Claude write one</button>
+          {title === null ? (
+            <button className="link" onClick={() => setTitle("")}>New document</button>
+          ) : (
+            <input autoFocus value={title} placeholder="Document title, then Enter" onChange={(e) => setTitle(e.target.value)} onBlur={() => !title && setTitle(null)} onKeyDown={(e) => (e.key === "Enter" ? create() : e.key === "Escape" && setTitle(null))} />
+          )}
+          <button className="link" onClick={() => file.current?.click()}>Upload</button>
+          <input ref={file} type="file" accept=".md,.html,.htm,text/markdown,text/html" hidden onChange={(e) => (upload(e.target.files?.[0]), (e.target.value = ""))} />
+        </span>
+      </div>
+      {request !== null && (
+        <div className="compose boxed">
+          <textarea
+            autoFocus rows={2} value={request} onChange={(e) => setRequest(e.target.value)}
+            onKeyDown={(e) => (e.key === "Escape" ? setRequest(null) : onSubmitKey(generate)(e))}
+            placeholder={taskId ? `Describe a document for ${taskId}, or paste a link to import…` : "Describe a document to write, or paste a link to import…"}
+          />
+          <button className="primary" disabled={!request.trim()} onClick={generate}>Hand to Claude</button>
+        </div>
       )}
-      <button onClick={() => file.current?.click()}>Upload</button>
-      <input ref={file} type="file" accept=".md,.html,.htm,text/markdown,text/html" hidden onChange={(e) => (upload(e.target.files?.[0]), (e.target.value = ""))} />
-    </span>
+    </>
   );
 }
 
@@ -200,12 +211,8 @@ function ArtifactsTab({ slug }: { slug: string }) {
   const { data } = useData<Artifact[]>(`/projects/${enc(slug)}/artifacts`);
   return (
     <>
-      <ArtifactCompose slug={slug} />
-      <div className="section-head">
-        <h3 className="label">Documents {data && <span className="count">{data.length}</span>}</h3>
-        <ArtifactAdd slug={slug} />
-      </div>
-      {data && (data.length ? <ArtifactRows slug={slug} items={data} /> : <Empty>No documents yet. Ask Claude for one above, upload a file, or write one. Anything too long for a task belongs here.</Empty>)}
+      <ArtifactsHead slug={slug} count={data?.length} />
+      {data && (data.length ? <ArtifactRows slug={slug} items={data} /> : <Empty>No artifacts yet. Ask Claude for one, upload a file, or write one. Anything too long for a task belongs here.</Empty>)}
     </>
   );
 }
@@ -213,6 +220,13 @@ function ArtifactsTab({ slug }: { slug: string }) {
 // ---------- memory ----------
 
 const MEMORY_TYPES = ["project", "decision", "people", "reference", "note"];
+const MEMORY_HEAD: Record<string, [label: string, hint: string]> = {
+  project: ["Project", "What it is for, goals, scope, hard constraints"],
+  decision: ["Decisions", "Choices made, and why"],
+  people: ["People", "Who owns or decides what"],
+  reference: ["Reference", "Where things live"],
+  note: ["Notes", "Everything else worth keeping"],
+};
 
 function MemoryForm({ slug, entry, onDone }: { slug: string; entry?: MemoryEntry; onDone: () => void }) {
   const { act } = useApp();
@@ -248,30 +262,35 @@ function MemoryTab({ slug }: { slug: string }) {
     confirm(`Forget “${e.name}”? It moves to the trash.`) && act(() => api("DELETE", `/projects/${enc(slug)}/memory/${enc(e.file)}`));
   return (
     <div className="memory">
-      <div className="section-head">
-        <h3 className="label">What this project remembers <span className="count">{data.length}</span></h3>
+      <div className="memory-intro">
+        <p>What someone needs to know to work on this project: its purpose, decisions, people and where things live. Kept short on purpose. Detail belongs in tasks and their artifacts.</p>
         {editing !== "" && <button onClick={() => setEditing("")}>Remember something</button>}
       </div>
       {editing === "" && <MemoryForm slug={slug} onDone={() => setEditing(null)} />}
       {!data.length && editing !== "" && <Empty>No memory yet. Memory holds five to fifteen durable, project-wide facts: what the project is for, decisions, who owns what, where things live. Claude adds entries as it reads your sources.</Empty>}
       {MEMORY_TYPES.filter((t) => data.some((e) => e.type === t)).map((type) => (
         <section key={type} className="group">
-          <h3 className="label">{type}</h3>
+          <h3 className="label">
+            {MEMORY_HEAD[type]![0]}<span className="count">{data.filter((e) => e.type === type).length}</span>
+            <span className="label-hint">{MEMORY_HEAD[type]![1]}</span>
+          </h3>
           {data.filter((e) => e.type === type).map((e) =>
             editing === e.file ? (
               <MemoryForm key={e.file} slug={slug} entry={e} onDone={() => setEditing(null)} />
             ) : (
-              <article key={e.file} className="memory-entry">
-                <header>
-                  <strong>{e.description || e.name}</strong>
-                  <span className="row-meta">
-                    <span className="id">{e.name}</span>
+              <details key={e.file} className="memory-entry">
+                <summary title="Show the detail">
+                  <h4>{e.description || e.name}</h4>
+                  <span className="id">{e.name}</span>
+                </summary>
+                <div className="memory-more">
+                  {e.body && <Markdown text={e.body} slug={slug} />}
+                  <span className="btn-row">
                     <button className="link" onClick={() => setEditing(e.file)}>Edit</button>
                     <button className="link danger" onClick={() => forget(e)}>Forget</button>
                   </span>
-                </header>
-                {e.body && <Markdown text={e.body} slug={slug} />}
-              </article>
+                </div>
+              </details>
             ),
           )}
         </section>

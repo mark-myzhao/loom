@@ -1,6 +1,6 @@
 import DOMPurify from "dompurify";
 import { marked } from "marked";
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import type { Priority, RunMeta, TaskStatus, TaskSummary } from "../server/types";
 import {
   agentRun, ago, api, buildTree, descendants, docHref, dueLabel, enc, GROUPS, isLive, money, sortTasks, STATUS_LABEL, taskHref, useApp,
@@ -57,12 +57,28 @@ export function Ring({ status, size = 16 }: { status: TaskStatus; size?: number 
   );
 }
 
+export function StatusChip({ status }: { status: TaskStatus }) {
+  return <span className={`chip st-${status}`}>{STATUS_LABEL[status]}</span>;
+}
+
 export function Prio({ p }: { p: Priority }) {
   return <span className={`prio prio-${p}`}>{p.toUpperCase()}</span>;
 }
 
 export function RunPill({ run }: { run: RunMeta }) {
   return <span className={`pill run-${run.status}${isLive(run) ? " live" : ""}`}>{run.status}</span>;
+}
+
+/** Props for text that opens its editor on click, Enter or Space. Style it with `.editable`. */
+export function editable(open: () => void, title: string) {
+  return {
+    className: "editable", role: "button", tabIndex: 0, title, onClick: open,
+    onKeyDown: (e: KeyboardEvent<HTMLElement>) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+      open();
+    },
+  };
 }
 
 export function Empty({ children }: { children: ReactNode }) {
@@ -163,7 +179,7 @@ export function TaskRow({ slug, task, tree, showProject }: { slug: string; task:
     act(() => api("PATCH", `/projects/${enc(slug)}/tasks/${task.id}`, { status: task.status === "done" ? "todo" : "done" }));
   return (
     <div className={`row task-row${task.status === "done" ? " is-done" : ""}`}>
-      <button className="ring-btn" onClick={toggle} title={task.status === "done" ? "Reopen" : "Mark done"}>
+      <button className="ring-btn" onClick={toggle} title={task.status === "done" ? "Reopen" : "Mark done"} aria-label={`${task.status === "done" ? "Reopen" : "Mark done"}: ${task.title}`}>
         <Ring status={task.status} />
       </button>
       <Prio p={task.priority} />
@@ -197,7 +213,7 @@ export function TaskGroups({ slug, tasks }: { slug: string; tasks: TaskSummary[]
           <section key={status} className="group">
             <h3 className="label">
               {status === "done" ? (
-                <button className="link" onClick={() => setShowDone(!showDone)}>{collapsed ? "▸" : "▾"} {label}</button>
+                <button className="link" aria-expanded={!collapsed} onClick={() => setShowDone(!showDone)}>{collapsed ? "▸" : "▾"} {label}</button>
               ) : label}
               <span className="count">{group.length}</span>
             </h3>

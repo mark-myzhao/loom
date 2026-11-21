@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Priority, ProjectSnapshot, RunMeta, Snapshot, TaskStatus, TaskSummary } from "../server/types";
 
 // ---------- api ----------
@@ -22,7 +22,8 @@ export interface AppCtx {
   snap: Snapshot;
   /** Bumped on every change signal, so detail views refetch. */
   rev: number;
-  toast: (message: string) => void;
+  /** `bad` marks a failure, so it does not read like a confirmation. */
+  toast: (message: string, bad?: boolean) => void;
   /** Runs a mutation and shows its error, if any, in a toast. */
   act: <T>(fn: () => Promise<T>) => Promise<T | undefined>;
   openRun: (id: string) => void;
@@ -92,6 +93,50 @@ export function hashWith(key: string, value: string | null): string {
 export const go = (hash: string) => {
   location.hash = hash;
 };
+
+/**
+ * Hash navigation never moves the scroll position by itself. A page opened by a link starts at the
+ * top; Back and Forward return to where that page was left, which each history entry remembers.
+ */
+export function useScrollMemory(page: string) {
+  const restoring = useRef(false);
+  useEffect(() => {
+    history.scrollRestoration = "manual";
+    let timer = 0;
+    const save = () => {
+      clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        if (!restoring.current) history.replaceState({ ...history.state, y: Math.round(scrollY) }, "");
+      }, 120);
+    };
+    // A save still pending when the hash changes would land on the new entry.
+    const cancel = () => clearTimeout(timer);
+    window.addEventListener("scroll", save, { passive: true });
+    window.addEventListener("hashchange", cancel);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("scroll", save);
+      window.removeEventListener("hashchange", cancel);
+    };
+  }, []);
+  useLayoutEffect(() => {
+    const y: number = history.state?.y ?? 0;
+    window.scrollTo(0, y);
+    if (!y) return;
+    // A detail page is still loading when the route changes: keep trying until it is tall enough.
+    restoring.current = true;
+    const until = performance.now() + 1500;
+    let frame = requestAnimationFrame(function again() {
+      if (Math.abs(scrollY - y) < 2 || performance.now() > until) return void (restoring.current = false);
+      window.scrollTo(0, y);
+      frame = requestAnimationFrame(again);
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      restoring.current = false;
+    };
+  }, [page]);
+}
 export const taskHref = (slug: string, id: string) => `#/p/${enc(slug)}/t/${enc(id)}`;
 export const docHref = (slug: string, name: string) => `#/p/${enc(slug)}/a/${enc(name)}`;
 
@@ -119,6 +164,17 @@ export function sortTasks<T extends TaskSummary>(tasks: T[]): T[] {
 export function localDate(d = new Date()): string {
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+/** A `YYYY-MM-DD` day as a person would say it: today, yesterday, Nov 3, Nov 3, 2025. */
+export function day(date?: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(date ?? "");
+  if (!m) return date || "never";
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const now = new Date();
+  const days = Math.round((new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() - d.getTime()) / 86400000);
+  if (days === 0) return "today";
+  if (days === 1) return "yesterday";
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: d.getFullYear() === now.getFullYear() ? undefined : "numeric" });
 }
 export function dueLabel(due: string, done: boolean): { text: string; overdue: boolean } {
   const [y, m, d] = due.split("-").map(Number);

@@ -21,8 +21,8 @@ export function DocPage({ project: p, name, edit }: { project: ProjectSnapshot; 
     if (edit && data && draft === null) setDraft(data.content);
   }, [edit, !!data]);
 
-  if (error) return <div className="page wide"><p className="banner bad">{error}</p><a href={back}>← Documents</a></div>;
-  if (!data) return <div className="page wide" />;
+  if (error) return <div className="page"><p className="banner bad">{error}</p><a href={back}>← Documents</a></div>;
+  if (!data) return <div className="page" />;
   const leave = () => go(hashWith("edit", null));
   const save = async () => {
     if (draft === null) return;
@@ -36,7 +36,7 @@ export function DocPage({ project: p, name, edit }: { project: ProjectSnapshot; 
     if (await act(() => api("DELETE", base))) go(back);
   };
   return (
-    <div className="page wide">
+    <div className="page">
       <p className="label crumbs">
         <a href={`#/p/${enc(p.slug)}`}>{p.name}</a> / <a href={back}>Documents</a>
         {data.task && <> / <a href={taskHref(p.slug, data.task)}>{data.task}</a></>}

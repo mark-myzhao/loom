@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Project, Snapshot } from "../server/types";
-import { api, Ctx, enc, go, hashWith, isLive, openCount, useApp, useRoute, type AppCtx } from "./lib";
+import { api, Ctx, day, enc, go, hashWith, isLive, openCount, useApp, useRoute, useScrollMemory, type AppCtx } from "./lib";
 import { Wordmark } from "./ui";
 import { DocPage } from "./views/Doc";
 import { ProjectPage } from "./views/Project";
@@ -13,6 +13,7 @@ function Rail({ snap, current, onSettings }: { snap: Snapshot; current: string[]
   const { act } = useApp();
   const [name, setName] = useState<string | null>(null);
   const open = snap.projects.filter((p) => p.status !== "done");
+  const live = snap.runs.filter(isLive).length;
   const finished = snap.projects.filter((p) => p.status === "done");
   const create = async () => {
     if (!name?.trim()) return setName(null);
@@ -22,10 +23,11 @@ function Rail({ snap, current, onSettings }: { snap: Snapshot; current: string[]
       go(`#/p/${enc(p.slug)}`);
     }
   };
+  const on = (is: boolean) => (is ? { className: "on", "aria-current": "page" as const } : {});
   const item = (p: Snapshot["projects"][number]) => {
     const live = snap.runs.some((r) => r.project === p.slug && isLive(r));
     return (
-      <a key={p.slug} href={`#/p/${enc(p.slug)}`} className={current[0] === "p" && current[1] === p.slug ? "on" : ""}>
+      <a key={p.slug} href={`#/p/${enc(p.slug)}`} {...on(current[0] === "p" && current[1] === p.slug)}>
         <span className={`dot st-${p.status}${live ? " live" : ""}`} />
         <span className="rail-name">{p.name}</span>
         {openCount(p) > 0 && <span className="count">{openCount(p)}</span>}
@@ -34,11 +36,11 @@ function Rail({ snap, current, onSettings }: { snap: Snapshot; current: string[]
   };
   return (
     <nav className="rail">
-      <a className="brand" href="#/"><Wordmark /></a>
-      <a href="#/" className={current.length === 0 ? "on" : ""}>Today</a>
-      <a href="#/activity" className={current[0] === "activity" ? "on" : ""}>
+      <a className="brand" href="#/" aria-label="Loom, Today"><Wordmark /></a>
+      <a href="#/" {...on(current.length === 0)}>Today</a>
+      <a href="#/activity" {...on(current[0] === "activity")}>
         Activity
-        {snap.runs.some(isLive) && <span className="dot live st-active" />}
+        {live > 0 && <span className="pill" title="Runs in progress"><span className="dot live" />{live}</span>}
       </a>
       <p className="label">Projects</p>
       {open.map(item)}
@@ -51,8 +53,8 @@ function Rail({ snap, current, onSettings }: { snap: Snapshot; current: string[]
       {finished.map(item)}
       <footer>
         <p>{snap.config.schedule.enabled ? `Daily sync at ${snap.config.schedule.time}` : "Daily sync off"}</p>
-        <p>Last ran {snap.lastDailySync ?? "never"}</p>
-        {snap.lastBackupPush && <p>Backed up {snap.lastBackupPush}</p>}
+        <p title={snap.lastDailySync}>last ran {day(snap.lastDailySync)}</p>
+        {snap.lastBackupPush && <p title={snap.lastBackupPush}>backed up {day(snap.lastBackupPush)}</p>}
         <button className="link" onClick={onSettings}>Settings</button>
       </footer>
     </nav>
@@ -64,20 +66,21 @@ function App() {
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [rev, setRev] = useState(0);
   const [connected, setConnected] = useState(true);
-  const [toasts, setToasts] = useState<{ id: number; text: string }[]>([]);
+  const [toasts, setToasts] = useState<{ id: number; text: string; bad?: boolean }[]>([]);
   const [settings, setSettings] = useState(false);
   const seq = useRef(0);
 
-  const toast = useCallback((text: string) => {
+  const toast = useCallback((text: string, bad?: boolean) => {
     const id = Date.now() + Math.random();
-    setToasts((t) => [...t, { id, text }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 6000);
+    setToasts((t) => [...t, { id, text, bad }]);
+    // A failure stays up longer: it usually has more to read.
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), bad ? 10000 : 5000);
   }, []);
   const refresh = useCallback(() => {
     const mine = ++seq.current;
     api<Snapshot>("GET", "/state").then(
       (s) => mine === seq.current && setSnap(s),
-      (e) => toast((e as Error).message),
+      (e) => toast((e as Error).message, true),
     );
     setRev((r) => r + 1);
   }, [toast]);
@@ -100,7 +103,7 @@ function App() {
           try {
             return await fn();
           } catch (e) {
-            toast((e as Error).message);
+            toast((e as Error).message, true);
             return undefined;
           }
         },
@@ -109,10 +112,23 @@ function App() {
       },
     [snap, rev, toast],
   );
+  const [a, slug, b, c] = route.parts;
+  const project = a === "p" ? snap?.projects.find((p) => p.slug === slug) : undefined;
+  // A project's tabs are one page: switching between them keeps the scroll position.
+  const detail = b === "t" || b === "a";
+  useScrollMemory(route.parts.slice(0, a === "p" && !detail ? 2 : 4).join("/"));
+  const heading = !a ? "Today"
+    : a === "activity" ? "Activity"
+    : !project ? ""
+    : b === "t" && c ? `${c} ${project.tasks.find((t) => t.id === c)?.title ?? ""} · ${project.name}`
+    : b === "a" && c ? `${c} · ${project.name}`
+    : project.name;
+  useEffect(() => {
+    document.title = heading ? `${heading.trim()} · Loom` : "Loom";
+  }, [heading]);
+
   if (!snap || !ctx) return <div className="boot">{connected ? "" : "Waiting for the Loom server…"}</div>;
 
-  const [a, slug, b, c] = route.parts;
-  const project = a === "p" ? snap.projects.find((p) => p.slug === slug) : undefined;
   const runId = route.query.get("run");
   const edit = route.query.has("edit");
   let view;
@@ -135,7 +151,9 @@ function App() {
       {runId && <RunDrawer id={runId} onClose={() => go(hashWith("run", null))} />}
       {settings && <Settings onClose={() => setSettings(false)} />}
       <div className="toasts" role="status">
-        {toasts.map((t) => <div key={t.id} className="toast">{t.text}</div>)}
+        {toasts.map((t) => (
+          <div key={t.id} className={`toast${t.bad ? " bad" : ""}`} title="Dismiss" onClick={() => setToasts((all) => all.filter((x) => x.id !== t.id))}>{t.text}</div>
+        ))}
       </div>
     </Ctx.Provider>
   );
