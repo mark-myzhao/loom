@@ -244,6 +244,7 @@ h1 { font: 600 46px/1.06 var(--serif); letter-spacing: -0.03em; margin-top: 4px;
 .section-head button.link { color: var(--ink); font-weight: 500; }
 .group .section-head { margin-top: 0; }
 .group > .label .progress { margin-left: 10px; }
+.group > .btn-row { margin-top: 12px; }
 
 /* ---------- rows ---------- */
 
