@@ -1,14 +1,14 @@
-// Routing, actions, scheduling and the watcher.
+// Routing, actions, automations and the watcher.
 
 import { existsSync, watch } from "node:fs";
 import { join, sep } from "node:path";
 import index from "../web/index.html";
 import { initBackup, pushIfDue, scheduleBackup } from "./backup";
-import { artifactPrompt, askPrompt, gatewayTools, ingestPrompt, setupPrompt, syncPrompt, taskPrompt } from "./prompts";
+import { artifactPrompt, askPrompt, automationPrompt, gatewayTools, ingestPrompt, setupPrompt, taskPrompt } from "./prompts";
 import { findLiveRun, getRun, hasLiveRuns, initRuns, listRuns, sendMessage, startRun, stopRun, subscribe, type RunInit } from "./runs";
 import * as store from "./store";
 import { DATA, HttpError } from "./store";
-import type { Config, RunMeta, RunSpec, Snapshot, Task, TaskDetail, TaskSummary } from "./types";
+import type { Automation, Config, RunMeta, RunSpec, Snapshot, Task, TaskDetail, TaskSummary } from "./types";
 
 const PORT = Number(process.env.PORT) || 4400;
 const PROD = process.env.NODE_ENV === "production";
@@ -162,13 +162,13 @@ function startTracked(init: RunInit, spec: RunSpec, prompt: string, by: string, 
 
 const firstLine = (text: string, n: number) => (text.trim().split("\n")[0] ?? "").trim().slice(0, n);
 
-function syncSpec(cfg: Config, cwd: string): RunSpec {
+function readerSpec(cfg: Config, cwd: string): RunSpec {
   return {
     cwd,
-    permissionMode: cfg.sync.permissionMode,
-    allowedTools: cfg.sync.allowedTools,
-    disallowedTools: cfg.sync.disallowedTools,
-    ...(cfg.sync.model ? { model: cfg.sync.model } : {}),
+    permissionMode: cfg.reader.permissionMode,
+    allowedTools: cfg.reader.allowedTools,
+    disallowedTools: cfg.reader.disallowedTools,
+    ...(cfg.reader.model ? { model: cfg.reader.model } : {}),
   };
 }
 
@@ -186,7 +186,7 @@ function ensureConnectors(): Promise<void> {
     const { list, enable } = gatewayTools(cfg);
     startRun(
       { kind: "setup", title: "Enable connectors" },
-      { cwd: DATA, permissionMode: cfg.sync.permissionMode, allowedTools: ["ToolSearch", list, enable], disallowedTools: ["Bash"] },
+      { cwd: DATA, permissionMode: cfg.reader.permissionMode, allowedTools: ["ToolSearch", list, enable], disallowedTools: ["Bash"] },
       setupPrompt(cfg),
       (m) => {
         if (m.status === "done") store.saveState({ connectors: wanted });
@@ -204,37 +204,17 @@ function readableProject(slug: string) {
   return p;
 }
 
-async function syncProject(slug: string): Promise<RunMeta> {
-  readableProject(slug);
-  await ensureConnectors();
-  const existing = findLiveRun((m) => m.kind === "sync" && m.project === slug);
+/** One run at a time per automation: starting it again returns the run in progress. */
+async function runAutomation(a: Automation): Promise<RunMeta> {
+  const p = a.project ? readableProject(a.project) : undefined;
+  const existing = findLiveRun((m) => m.kind === "automation" && m.title === a.name);
   if (existing) return existing;
-  const p = readableProject(slug);
+  const init: RunInit = { kind: "automation", title: a.name, ...(p ? { project: p.slug } : {}) };
+  const cwd = p ? store.projectDir(p.slug) : DATA;
+  if (a.kind === "command") return startRun(init, { cwd, shell: true, permissionMode: "", allowedTools: [] }, a.run);
+  await ensureConnectors();
   const cfg = store.loadConfig();
-  // Only the notes present now are archived; one added mid-run waits for the next sync.
-  const pending = store.listInbox(slug);
-  return startTracked(
-    { kind: "sync", title: `Sync: ${p.name}`, project: slug },
-    syncSpec(cfg, store.projectDir(slug)), syncPrompt(cfg, p), "claude",
-    (m) => {
-      if (m.status === "done") store.archiveInbox(slug, pending);
-    },
-  );
-}
-
-async function syncAll(): Promise<RunMeta[]> {
-  const runs: RunMeta[] = [];
-  for (const slug of store.listProjectSlugs()) {
-    const p = store.readProject(slug);
-    if (p.error || p.status !== "active") continue;
-    if (!p.sources.length && !store.listInbox(slug).length) continue;
-    try {
-      runs.push(await syncProject(slug));
-    } catch (e) {
-      console.error(`sync ${slug}:`, (e as Error).message);
-    }
-  }
-  return runs;
+  return startTracked(init, readerSpec(cfg, cwd), automationPrompt(cfg, a.run, p), "claude");
 }
 
 const needText = (v: unknown, what = "text"): string =>
@@ -244,14 +224,14 @@ async function ingest(textIn: unknown, slugIn?: unknown): Promise<RunMeta> {
   const text = needText(textIn);
   const p = slugIn ? readableProject(store.checkSlug(slugIn)) : undefined;
   // The original is on disk before anything else can fail.
-  const file = store.saveInbox(undefined, text);
+  const file = store.saveInbox(text);
   await ensureConnectors();
   const cfg = store.loadConfig();
   return startTracked(
     { kind: "ingest", title: `Ingest: ${firstLine(text, 60)}`, ...(p ? { project: p.slug } : {}) },
-    syncSpec(cfg, DATA), ingestPrompt(cfg, text, p), "claude",
+    readerSpec(cfg, DATA), ingestPrompt(cfg, text, p), "claude",
     (m) => {
-      if (m.status === "done") store.archiveInbox(undefined, [file]);
+      if (m.status === "done") store.archiveInbox(file);
     },
   );
 }
@@ -262,7 +242,7 @@ async function ask(slug: string, textIn: unknown): Promise<RunMeta> {
   await ensureConnectors();
   const cfg = store.loadConfig();
   const p = readableProject(slug);
-  return startTracked({ kind: "ask", title: firstLine(text, 70), project: slug }, syncSpec(cfg, store.projectDir(slug)), askPrompt(cfg, p, text), "claude");
+  return startTracked({ kind: "ask", title: firstLine(text, 70), project: slug }, readerSpec(cfg, store.projectDir(slug)), askPrompt(cfg, p, text), "claude");
 }
 
 async function generateArtifact(slug: string, textIn: unknown, taskIdIn?: unknown): Promise<RunMeta> {
@@ -277,7 +257,7 @@ async function generateArtifact(slug: string, textIn: unknown, taskIdIn?: unknow
   const task = taskId ? tasks.find((t) => t.id === taskId) : undefined;
   return startTracked(
     { kind: "artifact", title: `Document: ${firstLine(text, 60)}`, project: slug, ...(task ? { taskId: task.id } : {}) },
-    syncSpec(cfg, store.projectDir(slug)),
+    readerSpec(cfg, store.projectDir(slug)),
     artifactPrompt(cfg, p, text, task, task ? store.ancestorsOf(tasks, task.id) : []),
     "claude",
   );
@@ -330,22 +310,31 @@ function delegate(slug: string, taskId: string, body: { repoPath?: unknown; inst
 
 // ---------- daily schedule ----------
 
-/** Checked every minute, so a machine that slept through the time still syncs, once per day. */
+const hhmm = (d = new Date()) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+
+/** Records that an automation's daily run is settled for today, so the tick leaves it until tomorrow. */
+const markRan = (id: string) => store.saveState({ automationRan: { ...store.loadState().automationRan, [id]: store.today() } });
+
+/** Checked every minute, so a machine that slept through an automation's time still runs it, once per day. */
 function scheduleTick() {
   void pushIfDue().catch((e) => console.error("backup push:", (e as Error).message));
   try {
-    const { schedule } = store.loadConfig();
-    if (!schedule.enabled) return;
-    const now = new Date();
-    const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-    const day = store.today(now);
-    if (hhmm < schedule.time || store.loadState().lastDailySync === day) return;
-    // Recorded before dispatch: a crash here skips the day rather than repeating it.
-    store.saveState({ lastDailySync: day });
-    void syncAll().catch((e) => console.error("daily sync:", e));
+    for (const a of store.listAutomations()) {
+      if (!a.enabled || !a.time || hhmm() < a.time || store.loadState().automationRan?.[a.id] === store.today()) continue;
+      // Recorded before dispatch: a crash here skips the day rather than repeating it.
+      markRan(a.id);
+      void runAutomation(a).catch((e) => console.error(`automation ${a.name}:`, (e as Error).message));
+    }
   } catch (e) {
     console.error("schedule:", (e as Error).message);
   }
+}
+
+/** An automation saved after its time of day waits for tomorrow instead of firing at the next tick. */
+function saveAutomation(id: string | undefined, input: Record<string, unknown>): Automation {
+  const a = store.saveAutomation(id, input);
+  if (a.time && a.time <= hhmm()) markRan(a.id);
+  return a;
 }
 
 // ---------- reads ----------
@@ -356,12 +345,11 @@ function snapshot(): Snapshot {
   return {
     dataDir: DATA,
     config: store.loadConfig(),
-    lastDailySync: store.loadState().lastDailySync,
+    automations: store.listAutomations(),
     lastBackupPush: store.loadState().lastBackupPush,
     projects: store.listProjectSlugs().map((slug) => ({
       ...store.readProject(slug),
       tasks: store.listTasks(slug).map(summary),
-      pendingNotes: store.listInbox(slug).length,
     })),
     runs: listRuns(150),
   };
@@ -439,7 +427,12 @@ async function api(req: Request, url: URL): Promise<Response> {
     const b = await readBody(req);
     return json(await ingest(b.text, b.project));
   }
-  if (is("POST", "sync-all")) return json(await syncAll());
+
+  if (is("POST", "automations")) return json(saveAutomation(undefined, await readBody(req)));
+  if (is("PUT", "automations", null)) return json(saveAutomation(seg[1], await readBody(req)));
+  if (is("DELETE", "automations", null)) return store.deleteAutomation(seg[1]!), json({ ok: true });
+  if (is("POST", "automations", null, "run"))
+    return json(await runAutomation(store.listAutomations().find((a) => a.id === seg[1]) ?? bad("no such automation", 404)));
 
   if (seg[0] === "runs" && seg[1]) {
     const run = getRun(seg[1]) ?? bad("no such run", 404);
@@ -475,7 +468,6 @@ async function api(req: Request, url: URL): Promise<Response> {
 
     if (P("PATCH")) return json(store.patchProject(slug, await readBody(req)));
     if (P("DELETE")) return store.deleteProject(slug), json({ ok: true });
-    if (P("POST", "sync")) return json(await syncProject(slug));
     if (P("POST", "ask")) return json(await ask(slug, (await readBody(req)).text));
 
     if (P("POST", "sources")) {
@@ -488,10 +480,6 @@ async function api(req: Request, url: URL): Promise<Response> {
       return json(store.addRepo(slug, b.path, b.name));
     }
     if (P("DELETE", "repos", null)) return json(store.removeRepo(slug, seg[3]!));
-
-    if (P("GET", "notes")) return json(store.readInbox(slug));
-    if (P("POST", "notes")) return json({ file: store.saveInbox(slug, needText((await readBody(req)).text)) });
-    if (P("DELETE", "notes", null)) return store.deleteInboxNote(slug, seg[3]!), json({ ok: true });
 
     if (P("POST", "tasks")) return json(store.createTask(slug, await readBody(req), "me"));
     if (seg[2] === "tasks" && seg[3]) {

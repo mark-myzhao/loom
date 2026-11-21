@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { RunMeta } from "../../server/types";
-import { ago, api, buildTree, enc, GROUPS, isLive, onSubmitKey, sortTasks, useApp } from "../lib";
+import { api, buildTree, enc, GROUPS, isLive, onSubmitKey, sortTasks, useApp } from "../lib";
 import { Select } from "../controls";
 import { Empty, RunList, RunRow, TaskRow } from "../ui";
 
@@ -39,7 +39,7 @@ export function DropBox() {
 }
 
 export function Today() {
-  const { snap, act, toast } = useApp();
+  const { snap } = useApp();
   const active = snap.projects.filter((p) => p.status === "active");
   const live = snap.runs.filter(isLive);
   const open = useMemo(
@@ -52,10 +52,6 @@ export function Today() {
       ),
     [snap],
   );
-  const syncAll = async () => {
-    const runs = await act(() => api<RunMeta[]>("POST", "/sync-all"));
-    if (runs) toast(runs.length ? `Syncing ${runs.length} project${runs.length === 1 ? "" : "s"}.` : "No active project has sources or pending notes to sync.");
-  };
   return (
     <div className="page">
       <header className="page-head">
@@ -63,7 +59,6 @@ export function Today() {
           <p className="label">Today</p>
           <h1>{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</h1>
         </div>
-        <button onClick={syncAll}>Sync all projects</button>
       </header>
 
       <DropBox />
@@ -97,12 +92,11 @@ export function Today() {
               return (
                 <a key={p.slug} className="card project-card" href={`#/p/${enc(p.slug)}`}>
                   <h4>{p.name}</h4>
-                  <p className="clamp">{p.error ? p.error : p.summary || "No summary yet. A sync writes one."}</p>
+                  <p className="clamp">{p.error ? p.error : p.summary || "No summary yet."}</p>
                   <p className="card-meta">
                     <span>{p.tasks.filter((t) => t.status !== "done").length} open</span>
                     {n("review") > 0 && <span className="c-slate">{n("review")} to review</span>}
                     {n("blocked") > 0 && <span className="c-bad">{n("blocked")} blocked</span>}
-                    <span className="right">synced {ago(p.lastSyncedAt)}</span>
                   </p>
                 </a>
               );

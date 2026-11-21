@@ -11,6 +11,7 @@ This file is generated: the server overwrites it on every start. Do not edit it 
 ```
 CLAUDE.md                     this file (generated)
 config.json, state.json       app-owned settings and runtime state. Leave them alone.
+automations.json              the owner's saved automations (app-owned). Leave it alone.
 inbox/<timestamp>.md          unrouted drops from the owner; inbox/processed/ holds absorbed ones
 projects/<slug>/
   project.json                project metadata
@@ -19,7 +20,6 @@ projects/<slug>/
   memory/<entry>.md           one durable fact per file
   memory/MEMORY.md            index of the entries (generated; never edit it)
   artifacts/<name>.md|.html   whole documents
-  inbox/<timestamp>.md        the owner's quick notes awaiting a sync; inbox/processed/ when absorbed
 runs/                         app-owned run metadata and transcripts. Leave them alone.
 .trash/                       recoverable deletes. Leave it alone.
 ```
@@ -45,11 +45,10 @@ quote. Omit fields that are empty.
   "repos": [{ "name": "checkout", "path": "/abs/path/to/checkout" }],
   "sources": [
     { "id": "k3x9ab", "kind": "gdoc", "url": "https://…", "title": "Weekly notes",
-      "addedAt": "2026-01-05T10:00:00.000Z", "lastSyncedAt": "2026-01-06T08:30:00.000Z" }
+      "addedAt": "2026-01-05T10:00:00.000Z" }
   ],
   "createdAt": "2026-01-05T10:00:00.000Z",
-  "updatedAt": "2026-01-06T08:30:00.000Z",
-  "lastSyncedAt": "2026-01-06T08:30:00.000Z"
+  "updatedAt": "2026-01-06T08:30:00.000Z"
 }
 ```
 
@@ -217,7 +216,7 @@ Source: the weekly sync of 2026-01-05.
 
 ## Inbox
 
-Files directly inside an `inbox/` folder are raw notes from the owner, to be treated as
+Files directly inside `inbox/` are raw notes from the owner, to be treated as
 true. Do not move or delete them: the app archives them to `inbox/processed/` after the
 run that absorbed them succeeds.
 

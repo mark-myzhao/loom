@@ -16,7 +16,6 @@ export interface Source {
   url: string;
   title?: string;
   addedAt: string;
-  lastSyncedAt?: string;
 }
 
 export interface Repo {
@@ -33,7 +32,6 @@ export interface Project {
   sources: Source[];
   createdAt?: string;
   updatedAt?: string;
-  lastSyncedAt?: string;
   /** Set in memory only, when project.json could not be read. */
   error?: string;
 }
@@ -111,13 +109,21 @@ export function memoryOver(description: string, body: string): string | undefine
   return over.length ? `trim ${over.join(" and ")}` : undefined;
 }
 
-export interface InboxNote {
-  file: string;
-  text: string;
-  modifiedAt: string;
+/** Something the owner set up to run on demand or every day: a shell command or a Claude prompt. */
+export interface Automation {
+  id: string;
+  name: string;
+  kind: "command" | "claude";
+  /** The shell command, or the instructions for the Claude session. */
+  run: string;
+  /** Runs in this project's directory; the data directory without one. */
+  project?: string;
+  /** Local "HH:MM" to run at every day. Empty: only when started by hand. */
+  time: string;
+  enabled: boolean;
 }
 
-export type RunKind = "sync" | "ingest" | "ask" | "artifact" | "task" | "setup";
+export type RunKind = "automation" | "ingest" | "ask" | "artifact" | "task" | "setup";
 export type RunStatus = "queued" | "running" | "done" | "failed" | "stopped" | "interrupted";
 
 export interface RunSpec {
@@ -128,6 +134,8 @@ export interface RunSpec {
   model?: string;
   addDirs?: string[];
   worktree?: string;
+  /** The prompt is a shell command to run, not instructions for Claude. */
+  shell?: boolean;
 }
 
 export interface RunMeta {
@@ -153,17 +161,17 @@ export interface Config {
   ownerName: string;
   claudeBin: string;
   maxConcurrentRuns: number;
-  schedule: { enabled: boolean; time: string };
   /** Backends the setup run enables on the gateway. Empty skips the step. */
   connectors: string[];
   /** MCP server that fronts the connectors and needs the enable step. Empty skips it. */
   connectorGateway: string;
-  sync: {
+  /** Sessions that read sources and edit the data files: drops, questions, documents, Claude automations. */
+  reader: {
     model: string;
     permissionMode: string;
     allowedTools: string[];
     disallowedTools: string[];
-    /** The "How to fetch sources" paragraph used by sync-type prompts. */
+    /** The "How to fetch sources" paragraph included in their prompts. */
     fetchInstructions: string;
   };
   agent: {
@@ -175,7 +183,8 @@ export interface Config {
 }
 
 export interface AppState {
-  lastDailySync?: string;
+  /** Automation id to the local date its daily run was last started. */
+  automationRan?: Record<string, string>;
   /** Local date of the last successful push of the data repository to its remote. */
   lastBackupPush?: string;
   connectors?: string;
@@ -183,14 +192,13 @@ export interface AppState {
 
 export interface ProjectSnapshot extends Project {
   tasks: TaskSummary[];
-  pendingNotes: number;
 }
 
 /** GET /api/state */
 export interface Snapshot {
   dataDir: string;
   config: Config;
-  lastDailySync?: string;
+  automations: Automation[];
   lastBackupPush?: string;
   projects: ProjectSnapshot[];
   /** The most recent runs, newest first (at most 150). */

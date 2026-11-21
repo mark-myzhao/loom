@@ -4,6 +4,8 @@ A local, single-user project notebook kept up to date by headless Claude Code se
 Drop in meeting notes or links; Claude files them under the right project, keeps a small
 per-project memory, and pulls out your action items as tasks. Any task can be handed to a
 coding agent that works in a local checkout and reports back on the task's timeline.
+Automations run a shell command or a Claude prompt of your own on demand, or every day at a
+time you choose.
 
 Everything is plain markdown and JSON in one data directory, which you can also open in an
 editor. There is no other database.
@@ -14,7 +16,7 @@ editor. There is no other database.
 - Git
 - The [Claude Code](https://claude.com/claude-code) CLI, signed in
 - Optional: read-only MCP connectors (Slack, Google Workspace, GitHub) configured in
-  Claude Code, for syncing private sources. Public links work through WebFetch alone.
+  Claude Code, for reading private sources. Public links work through WebFetch alone.
 
 ## Run
 
@@ -50,9 +52,9 @@ fetch sources" there, and clear "Connector gateway" to skip the one-time enable 
 
 | Path | |
 | --- | --- |
-| `server/index.ts` | Routing, actions, the daily schedule, the file watcher |
+| `server/index.ts` | Routing, actions, the automation schedule, the file watcher |
 | `server/store.ts` | Reads and writes every record |
-| `server/runs.ts` | Spawns, queues, streams and resumes Claude Code sessions |
+| `server/runs.ts` | Spawns, queues, streams and resumes Claude Code sessions and automation commands |
 | `server/prompts.ts` | The instructions for each kind of run |
 | `server/backup.ts` | Git snapshots of the data directory |
 | `server/conventions.md` | The file formats; copied to `<data>/CLAUDE.md` on every start |
@@ -67,9 +69,10 @@ together.
 
 Loom is for one person on one machine. The server binds to loopback, rejects foreign `Host`
 and `Origin` headers, and requires JSON for mutations; there is no authentication.
-Sessions that read outside sources can edit data files but have no shell. Coding agents get
-a shell in the repository you choose, in a separate git worktree by default, and are told
-not to push or post. HTML documents render in a sandboxed frame. Deletes move to
+Sessions that read outside sources, Claude automations included, can edit data files but
+have no shell. Coding agents get a shell in the repository you choose, in a separate git
+worktree by default, and are told not to push or post. A command automation runs whatever
+you wrote, with your own permissions. HTML documents render in a sandboxed frame. Deletes move to
 `<data>/.trash/`, and the data directory is its own git repository that the server commits
 after 30 quiet seconds.
 

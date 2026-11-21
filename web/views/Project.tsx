@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import type { Artifact, ArtifactDetail, InboxNote, MemoryEntry, ProjectSnapshot, RunMeta, Source, Task } from "../../server/types";
+import type { Artifact, ArtifactDetail, MemoryEntry, ProjectSnapshot, RunMeta, Source, Task } from "../../server/types";
 import { PROJECT_STATUSES } from "../../server/types";
-import { ago, api, docHref, enc, go, isLive, onSubmitKey, stamp, taskHref, useApp, useData, useRoute } from "../lib";
+import { ago, api, docHref, enc, go, onSubmitKey, taskHref, useApp, useData, useRoute } from "../lib";
 import { Select } from "../controls";
 import { editable, Empty, KindBadge, Markdown, RunList, TaskGroups } from "../ui";
 import { Graph } from "./Graph";
@@ -14,15 +14,9 @@ export function ProjectPage({ project: p, tab }: { project: ProjectSnapshot; tab
   const base = `/projects/${enc(p.slug)}`;
   const current: Tab = (TABS as readonly string[]).includes(tab) ? (tab as Tab) : "tasks";
   const runs = snap.runs.filter((r) => r.project === p.slug);
-  const syncing = runs.find((r) => r.kind === "sync" && isLive(r));
   const [question, setQuestion] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
 
-  const sync = async () => {
-    if (syncing) return openRun(syncing.id);
-    const run = await act(() => api<RunMeta>("POST", `${base}/sync`));
-    if (run) openRun(run.id);
-  };
   const ask = async () => {
     if (!question.trim()) return;
     const run = await act(() => api<RunMeta>("POST", `${base}/ask`, { text: question }));
@@ -47,12 +41,10 @@ export function ProjectPage({ project: p, tab }: { project: ProjectSnapshot; tab
         <div>
           <p className="label">
             Project ·{" "}
-            <Select className={`inline-select st-${p.status}`} value={p.status} onChange={(status) => act(() => api("PATCH", base, { status }))} aria-label="Project status" options={PROJECT_STATUSES.map((s) => ({ value: s }))} />{" "}
-            · synced {ago(p.lastSyncedAt)}
+            <Select className={`inline-select st-${p.status}`} value={p.status} onChange={(status) => act(() => api("PATCH", base, { status }))} aria-label="Project status" options={PROJECT_STATUSES.map((s) => ({ value: s }))} />
           </p>
           <h1>{p.name}</h1>
         </div>
-        <button onClick={sync} className={syncing ? "is-live" : ""}>{syncing ? "Syncing… view" : "Sync now"}</button>
       </header>
 
       {p.error && <p className="banner bad">This project’s metadata is unreadable: {p.error}. Fix <code>projects/{p.slug}/project.json</code> in an editor.</p>}
@@ -69,7 +61,7 @@ export function ProjectPage({ project: p, tab }: { project: ProjectSnapshot; tab
       ) : (
         <p className={`summary${p.summary ? "" : " muted"}`}>
           <span {...editable(() => !p.error && setEditing(p.summary), "Click to edit the summary")}>
-            {p.summary || "No summary yet. Click to write one, or let a sync do it."}
+            {p.summary || "No summary yet. Click to write one."}
           </span>
         </p>
       )}
@@ -118,7 +110,7 @@ function TasksTab({ p }: { p: ProjectSnapshot }) {
       {p.tasks.length ? (
         <TaskGroups slug={p.slug} tasks={p.tasks} />
       ) : (
-        <Empty>No tasks yet. Type one above, or sync a source and Claude will pull out your action items.</Empty>
+        <Empty>No tasks yet. Type one above, or drop notes on Today and Claude will pull out your action items.</Empty>
       )}
     </>
   );
@@ -321,25 +313,21 @@ function MemoryTab({ slug, sources }: { slug: string; sources: Source[] }) {
 function ContextTab({ p }: { p: ProjectSnapshot }) {
   const { act } = useApp();
   const base = `/projects/${enc(p.slug)}`;
-  const notes = useData<InboxNote[]>(`${base}/notes`);
   const [url, setUrl] = useState("");
   const [repo, setRepo] = useState("");
-  const [note, setNote] = useState("");
   const send = async (path: string, body: object, clear: () => void) => {
     if (await act(() => api("POST", `${base}/${path}`, body))) clear();
   };
-  const addNote = () => note.trim() && send("notes", { text: note }, () => setNote(""));
   return (
     <>
       <section className="group">
         <h3 className="label">Sources <span className="count">{p.sources.length}</span></h3>
-        {!p.sources.length && <Empty>No sources. Add the docs, threads and links a sync should re-read.</Empty>}
+        {!p.sources.length && <Empty>No sources. Add the docs, threads and links this project draws on.</Empty>}
         {p.sources.map((s) => (
           <div key={s.id} className="row">
             <span className="tag">{s.kind}</span>
             <a className="row-title" href={s.url} target="_blank" rel="noopener noreferrer">{s.title || s.url}</a>
             <span className="row-meta">
-              <span>synced {ago(s.lastSyncedAt)}</span>
               <button className="link danger" onClick={() => confirm("Remove this source?") && act(() => api("DELETE", `${base}/sources/${enc(s.id)}`))}>Remove</button>
             </span>
           </div>
@@ -360,23 +348,6 @@ function ContextTab({ p }: { p: ProjectSnapshot }) {
           </div>
         ))}
         <input className="add-line" value={repo} placeholder="Add a codebase: absolute path to a local checkout, then Enter" onChange={(e) => setRepo(e.target.value)} onKeyDown={(e) => e.key === "Enter" && repo.trim() && send("repos", { path: repo }, () => setRepo(""))} />
-      </section>
-
-      <section className="group">
-        <h3 className="label">Quick notes awaiting sync <span className="count">{notes.data?.length ?? p.pendingNotes}</span></h3>
-        {notes.data?.map((n) => (
-          <div key={n.file} className="note">
-            <pre>{n.text.trim()}</pre>
-            <span className="row-meta">
-              <span>{stamp(n.modifiedAt)}</span>
-              <button className="link danger" onClick={() => confirm("Delete this note?") && act(() => api("DELETE", `${base}/notes/${enc(n.file)}`))}>Delete</button>
-            </span>
-          </div>
-        ))}
-        <div className="compose">
-          <textarea rows={2} value={note} placeholder="Jot a note. The next sync absorbs it into tasks and memory." onChange={(e) => setNote(e.target.value)} onKeyDown={onSubmitKey(addNote)} />
-          <button disabled={!note.trim()} onClick={addNote}>Add note</button>
-        </div>
       </section>
 
       <section className="group">

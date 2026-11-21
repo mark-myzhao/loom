@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import type { Project, Snapshot } from "../server/types";
 import { api, Ctx, day, enc, go, hashWith, isLive, openCount, useApp, useRoute, useScrollMemory, type AppCtx } from "./lib";
 import { Wordmark } from "./ui";
+import { Automations } from "./views/Automations";
 import { DocPage } from "./views/Doc";
 import { ProjectPage } from "./views/Project";
 import { RunDrawer, Settings } from "./views/RunDrawer";
@@ -42,6 +43,7 @@ function Rail({ snap, current, onSettings }: { snap: Snapshot; current: string[]
         Activity
         {live > 0 && <span className="pill" title="Runs in progress"><span className="dot live" />{live}</span>}
       </a>
+      <a href="#/automations" {...on(current[0] === "automations")}>Automations</a>
       <p className="label">Projects</p>
       {open.map(item)}
       {name === null ? (
@@ -52,8 +54,6 @@ function Rail({ snap, current, onSettings }: { snap: Snapshot; current: string[]
       {finished.length > 0 && <p className="label">Finished</p>}
       {finished.map(item)}
       <footer>
-        <p>{snap.config.schedule.enabled ? `Daily sync at ${snap.config.schedule.time}` : "Daily sync off"}</p>
-        <p title={snap.lastDailySync}>last ran {day(snap.lastDailySync)}</p>
         {snap.lastBackupPush && <p title={snap.lastBackupPush}>backed up {day(snap.lastBackupPush)}</p>}
         <button className="link" onClick={onSettings}>Settings</button>
       </footer>
@@ -119,6 +119,7 @@ function App() {
   useScrollMemory(route.parts.slice(0, a === "p" && !detail ? 2 : 4).join("/"));
   const heading = !a ? "Today"
     : a === "activity" ? "Activity"
+    : a === "automations" ? "Automations"
     : !project ? ""
     : b === "t" && c ? `${c} ${project.tasks.find((t) => t.id === c)?.title ?? ""} · ${project.name}`
     : b === "a" && c ? `${c} · ${project.name}`
@@ -134,6 +135,7 @@ function App() {
   let view;
   if (!a) view = <Today />;
   else if (a === "activity") view = <Activity />;
+  else if (a === "automations") view = <Automations />;
   else if (a === "p" && project && b === "t" && c) view = <TaskPage project={project} id={c} edit={edit} />;
   else if (a === "p" && project && b === "a" && c) view = <DocPage project={project} name={c} edit={edit} />;
   else if (a === "p" && project) view = <ProjectPage project={project} tab={b ?? "tasks"} />;

@@ -20,6 +20,17 @@ export function DocPage({ project: p, name, edit }: { project: ProjectSnapshot; 
   useEffect(() => {
     if (edit && data && draft === null) setDraft(data.content);
   }, [edit, !!data]);
+  // An HTML artifact can save a new version of itself. Only this document's own
+  // frame is heard, so a page can rewrite nothing but its own file.
+  useEffect(() => {
+    const onMessage = async (e: MessageEvent) => {
+      const frame = document.querySelector<HTMLIFrameElement>(".doc-frame");
+      if (!frame || e.source !== frame.contentWindow || typeof e.data?.loomSave !== "string") return;
+      if (await act(() => api("PUT", base, { content: e.data.loomSave }))) reload();
+    };
+    addEventListener("message", onMessage);
+    return () => removeEventListener("message", onMessage);
+  }, [base]);
 
   if (error) return <div className="page"><p className="banner bad">{error}</p><a href={back}>← Documents</a></div>;
   if (!data) return <div className="page" />;
@@ -59,7 +70,8 @@ export function DocPage({ project: p, name, edit }: { project: ProjectSnapshot; 
             </>
           ) : (
             <>
-              <button onClick={() => go(hashWith("edit", ""))}>Edit source</button>
+              {data.kind === "md" && <button onClick={() => go(hashWith("edit", ""))}>Edit source</button>}
+              {data.kind === "html" && <a className="button" href={`/api${base}/raw`} target="_blank" rel="noopener noreferrer">Open page</a>}
               <a className="button" href={`/api${base}/raw?view=source`} target="_blank" rel="noopener noreferrer">Raw</a>
               <button className="danger" onClick={remove}>Delete</button>
             </>

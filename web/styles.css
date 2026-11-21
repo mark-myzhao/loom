@@ -90,7 +90,6 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 button.primary:hover:not(:disabled) { background: var(--ink); border-color: var(--ink); color: var(--paper); }
 button.danger { border-color: var(--bad); color: var(--bad); }
 button.danger:hover:not(:disabled) { background: var(--bad); color: var(--paper); }
-button.is-live { border-color: var(--accent); color: var(--accent); animation: pulse 1.6s ease-in-out infinite; }
 button.wide { width: 100%; }
 button.link {
   border: 0; padding: 0; background: none; box-shadow: none; color: var(--ink-2); font: inherit;
@@ -344,8 +343,6 @@ a.row-title:hover { text-decoration: underline; text-decoration-color: var(--acc
 .tabs + * { margin-top: 20px; }
 .compose { display: flex; gap: 8px; align-items: flex-end; margin-top: 12px; }
 .compose textarea { flex: 1; }
-.note { display: flex; gap: 14px; align-items: flex-start; padding: 10px 2px; border-bottom: 1px solid var(--rule-2); }
-.note pre { flex: 1; margin: 0; white-space: pre-wrap; font: inherit; }
 
 .memory-intro { display: flex; justify-content: space-between; align-items: flex-start; gap: 32px; }
 .memory-intro p { max-width: 52ch; color: var(--ink-2); }
@@ -524,10 +521,11 @@ a.row-title:hover { text-decoration: underline; text-decoration-color: var(--acc
 .transcript { display: grid; gap: 14px; }
 .transcript > * { min-width: 0; }
 .prompt summary, .tool summary { cursor: pointer; }
-.prompt pre, .tool pre {
+.prompt pre, .tool pre, .output {
   background: var(--sunk); border-radius: 3px; padding: 10px 12px; margin: 8px 0 0;
   max-height: 320px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px;
 }
+.transcript > .output { margin: 0; max-height: none; }
 .tool { border-left: 2px solid var(--rule); padding-left: 12px; font: 12px/1.5 var(--mono); color: var(--ink-2); }
 .tool summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tool-name { color: var(--slate); font-weight: 500; }

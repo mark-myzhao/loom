@@ -78,6 +78,7 @@ function Transcript({ lines }: { lines: Line[] }) {
     }
     return map;
   }, [lines]);
+  const output = useMemo(() => lines.filter((l) => l.type === "dash_output").map((l) => l.text).join("\n"), [lines]);
 
   return (
     <div className="transcript">
@@ -85,6 +86,9 @@ function Transcript({ lines }: { lines: Line[] }) {
         switch (l.type) {
           case "dash_prompt":
             return <details key={i} className="prompt"><summary className="label">Prompt</summary><pre>{l.text}</pre></details>;
+          case "dash_output":
+            // A command's output arrives line by line; it is shown as one block where it starts.
+            return lines[i - 1]?.type === "dash_output" ? null : <pre key={i} className="output">{output}</pre>;
           case "dash_user":
             return <div key={i} className="owner-msg"><Markdown text={String(l.text ?? "")} /></div>;
           case "system":
@@ -210,7 +214,7 @@ export function Settings({ onClose }: { onClose: () => void }) {
   const { snap, act, toast } = useApp();
   const [c, setC] = useState<Config>(snap.config);
   const set = (patch: Partial<Config>) => setC({ ...c, ...patch });
-  const sync = (patch: Partial<Config["sync"]>) => set({ sync: { ...c.sync, ...patch } });
+  const reader = (patch: Partial<Config["reader"]>) => set({ reader: { ...c.reader, ...patch } });
   const agent = (patch: Partial<Config["agent"]>) => set({ agent: { ...c.agent, ...patch } });
   const save = async () => {
     if (await act(() => api("PUT", "/config", c))) {
@@ -232,21 +236,17 @@ export function Settings({ onClose }: { onClose: () => void }) {
           <input type="number" min={1} max={8} value={c.maxConcurrentRuns} onChange={(e) => set({ maxConcurrentRuns: Number(e.target.value) })} />
         </label>
 
-        <h3 className="label">Daily sync</h3>
-        <label className="check"><input type="checkbox" checked={c.schedule.enabled} onChange={(e) => set({ schedule: { ...c.schedule, enabled: e.target.checked } })} /> Sync active projects every day</label>
-        <label>At (local time)<input type="time" value={c.schedule.time} onChange={(e) => set({ schedule: { ...c.schedule, time: e.target.value } })} /></label>
-
         <h3 className="label">Sessions that read sources</h3>
-        <label>Model <small>Empty uses the CLI default.</small><input value={c.sync.model} onChange={(e) => sync({ model: e.target.value })} /></label>
-        <label>Permission mode<input value={c.sync.permissionMode} onChange={(e) => sync({ permissionMode: e.target.value })} /></label>
+        <label>Model <small>Empty uses the CLI default.</small><input value={c.reader.model} onChange={(e) => reader({ model: e.target.value })} /></label>
+        <label>Permission mode<input value={c.reader.permissionMode} onChange={(e) => reader({ permissionMode: e.target.value })} /></label>
         <label>Allowed tools <small>One per line. Keep these read-only.</small>
-          <ListInput rows={6} value={c.sync.allowedTools} onChange={(allowedTools) => sync({ allowedTools })} />
+          <ListInput rows={6} value={c.reader.allowedTools} onChange={(allowedTools) => reader({ allowedTools })} />
         </label>
         <label>Disallowed tools <small>Keep Bash here: acceptEdits approves read-only shell commands even when Bash is not allowed.</small>
-          <ListInput value={c.sync.disallowedTools} onChange={(disallowedTools) => sync({ disallowedTools })} />
+          <ListInput value={c.reader.disallowedTools} onChange={(disallowedTools) => reader({ disallowedTools })} />
         </label>
         <label>How to fetch sources <small>Included in every source-reading prompt.</small>
-          <textarea rows={7} value={c.sync.fetchInstructions} onChange={(e) => sync({ fetchInstructions: e.target.value })} />
+          <textarea rows={7} value={c.reader.fetchInstructions} onChange={(e) => reader({ fetchInstructions: e.target.value })} />
         </label>
         <label>Connector gateway <small>MCP server whose backends must be enabled once before use. Empty skips that step.</small>
           <input value={c.connectorGateway} onChange={(e) => set({ connectorGateway: e.target.value })} />

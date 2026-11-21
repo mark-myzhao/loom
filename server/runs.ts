@@ -1,4 +1,5 @@
-// The run manager: spawns, queues, streams and resumes headless Claude Code sessions.
+// The run manager: spawns, queues, streams and resumes headless Claude Code sessions, and runs
+// the shell commands of automations through the same queue.
 
 import { appendFile } from "node:fs/promises";
 import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
@@ -135,13 +136,15 @@ async function execute(a: Active, job: Job) {
   // The child must not think it is nested inside another Claude Code session.
   for (const k of ["CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", "CLAUDE_CODE_SSE_PORT"]) delete env[k];
 
+  const { shell } = meta.spec;
   let proc: ReturnType<typeof Bun.spawn>;
   try {
-    proc = Bun.spawn([bin, ...buildArgs(meta, job.resume)], {
-      cwd, env, stdin: new TextEncoder().encode(job.prompt), stdout: "pipe", stderr: "pipe",
+    // A command's stderr joins its stdout, so the transcript shows both in order.
+    proc = Bun.spawn(shell ? ["sh", "-c", `exec 2>&1\n${job.prompt}`] : [bin, ...buildArgs(meta, job.resume)], {
+      cwd, env, stdin: shell ? "ignore" : new TextEncoder().encode(job.prompt), stdout: "pipe", stderr: "pipe",
     });
   } catch (e) {
-    return finish(a, "failed", `could not run ${bin}: ${(e as Error).message}`);
+    return finish(a, "failed", `could not run ${shell ? "sh" : bin}: ${(e as Error).message}`);
   }
   a.proc = proc;
   meta.status = "running";
@@ -159,6 +162,7 @@ async function execute(a: Active, job: Job) {
   })().catch(() => {});
 
   const handle = (raw: string) => {
+    if (shell) return emit(a, { type: "dash_output", text: raw });
     if (!raw.trim()) return;
     let line: Line;
     try {
@@ -195,7 +199,7 @@ async function execute(a: Active, job: Job) {
         buf = buf.slice(nl + 1);
       }
     }
-    handle(buf);
+    if (buf) handle(buf);
   } catch {
     // The read loop ends when the process is killed.
   }
@@ -204,7 +208,7 @@ async function execute(a: Active, job: Job) {
 
   if (a.stopRequested) return finish(a, "stopped");
   if (code !== 0 || resultError) {
-    const error = stderr.trim().slice(-1500) || (resultError ? resultText : "") || `claude exited with code ${code}`;
+    const error = stderr.trim().slice(-1500) || (resultError ? resultText : "") || `${shell ? "the command" : "claude"} exited with code ${code}`;
     return finish(a, "failed", error);
   }
   return finish(a, "done");

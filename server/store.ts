@@ -8,7 +8,7 @@ import {
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import {
   memoryOver, PRIORITIES, PROJECT_STATUSES, SOURCE_KINDS, TASK_STATUSES,
-  type AppState, type Artifact, type ArtifactDetail, type Config, type InboxNote, type MemoryEntry,
+  type AppState, type Artifact, type ArtifactDetail, type Automation, type Config, type MemoryEntry,
   type Priority, type Project, type Repo, type Source, type SourceKind, type Task, type TaskStatus,
   type TimelineEvent,
 } from "./types";
@@ -204,10 +204,9 @@ export const DEFAULT_CONFIG: Config = {
   ownerName: "",
   claudeBin: "claude",
   maxConcurrentRuns: 3,
-  schedule: { enabled: true, time: "08:30" },
   connectors: ["slack", "gws", "github"],
   connectorGateway: DEFAULT_GATEWAY,
-  sync: {
+  reader: {
     model: "",
     permissionMode: "acceptEdits",
     allowedTools: [
@@ -229,15 +228,15 @@ export const DEFAULT_CONFIG: Config = {
 const configPath = () => join(DATA, "config.json");
 const statePath = () => join(DATA, "state.json");
 
-/** Stored values over defaults, one level deep for schedule, sync and agent. Read on every action. */
+/** Stored values over defaults, one level deep for reader and agent. Read on every action. */
 export function loadConfig(): Config {
-  const s = (readJson<Partial<Config>>(configPath()) ?? {}) as Partial<Config>;
+  // "sync" is the former name of "reader", so settings saved under it still apply; "schedule" is gone.
+  const { sync, schedule: _gone, ...s } = (readJson(configPath()) ?? {}) as Partial<Config> & { sync?: Partial<Config["reader"]>; schedule?: unknown };
   const d = DEFAULT_CONFIG;
   return {
     ...d,
     ...s,
-    schedule: { ...d.schedule, ...(s.schedule ?? {}) },
-    sync: { ...d.sync, ...(s.sync ?? {}) },
+    reader: { ...d.reader, ...(sync ?? {}), ...(s.reader ?? {}) },
     agent: { ...d.agent, ...(s.agent ?? {}) },
   };
 }
@@ -252,27 +251,24 @@ export function saveConfig(patch: Partial<Config>): Config {
   const next: Config = {
     ...cur,
     ...patch,
-    schedule: { ...cur.schedule, ...(patch.schedule ?? {}) },
-    sync: { ...cur.sync, ...(patch.sync ?? {}) },
+    reader: { ...cur.reader, ...(patch.reader ?? {}) },
     agent: { ...cur.agent, ...(patch.agent ?? {}) },
   };
   if (typeof next.ownerName !== "string" || typeof next.claudeBin !== "string" || !next.claudeBin.trim())
     bad("ownerName and claudeBin must be strings");
   next.maxConcurrentRuns = Math.round(Number(next.maxConcurrentRuns));
   if (!(next.maxConcurrentRuns >= 1 && next.maxConcurrentRuns <= 8)) bad("maxConcurrentRuns must be 1 to 8");
-  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(next.schedule.time)) bad("schedule.time must be HH:MM");
-  next.schedule.enabled = !!next.schedule.enabled;
   next.connectors = strList(next.connectors, "connectors");
   if (typeof next.connectorGateway !== "string" || !/^[\w-]*$/.test(next.connectorGateway))
     bad("connectorGateway must be an MCP server name");
-  next.sync.allowedTools = strList(next.sync.allowedTools, "sync.allowedTools");
-  next.sync.disallowedTools = strList(next.sync.disallowedTools, "sync.disallowedTools");
+  next.reader.allowedTools = strList(next.reader.allowedTools, "reader.allowedTools");
+  next.reader.disallowedTools = strList(next.reader.disallowedTools, "reader.disallowedTools");
   next.agent.allowedTools = strList(next.agent.allowedTools, "agent.allowedTools");
   next.agent.useWorktree = !!next.agent.useWorktree;
   for (const k of ["model", "permissionMode"] as const) {
-    if (typeof next.sync[k] !== "string" || typeof next.agent[k] !== "string") bad(`${k} must be a string`);
+    if (typeof next.reader[k] !== "string" || typeof next.agent[k] !== "string") bad(`${k} must be a string`);
   }
-  if (typeof next.sync.fetchInstructions !== "string") bad("sync.fetchInstructions must be a string");
+  if (typeof next.reader.fetchInstructions !== "string") bad("reader.fetchInstructions must be a string");
   writeJson(configPath(), next);
   return next;
 }
@@ -351,11 +347,9 @@ export function readProject(slug: string): Project {
         url: s.url,
         title: str(s.title),
         addedAt: str(s.addedAt) ?? "",
-        lastSyncedAt: str(s.lastSyncedAt),
       })),
     createdAt: str(raw.createdAt),
     updatedAt: str(raw.updatedAt),
-    lastSyncedAt: str(raw.lastSyncedAt),
   };
 }
 
@@ -379,7 +373,7 @@ export function createProject(name: string): Project {
   let slug = base;
   for (let n = 2; existsSync(join(projectsDir(), slug)); n++) slug = `${base}-${n}`;
   const dir = join(projectsDir(), slug);
-  for (const d of ["tasks", "memory", "artifacts", "inbox/processed"]) mkdirSync(join(dir, d), { recursive: true });
+  for (const d of ["tasks", "memory", "artifacts"]) mkdirSync(join(dir, d), { recursive: true });
   const now = nowIso();
   writeJson(join(dir, "project.json"), {
     name: clean, status: "active", summary: "", repos: [], sources: [], createdAt: now, updatedAt: now,
@@ -971,20 +965,17 @@ export function deleteMemory(slug: string, file: string) {
   rebuildMemoryIndex(slug);
 }
 
-// ---------- inboxes ----------
+// ---------- inbox ----------
 
-/** `slug` undefined means the top-level inbox of unrouted drops. */
-const inboxDir = (slug?: string) => (slug ? join(projectDir(slug), "inbox") : join(DATA, "inbox"));
+const inboxDir = () => join(DATA, "inbox");
 
-/** Saves trimmed text with a trailing newline as `<timestamp>.md` and returns the filename. */
-export function saveInbox(slug: string | undefined, text: string): string {
-  const dir = inboxDir(slug);
-  mkdirSync(join(dir, "processed"), { recursive: true });
+/** Saves a drop, trimmed and with a trailing newline, as `<timestamp>.md` and returns the filename. */
+export function saveInbox(text: string): string {
   const base = stamp();
   for (let n = 0; ; n++) {
     const file = n ? `${base}-${n}.md` : `${base}.md`;
     try {
-      writeFileSync(join(dir, file), text.trim() + "\n", { flag: "wx" });
+      writeFileSync(join(inboxDir(), file), text.trim() + "\n", { flag: "wx" });
       return file;
     } catch (e: any) {
       if (e?.code !== "EEXIST" || n > 20) throw e;
@@ -992,42 +983,44 @@ export function saveInbox(slug: string | undefined, text: string): string {
   }
 }
 
-/** Pending notes: plain files directly inside the inbox. Hidden files and subdirectories do not count. */
-export function listInbox(slug?: string): string[] {
-  const dir = inboxDir(slug);
-  return listDir(dir).filter((f) => {
-    if (f.startsWith(".")) return false;
-    try {
-      return statSync(join(dir, f)).isFile();
-    } catch {
-      return false;
-    }
-  });
+export function archiveInbox(file: string) {
+  if (!existsSync(join(inboxDir(), file))) return;
+  let dest = join(inboxDir(), "processed", file);
+  if (existsSync(dest)) dest = join(inboxDir(), "processed", `${stamp()}-${file}`);
+  renameSync(join(inboxDir(), file), dest);
 }
 
-export function readInbox(slug?: string): InboxNote[] {
-  const dir = inboxDir(slug);
-  return listInbox(slug).map((file) => ({
-    file,
-    text: readText(join(dir, file)) ?? "",
-    modifiedAt: statSync(join(dir, file)).mtime.toISOString(),
-  }));
+// ---------- automations ----------
+
+const automationsPath = () => join(DATA, "automations.json");
+
+export const listAutomations = (): Automation[] => readJson<Automation[]>(automationsPath()) ?? [];
+
+/** Replaces the automation with this id, or adds a new one when there is no id. */
+export function saveAutomation(id: string | undefined, input: Record<string, unknown>): Automation {
+  const all = listAutomations();
+  if (id && !all.some((a) => a.id === id)) bad("no such automation", 404);
+  const text = (v: unknown, what: string) => (typeof v === "string" && v.trim() ? v.trim() : bad(`an automation needs ${what}`));
+  if (input.kind !== "command" && input.kind !== "claude") bad("kind must be command or claude");
+  const time = typeof input.time === "string" ? input.time : "";
+  if (time && !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) bad("time must be HH:MM or empty");
+  const project = input.project ? checkSlug(input.project) : undefined;
+  if (project && !isDir(projectDir(project))) bad("no such project", 404);
+  const next: Automation = {
+    id: id ?? randomId(6),
+    name: text(input.name, "a name"),
+    kind: input.kind as Automation["kind"],
+    run: text(input.run, input.kind === "command" ? "a command" : "a prompt"),
+    ...(project ? { project } : {}),
+    time,
+    enabled: input.enabled !== false,
+  };
+  writeJson(automationsPath(), id ? all.map((a) => (a.id === id ? next : a)) : [...all, next]);
+  return next;
 }
 
-export function archiveInbox(slug: string | undefined, files: string[]) {
-  const dir = inboxDir(slug);
-  mkdirSync(join(dir, "processed"), { recursive: true });
-  for (const f of files) {
-    if (!isSafeFile(f) || !existsSync(join(dir, f))) continue;
-    let dest = join(dir, "processed", f);
-    if (existsSync(dest)) dest = join(dir, "processed", `${stamp()}-${f}`);
-    renameSync(join(dir, f), dest);
-  }
-}
-
-export function deleteInboxNote(slug: string, file: string) {
-  if (!isSafeFile(file)) bad("invalid note");
-  const path = join(inboxDir(slug), file);
-  if (!existsSync(path)) bad("no such note", 404);
-  trash(path, slug);
+export function deleteAutomation(id: string) {
+  const all = listAutomations();
+  if (!all.some((a) => a.id === id)) bad("no such automation", 404);
+  writeJson(automationsPath(), all.filter((a) => a.id !== id));
 }

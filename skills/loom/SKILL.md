@@ -1,6 +1,6 @@
 ---
 name: loom
-description: Work with the owner's Loom project dashboard. Use when they ask about their projects, tasks, project memory or documents ("what's on my plate", "what did we decide about X"), want a task, note or memory entry added or changed, or want a task handed to a coding agent or a project synced.
+description: Work with the owner's Loom project dashboard. Use when they ask about their projects, tasks, project memory or documents ("what's on my plate", "what did we decide about X"), want a task, note or memory entry added or changed, or want a task handed to a coding agent or one of their automations run.
 ---
 
 # Loom
@@ -37,9 +37,7 @@ Edit the files as the conventions describe; the server notices. You are not a ru
 Loom started, so record your own timeline events: when you create a task or change its
 status, priority, due date, title, repo or parent, append the matching `created`,
 `status` or `field` event to its `.log.md`, authored `claude`, plus a `comment` saying why
-if it is not obvious. Never edit `MEMORY.md`, `config.json`, `state.json` or `runs/`.
-
-A note the owner wants absorbed later goes in `projects/<slug>/inbox/<timestamp>.md`.
+if it is not obvious. Never edit `MEMORY.md`, `config.json`, `automations.json`, `state.json` or `runs/`.
 
 ## Act: call the API for anything that needs a supervised run
 
@@ -49,8 +47,7 @@ that link.
 
 | To | Call |
 | --- | --- |
-| Sync one project | `POST /api/projects/<slug>/sync` with `{}` |
-| Sync every active project | `POST /api/sync-all` with `{}` |
+| Run a saved automation (`automations` in the snapshot lists them) | `POST /api/automations/<id>/run` with `{}` |
 | File notes or links | `POST /api/ingest` with `{"text": "...", "project": "<slug, optional>"}` |
 | Ask a project a question | `POST /api/projects/<slug>/ask` with `{"text": "..."}` |
 | Have a document written or imported | `POST /api/projects/<slug>/artifacts/generate` with `{"text": "...", "taskId": "T-nnn, optional"}` |

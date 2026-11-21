@@ -9,34 +9,31 @@ const opening = () => `Today is ${today()} and the time is ${nowIso()} (use it f
 
 function owner(cfg: Config): string {
   if (cfg.ownerName.trim()) return `The dashboard owner is ${cfg.ownerName.trim()}.`;
-  if (cfg.sync.allowedTools.some((t) => t.endsWith("slack_who_am_i")))
+  if (cfg.reader.allowedTools.some((t) => t.endsWith("slack_who_am_i")))
     return `Work out who the dashboard owner is by calling slack_who_am_i; that person is "the owner" below.`;
   return `The owner has not set their name in Settings. Where the material does not make clear which person is the owner, do not guess: say so in your final summary.`;
 }
 
-const fetching = (cfg: Config) => cfg.sync.fetchInstructions.trim();
+const fetching = (cfg: Config) => cfg.reader.fetchInstructions.trim();
 
 const WRAP_UP =
   "Finish with a short plain-text summary for the owner: what you read, what changed in memory, which tasks you created or updated (ids), and anything you could not access.";
 
-export function syncPrompt(cfg: Config, p: Project): string {
-  return `You are refreshing one project in the owner's personal dashboard. ${opening()} ${owner(cfg)}
+/** A Claude automation: the owner's saved instructions, run in a project directory or the data directory. */
+export function automationPrompt(cfg: Config, text: string, p?: Project): string {
+  const where = p
+    ? `the data directory of the project "${p.name}" (${projectDir(p.slug)}): project.json, memory/, tasks/, artifacts/`
+    : `the dashboard data directory (${DATA}), with one folder per project under projects/`;
+  return `You are running an automation the owner saved in their personal dashboard. ${opening()} ${owner(cfg)} Nobody is watching this session live, so make reasonable decisions yourself.
 
-Your working directory is this project's data directory (${projectDir(p.slug)}). The file formats are defined in ${DATA}/CLAUDE.md; follow them exactly.
-
-Do this:
-1. Read project.json, memory/MEMORY.md and the entries it lists, and every task in tasks/.
-2. For each entry in project.json "sources", fetch its current content and work out what is new since its lastSyncedAt (everything, if it has none). For Slack channels and long threads, concentrate on messages after lastSyncedAt.
-3. Read every file directly inside inbox/ (ignore inbox/processed/): they are raw notes from the owner, to be treated as true.
-4. Update tasks: create tasks for new action items that belong to the owner, update tasks whose situation changed, tick checklist items that are now complete, and mark tasks done only on clear evidence. Keep each description short and readable; put technical detail in a task artifact. Append a timeline comment to every existing task you change.
-5. Update memory only for what is durable and project-wide: a new or reversed decision, a change of goal, scope or ownership, a new key resource. Most syncs change no memory. For each source that changed, re-check the entries whose "source" is its id: correct or delete what is no longer true and set "updated" to today on the ones you confirmed. Trim every entry MEMORY.md marks as over length, and point to the source rather than copy from it.
-6. In project.json: set lastSyncedAt on each source you fetched successfully, fill in missing source titles, rewrite "summary" as two or three sentences on where the project stands today, and set top-level lastSyncedAt and updatedAt to the current ISO time.
-7. Leave the inbox files where they are; the app archives them after this run.
-8. If nothing is new, change nothing except the lastSyncedAt fields.
+Your working directory is ${where}. The file formats are defined in ${DATA}/CLAUDE.md; follow them exactly whenever you change a file.
 
 ${fetching(cfg)}
 
-${WRAP_UP}`;
+The owner's instructions:
+${text}
+
+Finish with a short plain-text summary for the owner: what you did, which files you changed, and anything you could not access.`;
 }
 
 export function ingestPrompt(cfg: Config, item: string, p?: Project): string {
@@ -58,11 +55,11 @@ ITEM>>>
 
 Do this:
 1. Fetch every link in the item and read it in full. Free text in the item is the owner's own note; treat it as true and as context for the links.
-2. Register each link in the project's project.json "sources" (skip urls already there), with a real title and lastSyncedAt set to now.
+2. Register each link in the project's project.json "sources" (skip urls already there), with a real title.
 3. Read the project's memory (MEMORY.md, then its entries) and tasks/.
 4. Create or update tasks for action items that belong to the owner. Keep each description short and readable; put the detail a task needs (research, technical notes, long excerpts) in a task artifact. Append a timeline comment to every existing task you change.
 5. Add or update memory entries only for what is durable and project-wide: what the project is for, decisions with their reasons, who owns what, where key resources live. A new project usually starts with three to six entries, each a one-sentence fact with a few lines of support at most: point to the source rather than copy from it.
-6. Update the project's "summary", lastSyncedAt and updatedAt.
+6. Update the project's "summary" and updatedAt.
 
 ${fetching(cfg)}
 

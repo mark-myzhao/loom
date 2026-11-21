@@ -243,7 +243,7 @@ export function RunRow({ run, projectName }: { run: RunMeta; projectName?: strin
 
 export function RunList({ runs, withProject }: { runs: RunMeta[]; withProject?: boolean }) {
   const { snap } = useApp();
-  if (!runs.length) return <Empty>No runs yet. Syncs, drops, questions and delegated tasks will appear here.</Empty>;
+  if (!runs.length) return <Empty>No runs yet. Drops, automations, questions and delegated tasks will appear here.</Empty>;
   const names = new Map(snap.projects.map((p) => [p.slug, p.name]));
   return (
     <>
