@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Artifact, ArtifactDetail, InboxNote, MemoryEntry, ProjectSnapshot, RunMeta, Source, Task } from "../../server/types";
 import { PROJECT_STATUSES } from "../../server/types";
 import { ago, api, docHref, enc, go, isLive, onSubmitKey, stamp, taskHref, useApp, useData, useRoute } from "../lib";
+import { Select } from "../controls";
 import { editable, Empty, KindBadge, Markdown, RunList, TaskGroups } from "../ui";
 import { Graph } from "./Graph";
 
@@ -46,9 +47,7 @@ export function ProjectPage({ project: p, tab }: { project: ProjectSnapshot; tab
         <div>
           <p className="label">
             Project ·{" "}
-            <select className={`inline-select st-${p.status}`} value={p.status} onChange={(e) => act(() => api("PATCH", base, { status: e.target.value }))} aria-label="Project status">
-              {PROJECT_STATUSES.map((s) => <option key={s}>{s}</option>)}
-            </select>{" "}
+            <Select className={`inline-select st-${p.status}`} value={p.status} onChange={(status) => act(() => api("PATCH", base, { status }))} aria-label="Project status" options={PROJECT_STATUSES.map((s) => ({ value: s }))} />{" "}
             · synced {ago(p.lastSyncedAt)}
           </p>
           <h1>{p.name}</h1>
@@ -241,7 +240,7 @@ function MemoryForm({ slug, entry, onDone }: { slug: string; entry?: MemoryEntry
     <div className="memory-form shadowed">
       <div className="form-row">
         <input value={f.name} onChange={set("name")} placeholder="entry-name" disabled={!!entry} />
-        <select value={f.type} onChange={set("type")}>{MEMORY_TYPES.map((t) => <option key={t}>{t}</option>)}</select>
+        <Select value={f.type} onChange={(value) => set("type")({ target: { value } })} aria-label="Type" options={MEMORY_TYPES.map((t) => ({ value: t }))} />
       </div>
       <input value={f.description} onChange={set("description")} placeholder="The fact, in one sentence" />
       <textarea rows={4} value={f.body} onChange={set("body")} onKeyDown={onSubmitKey(save)} placeholder="Optional, a few lines: why it matters, how to apply it, then Source: where, date." />

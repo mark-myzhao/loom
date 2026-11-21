@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ProjectSnapshot, RunMeta, Task, TaskDetail, TimelineEvent } from "../../server/types";
 import { PRIORITIES, TASK_STATUSES } from "../../server/types";
 import { ago, api, buildTree, day, descendants, enc, go, hashWith, isLive, onSubmitKey, stamp, STATUS_LABEL, taskHref, useApp, useData } from "../lib";
+import { DateInput, Select } from "../controls";
 import { editable, Empty, Markdown, Progress, RunRow, StatusChip, TaskRow } from "../ui";
 import { ArtifactRows, ArtifactsHead } from "./Project";
 
@@ -52,10 +53,7 @@ function Delegate({ p, task, runs }: { p: ProjectSnapshot; task: Task; runs: Run
       <h3 className="label">Delegate to Claude Code</h3>
       <label>Repository
         {p.repos.length > 0 && (
-          <select value={p.repos.some((r) => r.path === path) ? path : ""} onChange={(e) => setPath(e.target.value)}>
-            <option value="">Another path…</option>
-            {p.repos.map((r) => <option key={r.name} value={r.path}>{r.name}</option>)}
-          </select>
+          <Select value={p.repos.some((r) => r.path === path) ? path : ""} onChange={setPath} options={[{ value: "", label: "Another path…" }, ...p.repos.map((r) => ({ value: r.path, label: r.name }))]} />
         )}
         <input value={path} placeholder="/absolute/path/to/checkout" spellCheck={false} onChange={(e) => setPath(e.target.value)} />
       </label>
@@ -222,30 +220,19 @@ export function TaskPage({ project: p, id, edit }: { project: ProjectSnapshot; i
 
         <aside className="task-side">
           <label>Status
-            <select value={task.status} onChange={(e) => patch({ status: e.target.value })}>
-              {TASK_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
-            </select>
+            <Select value={task.status} onChange={(status) => patch({ status })} options={TASK_STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] }))} />
           </label>
           <label>Priority
-            <select value={task.priority} onChange={(e) => patch({ priority: e.target.value })}>
-              {PRIORITIES.map((s) => <option key={s} value={s}>{s.toUpperCase()}</option>)}
-            </select>
+            <Select value={task.priority} onChange={(priority) => patch({ priority })} options={PRIORITIES.map((s) => ({ value: s, label: s.toUpperCase() }))} />
           </label>
           <label>Due
-            <input type="date" value={task.due ?? ""} onChange={(e) => patch({ due: e.target.value })} />
+            <DateInput value={task.due ?? ""} onChange={(due) => patch({ due })} />
           </label>
           <label>Parent
-            <select value={task.parent ?? ""} onChange={(e) => patch({ parent: e.target.value })}>
-              <option value="">None</option>
-              {p.tasks.filter((t) => t.id !== id && !below.has(t.id)).map((t) => <option key={t.id} value={t.id}>{t.id} {t.title.slice(0, 40)}</option>)}
-            </select>
+            <Select value={task.parent ?? ""} onChange={(parent) => patch({ parent })} options={[{ value: "", label: "None" }, ...p.tasks.filter((t) => t.id !== id && !below.has(t.id)).map((t) => ({ value: t.id, label: `${t.id} ${t.title.slice(0, 40)}` }))]} />
           </label>
           <label>Codebase
-            <select value={task.repo ?? ""} onChange={(e) => patch({ repo: e.target.value })}>
-              <option value="">None</option>
-              {task.repo && !p.repos.some((r) => r.name === task.repo) && <option>{task.repo}</option>}
-              {p.repos.map((r) => <option key={r.name}>{r.name}</option>)}
-            </select>
+            <Select value={task.repo ?? ""} onChange={(repo) => patch({ repo })} options={[{ value: "", label: "None" }, ...(task.repo && !p.repos.some((r) => r.name === task.repo) ? [{ value: task.repo }] : []), ...p.repos.map((r) => ({ value: r.name }))]} />
           </label>
           <hr />
           {task.source && (

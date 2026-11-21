@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { RunMeta } from "../../server/types";
 import { ago, api, buildTree, enc, GROUPS, isLive, onSubmitKey, sortTasks, useApp } from "../lib";
+import { Select } from "../controls";
 import { Empty, RunList, RunRow, TaskRow } from "../ui";
 
 export function DropBox() {
@@ -29,10 +30,7 @@ export function DropBox() {
         onKeyDown={onSubmitKey(submit)}
       />
       <div className="dropbox-foot">
-        <select value={project} onChange={(e) => setProject(e.target.value)} aria-label="Project">
-          <option value="">Let Claude pick the project</option>
-          {active.map((p) => <option key={p.slug} value={p.slug}>{p.name}</option>)}
-        </select>
+        <Select value={project} onChange={setProject} aria-label="Project" options={[{ value: "", label: "Let Claude pick the project" }, ...active.map((p) => ({ value: p.slug, label: p.name }))]} />
         <span className="hint">⌘↵</span>
         <button className="primary" disabled={!text.trim() || busy} onClick={submit}>{busy ? "Starting…" : "Hand to Claude"}</button>
       </div>
