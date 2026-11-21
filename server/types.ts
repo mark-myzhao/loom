@@ -156,6 +156,8 @@ export interface Config {
 
 export interface AppState {
   lastDailySync?: string;
+  /** Local date of the last successful push of the data repository to its remote. */
+  lastBackupPush?: string;
   connectors?: string;
 }
 
@@ -169,6 +171,7 @@ export interface Snapshot {
   dataDir: string;
   config: Config;
   lastDailySync?: string;
+  lastBackupPush?: string;
   projects: ProjectSnapshot[];
   /** The most recent runs, newest first (at most 150). */
   runs: RunMeta[];

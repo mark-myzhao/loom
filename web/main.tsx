@@ -52,6 +52,7 @@ function Rail({ snap, current, onSettings }: { snap: Snapshot; current: string[]
       <footer>
         <p>{snap.config.schedule.enabled ? `Daily sync at ${snap.config.schedule.time}` : "Daily sync off"}</p>
         <p>Last ran {snap.lastDailySync ?? "never"}</p>
+        {snap.lastBackupPush && <p>Backed up {snap.lastBackupPush}</p>}
         <button className="link" onClick={onSettings}>Settings</button>
       </footer>
     </nav>

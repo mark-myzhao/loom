@@ -3,7 +3,7 @@
 import { existsSync, watch } from "node:fs";
 import { join, sep } from "node:path";
 import index from "../web/index.html";
-import { initBackup, scheduleBackup } from "./backup";
+import { initBackup, pushIfDue, scheduleBackup } from "./backup";
 import { artifactPrompt, askPrompt, gatewayTools, ingestPrompt, setupPrompt, syncPrompt, taskPrompt } from "./prompts";
 import { findLiveRun, getRun, hasLiveRuns, initRuns, listRuns, sendMessage, startRun, stopRun, subscribe, type RunInit } from "./runs";
 import * as store from "./store";
@@ -332,6 +332,7 @@ function delegate(slug: string, taskId: string, body: { repoPath?: unknown; inst
 
 /** Checked every minute, so a machine that slept through the time still syncs, once per day. */
 function scheduleTick() {
+  void pushIfDue().catch((e) => console.error("backup push:", (e as Error).message));
   try {
     const { schedule } = store.loadConfig();
     if (!schedule.enabled) return;
@@ -356,6 +357,7 @@ function snapshot(): Snapshot {
     dataDir: DATA,
     config: store.loadConfig(),
     lastDailySync: store.loadState().lastDailySync,
+    lastBackupPush: store.loadState().lastBackupPush,
     projects: store.listProjectSlugs().map((slug) => ({
       ...store.readProject(slug),
       tasks: store.listTasks(slug).map(summary),

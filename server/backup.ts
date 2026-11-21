@@ -2,7 +2,7 @@
 
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { DATA } from "./store";
+import { DATA, loadState, saveState, today } from "./store";
 
 const QUIET_MS = 30_000;
 let chain: Promise<unknown> = Promise.resolve();
@@ -21,7 +21,8 @@ function git(...args: string[]): Promise<{ code: number; out: string; err: strin
         "-c", "user.name=Loom", "-c", "user.email=loom@localhost",
         ...args,
       ],
-      { cwd: DATA, stdout: "pipe", stderr: "pipe", stdin: "ignore" },
+      // Never wait on a credential prompt nobody can answer.
+      { cwd: DATA, stdout: "pipe", stderr: "pipe", stdin: "ignore", env: { ...process.env, GIT_TERMINAL_PROMPT: "0" } },
     );
     const [out, err, code] = await Promise.all([
       new Response(proc.stdout).text(), new Response(proc.stderr).text(), proc.exited,
@@ -64,4 +65,23 @@ export function scheduleBackup() {
     if (busy()) return scheduleBackup();
     snapshot().catch((e) => console.error("backup:", (e as Error).message));
   }, QUIET_MS);
+}
+
+const RETRY_MS = 60 * 60_000;
+let lastPushAttempt = 0;
+
+/**
+ * Off-machine copy: if the data repository has an `origin` remote, push to it once per local day.
+ * Called every minute; a failed or skipped attempt is retried after an hour.
+ */
+export async function pushIfDue() {
+  const day = today();
+  if (loadState().lastBackupPush === day || Date.now() - lastPushAttempt < RETRY_MS) return;
+  lastPushAttempt = Date.now();
+  if ((await git("remote", "get-url", "origin")).code !== 0) return;
+  if (!busy()) await snapshot();
+  const push = await git("push", "-q", "origin", "HEAD:refs/heads/main");
+  if (push.code !== 0) throw new Error(push.err.trim() || "git push failed");
+  saveState({ lastBackupPush: day });
+  console.log(`backup: pushed to origin (${day})`);
 }

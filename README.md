@@ -72,3 +72,16 @@ a shell in the repository you choose, in a separate git worktree by default, and
 not to push or post. HTML documents render in a sandboxed frame. Deletes move to
 `<data>/.trash/`, and the data directory is its own git repository that the server commits
 after 30 quiet seconds.
+
+## Off-machine backup
+
+Snapshots stay on this disk unless the data repository has a remote. Add a private one and
+the server pushes to it once a day while it is running (the rail footer shows the last
+date):
+
+```sh
+git -C data remote add origin <private-repo-url>
+```
+
+Run history (`runs/`), `state.json` and `.trash/` are not in the snapshots, so they are
+not pushed.
