@@ -1,4 +1,14 @@
-# Loom
+<p align="center">
+  <img src="docs/logo.svg" alt="Loom" width="240">
+</p>
+
+<p align="center">
+  A local project notebook kept up to date by Claude Code.
+  <br>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-ee7446" alt="MIT license"></a>
+</p>
+
+![Loom's Today view: a box to drop notes into, open tasks and active projects](docs/today.png)
 
 A local, single-user project notebook kept up to date by headless Claude Code sessions.
 Drop in meeting notes or links; Claude files them under the right project, keeps a small
@@ -9,6 +19,8 @@ time you choose.
 
 Everything is plain markdown and JSON in one data directory, which you can also open in an
 editor. There is no other database.
+
+![A task page, with its checklist, subtasks and the panel that hands it to a coding agent](docs/task.png)
 
 ## Requirements
 
@@ -88,3 +100,7 @@ git -C data remote add origin <private-repo-url>
 
 Run history (`runs/`), `state.json` and `.trash/` are not in the snapshots, so they are
 not pushed.
+
+## License
+
+[MIT](LICENSE)

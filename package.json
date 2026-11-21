@@ -1,6 +1,9 @@
 {
   "name": "loom",
   "version": "0.1.0",
+  "description": "A local project notebook kept up to date by Claude Code.",
+  "license": "MIT",
+  "repository": "github:mark-myzhao/loom",
   "private": true,
   "type": "module",
   "scripts": {
