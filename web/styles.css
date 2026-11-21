@@ -343,7 +343,8 @@ a.row-title:hover { text-decoration: underline; text-decoration-color: var(--acc
 .prose pre code { background: none; padding: 0; }
 .prose blockquote { border-left: 3px solid var(--rule); padding-left: 14px; color: var(--ink-2); margin-left: 0; }
 .prose table { border-collapse: collapse; display: block; overflow-x: auto; }
-.prose th, .prose td { border: 1px solid var(--rule); padding: 5px 10px; text-align: left; }
+/* `anywhere` lets a cell shrink to one character, so a long column would crush the short ones beside it. */
+.prose th, .prose td { border: 1px solid var(--rule); padding: 5px 10px; text-align: left; overflow-wrap: break-word; }
 .prose th { background: var(--sunk); font-weight: 500; }
 .prose a { text-decoration-color: var(--accent); }
 .prose img { max-width: 100%; }
