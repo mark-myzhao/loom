@@ -799,6 +799,8 @@ function artifactMeta(slug: string, name: string): Artifact | undefined {
     created: data.created || undefined,
     modifiedAt: st.mtime.toISOString(),
     size: st.size,
+    // About 8,000 tokens at four characters a token: past that, a Thread cannot afford to read it.
+    over: st.size > 32_000 ? `split it by subject (~${Math.round(st.size / 4000)}K tokens; the limit is about 8K)` : undefined,
   };
 }
 
@@ -1041,7 +1043,7 @@ export function projectGraph(slug: string): { nodes: GraphNode[]; edges: GraphEd
     if (a.kind === "md") docs.set(a.name, text);
     // Metadata names the task already; links are read from the body.
     const body = a.kind === "md" ? parseFrontmatter(text).body : text.replace(/<head[\s\S]*?<\/head>/i, "");
-    nodes.push({ address: a.name, kind: "document", card: `${a.name}  document  "${a.title}"  ${approxTokens(a.size)}` });
+    nodes.push({ address: a.name, kind: "document", card: `${a.name}  document  "${a.title}"  ${approxTokens(a.size)}${a.over ? "  Over length" : ""}` });
     edges.push({ from: a.name, rel: "documents", to: a.task ?? "T-000" });
     const original = p.sources.find((s) => s.url === a.source);
     if (original) edges.push({ from: a.name, rel: "copy of", to: `${original.id}.md` });

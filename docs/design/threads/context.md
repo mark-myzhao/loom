@@ -70,7 +70,7 @@ Nearly half of an HTML page is tags, styles and drawings an agent pays for and c
 
 Left out of this design: showing a task's artifacts as tabs on the task page. It is a reading convenience for the owner and no part of the agent work.
 
-Change: four lines in `conventions.md`; a size check beside the existing memory one in `store.ts`.
+Change: four lines in `conventions.md`; a size check beside the existing memory one in `store.ts`. Built in step 4: past 32,000 characters an artifact is marked Over length on the task page, on its card in `GRAPH.md` and in the brief. The check uses the file's size, so an HTML page counts its markup, which is what a Thread would pay to read it.
 
 ## T7. Agents read a markdown rendering of an HTML document, never the HTML
 
@@ -90,6 +90,8 @@ What others report: Stagehand measured 88% fewer tokens for the accessibility tr
 **Design.** For each HTML artifact Loom keeps a rendering at `artifacts/.text/<name>.md`, regenerated when the file changes; the server already watches the directory. Like `MEMORY.md` it is generated and never edited. A drawing becomes one line holding its label, so every diagram needs an `aria-label` that says what it shows. The manifest (T1) lists the rendering and its section line ranges, and the brief says the `.html` is for the owner.
 
 A file rather than a tool, because every session has Read and not every session has a shell: the same line ranges that serve markdown documents serve these. A section endpoint (`GET …/artifacts/<name>?section=3`) would do the same job only for sessions that can call it.
+
+Not built: the design review suggested cutting T7, and the owner has not decided (roadmap, open questions).
 
 *Change: a converter in `store.ts` (the test version for these numbers was 70 lines; `turndown` is the usual library), one line in the conventions' layout, and `art()` in `taskPrompt` pointing at the rendering. The accessibility-tree figure is from one dump of Chrome's tree, written out with a role and name per line.*
 

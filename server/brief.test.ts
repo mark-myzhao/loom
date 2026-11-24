@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { taskPrompt } from "./prompts";
 import * as store from "./store";
@@ -30,4 +30,15 @@ test("a Thread's brief is its task's neighbourhood: outlines, earlier Threads, m
   expect(brief).toContain("owner-reviews: The owner reviews every change.");
   expect(brief).not.toContain("read them before you start");
   expect(brief).not.toContain(runId);
+});
+
+test("a document past about 8,000 tokens is marked Over length in GRAPH.md and the brief", () => {
+  const p = store.createProject("Size demo");
+  store.createTask(p.slug, { title: "Write" });
+  store.createArtifact(p.slug, { title: "Long", task: "T-001", content: `# Long\n\n## Body\n\n${"word ".repeat(7000)}\n` });
+  store.writeGraph(p.slug);
+  const graph = readFileSync(join(store.projectDir(p.slug), "GRAPH.md"), "utf8");
+  expect(graph).toMatch(/t-001-long\.md {2}document {2}"Long" {2}~8\.\dK tokens {2}Over length/);
+  const brief = taskPrompt({ project: p, task: store.listTasks(p.slug)[0]!, worktree: true, ancestors: [], siblings: [] });
+  expect(brief).toMatch(/artifacts\/t-001-long\.md {2}"Long" {2}~8\.\dK tokens {2}Over length/);
 });
