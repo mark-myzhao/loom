@@ -452,7 +452,7 @@ a.row-title:hover { text-decoration: underline; text-decoration-color: var(--acc
 .event-card { position: relative; background: var(--card); border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; box-shadow: 3px 3px 0 var(--rule-2); }
 .event-card .event-head { padding: 9px 16px; background: var(--sunk); border-bottom: 1px solid var(--rule); }
 .event-card .event-body { padding: 14px 16px; }
-.by-agent .event-card, .by-claude .event-card { border-left: 4px solid var(--accent); }
+.by-agent .event-card, .by-claude .event-card, .by-shuttle .event-card { border-left: 4px solid var(--accent); }
 .event-body h2 { font-size: 17px; margin-top: 0; }
 
 /* ---------- documents ---------- */

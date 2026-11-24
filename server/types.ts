@@ -59,7 +59,7 @@ export interface Task {
 /** A task as sent in the root snapshot: everything but the body. */
 export type TaskSummary = Omit<Task, "body">;
 
-export type Actor = "me" | "claude" | "agent";
+export type Actor = "me" | "claude" | "agent" | "shuttle";
 
 export interface TimelineEvent {
   time: string;

@@ -6,7 +6,7 @@ import { DateInput, Select } from "../controls";
 import { editable, Empty, Markdown, Progress, RunRow, StatusChip, TaskRow } from "../ui";
 import { ArtifactRows, ArtifactsHead } from "./Project";
 
-const AUTHOR: Record<string, string> = { me: "You", claude: "Claude", agent: "Agent" };
+const AUTHOR: Record<string, string> = { me: "You", claude: "Claude", agent: "Agent", shuttle: "Shuttle" };
 
 function Event({ ev }: { ev: TimelineEvent }) {
   const { openRun } = useApp();

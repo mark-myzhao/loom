@@ -128,7 +128,7 @@ The weekly notes say the panel shipped on Monday; ticked the first item.
 The fields are timestamp, author, type, then an optional detail.
 
 - Authors: `me` (the owner), `claude` (a session that reads sources), `agent` (a coding
-  agent).
+  agent), `shuttle` (the Shuttle, Loom's resident agent).
 - Types: `created`, `comment`, `status` (`old -> new`), `field`
   (`priority: p2 -> p1`; `none` for an empty value), `run`.
 - Only ever append. Never rewrite or reorder earlier entries.
