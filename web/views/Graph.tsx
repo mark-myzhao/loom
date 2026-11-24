@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { GraphEdge, GraphNode, ProjectSnapshot, TaskStatus, TaskSummary } from "../../server/types";
 import { TASK_STATUSES } from "../../server/types";
 import { agentRun, api, buildTree, descendants, docHref, dueLabel, enc, go, isLive, STATUS_LABEL, taskHref, useApp, type Tree } from "../lib";
@@ -82,7 +82,7 @@ export function Graph({ project: p }: { project: ProjectSnapshot }) {
       <button className={links ? "" : "primary"} onClick={() => setLinks(false)}>Task tree</button>
     </span>
   );
-  if (links) return <LinkGraph slug={p.slug} bar={<div className="graph-bar">{views}</div>} />;
+  if (links) return <LinkGraph slug={p.slug} views={views} />;
 
   const toggle = (id: string) => {
     const next = new Set(collapsed);
@@ -199,18 +199,43 @@ function settle(n: number, edges: [number, number][]) {
   return pos;
 }
 
-/** The project's graph as GRAPH.md has it: every node and edge, drawn live from the files. */
-function LinkGraph({ slug, bar }: { slug: string; bar: React.ReactNode }) {
+type Edges = { nodes: GraphNode[]; edges: GraphEdge[] };
+type Point = { x: number; y: number };
+
+/** A task's subtree and every node one edge away from it: its documents, Threads, links and the tasks it mentions. */
+function around(graph: Edges, task: string): GraphNode[] {
+  const base = (to: string) => to.split("#")[0]!;
+  const core = new Set([task]);
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const e of graph.edges) if (e.rel === "part of" && core.has(e.to) && !core.has(e.from)) core.add(e.from), (grew = true);
+  }
+  const near = new Set(core);
+  for (const e of graph.edges) {
+    if (core.has(e.from)) near.add(base(e.to));
+    if (core.has(base(e.to))) near.add(e.from);
+  }
+  return graph.nodes.filter((n) => near.has(n.address));
+}
+
+/** The project's graph as GRAPH.md has it, live from the files: pan, zoom, drag a node, or narrow it to one task. */
+function LinkGraph({ slug, views }: { slug: string; views: React.ReactNode }) {
   const { rev, act } = useApp();
-  const [graph, setGraph] = useState<{ nodes: GraphNode[]; edges: GraphEdge[] } | null>(null);
+  const [graph, setGraph] = useState<Edges | null>(null);
+  const [task, setTask] = useState("");
   const [focus, setFocus] = useState<number | null>(null);
+  const [pos, setPos] = useState<Point[]>([]);
+  const [view, setView] = useState({ x: 0, y: 0, k: 1 });
+  const svg = useRef<SVGSVGElement>(null);
+  const drag = useRef<{ node: number | null; x: number; y: number; moved: boolean } | null>(null);
   useEffect(() => {
-    act(() => api<{ nodes: GraphNode[]; edges: GraphEdge[] }>("GET", `/projects/${enc(slug)}/graph`)).then((g) => g && setGraph(g));
+    act(() => api<Edges>("GET", `/projects/${enc(slug)}/graph`)).then((g) => g && setGraph(g));
   }, [slug, rev]);
 
   const drawn = useMemo(() => {
     if (!graph) return null;
-    const index = new Map(graph.nodes.map((n, i) => [n.address, i]));
+    const nodes = task ? around(graph, task) : graph.nodes;
+    const index = new Map(nodes.map((n, i) => [n.address, i]));
     // A section link lands on its file; missing links are listed in GRAPH.md, not drawn. One line per pair.
     const lines = new Map<string, { a: number; b: number; rels: Set<string> }>();
     for (const e of graph.edges) {
@@ -220,43 +245,109 @@ function LinkGraph({ slug, bar }: { slug: string; bar: React.ReactNode }) {
       const line = lines.get(key) ?? lines.set(key, { a, b, rels: new Set() }).get(key)!;
       line.rels.add(`${e.from} ${e.rel} ${e.to}`);
     }
-    const pos = settle(graph.nodes.length, [...lines.values()].map((l) => [l.a, l.b]));
-    const xs = pos.map((p) => p.x), ys = pos.map((p) => p.y);
-    const box = { x: Math.min(...xs) - 40, y: Math.min(...ys) - 30, w: Math.max(...xs) - Math.min(...xs) + 160, h: Math.max(...ys) - Math.min(...ys) + 60 };
-    return { pos, lines: [...lines.values()], box };
-  }, [graph]);
+    return { nodes, lines: [...lines.values()], layout: settle(nodes.length, [...lines.values()].map((l) => [l.a, l.b])) };
+  }, [graph, task]);
 
-  if (!graph || !drawn) return <>{bar}</>;
-  const near = focus === null ? null : new Set([focus, ...drawn.lines.flatMap((l) => (l.a === focus ? [l.b] : l.b === focus ? [l.a] : []))]);
+  /** Scale and centre the drawing to fill the canvas. */
+  const fit = (points: Point[]) => {
+    const el = svg.current;
+    if (!el || !points.length) return;
+    const xs = points.map((p) => p.x), ys = points.map((p) => p.y);
+    const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+    const k = Math.min(el.clientWidth / (x1 - x0 + 200), el.clientHeight / (y1 - y0 + 80), 2);
+    setView({ k, x: el.clientWidth / 2 - (k * (x0 + x1 + 120)) / 2, y: el.clientHeight / 2 - (k * (y0 + y1)) / 2 });
+  };
+  // A file change redraws in place; only a new filter re-fits, so the owner's zoom and pan survive edits.
+  const fitted = useRef<string | null>(null);
+  useEffect(() => {
+    if (!drawn) return;
+    setPos(drawn.layout);
+    if (fitted.current !== task) fit(drawn.layout), (fitted.current = task), setFocus(null);
+  }, [drawn]);
+
+  // React's wheel listener is passive, so zooming needs a native one to stop the page scrolling.
+  useEffect(() => {
+    const el = svg.current;
+    if (!el) return;
+    const wheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const r = el.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+      setView((v) => {
+        const k = Math.min(4, Math.max(0.2, v.k * Math.exp(-e.deltaY * 0.002)));
+        return { k, x: mx - ((mx - v.x) * k) / v.k, y: my - ((my - v.y) * k) / v.k };
+      });
+    };
+    el.addEventListener("wheel", wheel, { passive: false });
+    return () => el.removeEventListener("wheel", wheel);
+  }, [!!drawn]);
+
+  if (!graph || !drawn) return <div className="graph-bar">{views}</div>;
   const open = (n: GraphNode) => {
     if (n.kind === "task" || n.kind === "thread") go(taskHref(slug, n.address.replace(/\.\d+$/, "")));
     else if (n.kind === "memory") go(`#/p/${enc(slug)}/memory`);
     else if (n.kind !== "file") go(docHref(slug, n.address));
   };
-  const card = focus === null ? null : graph.nodes[focus]!;
+  // Dragging the background pans; dragging a node moves it; a press that does not move opens the node.
+  const start = (e: React.PointerEvent, node: number | null) => {
+    e.stopPropagation();
+    svg.current!.setPointerCapture(e.pointerId);
+    drag.current = { node, x: e.clientX, y: e.clientY, moved: false };
+  };
+  const move = (e: React.PointerEvent) => {
+    const d = drag.current;
+    if (!d) return;
+    const dx = e.clientX - d.x, dy = e.clientY - d.y;
+    if (!d.moved && Math.hypot(dx, dy) < 3) return;
+    Object.assign(d, { moved: true, x: e.clientX, y: e.clientY });
+    if (d.node === null) setView((v) => ({ ...v, x: v.x + dx, y: v.y + dy }));
+    else setPos((ps) => ps.map((p, i) => (i === d.node ? { x: p.x + dx / view.k, y: p.y + dy / view.k } : p)));
+  };
+  const end = () => {
+    const d = drag.current;
+    drag.current = null;
+    if (d && !d.moved && d.node !== null) open(drawn.nodes[d.node]!);
+  };
+
+  const ready = pos.length === drawn.nodes.length;
+  const near = focus === null ? null : new Set([focus, ...drawn.lines.flatMap((l) => (l.a === focus ? [l.b] : l.b === focus ? [l.a] : []))]);
+  const card = focus === null ? null : drawn.nodes[focus];
+  const tasks = graph.nodes.filter((n) => n.kind === "task");
   return (
     <div className="graph">
-      {bar}
+      <div className="graph-bar">
+        {views}
+        <span className="btn-row">
+          <select value={task} aria-label="Show the graph around a task" onChange={(e) => setTask(e.target.value)}>
+            <option value="">Whole project</option>
+            {tasks.map((t) => <option key={t.address} value={t.address}>{t.address} {/"(.*?)"/.exec(t.card)?.[1] ?? ""}</option>)}
+          </select>
+          <button onClick={() => fit(pos)}>Fit</button>
+        </span>
+      </div>
       <p className="legend link-legend">
-        {KINDS.filter((k) => graph.nodes.some((n) => n.kind === k)).map((k) => (
+        {KINDS.filter((k) => drawn.nodes.some((n) => n.kind === k)).map((k) => (
           <span key={k}><svg width="12" height="12"><circle className={`gk-${k}`} cx="6" cy="6" r="5" /></svg> {k}</span>
         ))}
       </p>
-      <p className="graph-card">{card ? card.card : "Hover a node for its card and neighbours; click it to open it."}</p>
-      <svg className="link-graph" viewBox={`${drawn.box.x} ${drawn.box.y} ${drawn.box.w} ${drawn.box.h}`}>
-        {drawn.lines.map((l) => (
-          <line key={`${l.a}-${l.b}`} className={near && !(near.has(l.a) && near.has(l.b)) ? "dim" : ""}
-            x1={drawn.pos[l.a]!.x} y1={drawn.pos[l.a]!.y} x2={drawn.pos[l.b]!.x} y2={drawn.pos[l.b]!.y}>
-            <title>{[...l.rels].join("\n")}</title>
-          </line>
-        ))}
-        {graph.nodes.map((n, i) => (
-          <g key={n.address} className={`gn${near && !near.has(i) ? " dim" : ""}`} transform={`translate(${drawn.pos[i]!.x} ${drawn.pos[i]!.y})`}
-            onMouseEnter={() => setFocus(i)} onMouseLeave={() => setFocus(null)} onClick={() => open(n)}>
-            <circle className={`gk-${n.kind}`} r={n.kind === "task" ? 7 : 5} />
-            <text x="10" y="4">{n.address}</text>
+      <p className="graph-card">{card ? card.card : "Drag to pan, scroll to zoom, drag a node to move it, click a node to open it."}</p>
+      <svg ref={svg} className="link-graph" onPointerDown={(e) => start(e, null)} onPointerMove={move} onPointerUp={end} onPointerCancel={() => (drag.current = null)}>
+        {ready && (
+          <g transform={`translate(${view.x} ${view.y}) scale(${view.k})`}>
+            {drawn.lines.map((l) => (
+              <line key={`${l.a}-${l.b}`} className={near && !(near.has(l.a) && near.has(l.b)) ? "dim" : ""}
+                x1={pos[l.a]!.x} y1={pos[l.a]!.y} x2={pos[l.b]!.x} y2={pos[l.b]!.y}>
+                <title>{[...l.rels].join("\n")}</title>
+              </line>
+            ))}
+            {drawn.nodes.map((n, i) => (
+              <g key={n.address} className={`gn${near && !near.has(i) ? " dim" : ""}${n.address === task ? " picked" : ""}`} transform={`translate(${pos[i]!.x} ${pos[i]!.y})`}
+                onPointerDown={(e) => start(e, i)} onMouseEnter={() => !drag.current && setFocus(i)} onMouseLeave={() => !drag.current && setFocus(null)}>
+                <circle className={`gk-${n.kind}`} r={n.kind === "task" ? 7 : 5} />
+                <text x="10" y="4">{n.address}</text>
+              </g>
+            ))}
           </g>
-        ))}
+        )}
       </svg>
     </div>
   );
