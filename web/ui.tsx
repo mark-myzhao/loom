@@ -12,7 +12,7 @@ import {
 /** Three nested, round-ended L strokes. */
 export function Mark({ size = 28 }: { size?: number }) {
   return (
-    <svg className="mark" width={size} height={size} viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M5 4v24h23" />
       <path d="M12 4v17h16" />
       <path d="M19 4v10h9" />
