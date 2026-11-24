@@ -152,10 +152,13 @@ The weekly notes say the panel shipped on Monday; ticked the first item.
 
 The fields are timestamp, author, type, then an optional detail.
 
-- Authors: `me` (the owner), `claude` (a session that reads sources), `agent` (a coding
-  agent), `shuttle` (the Shuttle, Loom's resident agent).
+- Authors: `me` (the owner), `claude` (a session that reads sources), `shuttle` (the
+  Shuttle, Loom's resident agent), a Thread's address (`T-007.2`: the second coding agent
+  run on T-007), `agent` (any other agent, and Threads before they were numbered).
 - Types: `created`, `comment`, `status` (`old -> new`), `field`
-  (`priority: p2 -> p1`; `none` for an empty value), `run`.
+  (`priority: p2 -> p1`; `none` for an empty value), `run` (a Thread started or finished;
+  a finish lists what it wrote), `note` (a message to the task's Threads, sent through Loom;
+  the detail names the Thread it was for, if one).
 - Only ever append. Never rewrite or reorder earlier entries.
 - When Loom started your session, append only a `comment` to each existing task you
   change, saying what changed and why; the app records `created`, `status` and `field`

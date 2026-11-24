@@ -5,7 +5,7 @@ import { join, sep } from "node:path";
 import index from "../web/index.html";
 import { initBackup, pushIfDue, scheduleBackup } from "./backup";
 import { artifactPrompt, askPrompt, automationPrompt, gatewayTools, ingestPrompt, setupPrompt, SHUTTLE_ROUTES, shuttlePrompt, taskPrompt } from "./prompts";
-import { findLiveRun, getRun, hasLiveRuns, initRuns, listRuns, readTranscript, sendMessage, startRun, stopRun, subscribe, type RunInit } from "./runs";
+import { findLiveRun, getRun, hasLiveRuns, initRuns, listRuns, noteText, readTranscript, sendMessage, sendNote, startRun, stopRun, subscribe, type RunInit } from "./runs";
 import * as store from "./store";
 import { DATA, HttpError } from "./store";
 import { usageRows } from "./usage";
@@ -147,18 +147,52 @@ function recordChanges(before: Baseline, by: string, runId?: string): Baseline {
 let tracked = 0;
 let baseline: Baseline | undefined;
 
-/** Overlapping runs share one baseline, so their changes cannot be pinned on a specific run. */
-function startTracked(init: RunInit, spec: RunSpec, prompt: string, by: string, hook?: (m: RunMeta) => void): RunMeta {
-  if (tracked++ === 0) baseline = snapshotTasks();
-  return startRun(init, spec, prompt, (m) => {
-    const alone = --tracked === 0;
-    try {
-      baseline = recordChanges(baseline!, by, alone ? m.id : undefined);
-    } finally {
-      if (alone) baseline = undefined;
-      hook?.(m);
-    }
+/** A task's Threads, numbered by the order their runs started on its timeline. */
+function threadsOf(slug: string, taskId: string): { address: string; run: RunMeta }[] {
+  const starts = store.readTimeline(slug, taskId).filter((e) => e.type === "run" && e.detail.startsWith("started"));
+  return starts.flatMap((e, i) => {
+    const run = getRun(/run (\S+)$/.exec(e.detail)?.[1] ?? "");
+    return run ? [{ address: `${taskId}.${i + 1}`, run }] : [];
   });
+}
+
+/** A Thread signs with its address; every other session that edits data files signs as claude. */
+const author = (m: RunMeta) =>
+  m.kind !== "task" ? "claude" : threadsOf(m.project!, m.taskId!).find((t) => t.run.id === m.id)?.address ?? "agent";
+
+/** The Shuttle signs its own changes; shell commands and the setup run edit no task. */
+const isTracked = (m: RunMeta) => !m.spec.shell && m.kind !== "shuttle" && m.kind !== "setup";
+
+/** Every start and resume. Overlapping runs share one baseline, so their changes cannot be pinned on a specific run. */
+function runStarted(m: RunMeta) {
+  if (isTracked(m) && tracked++ === 0) baseline = snapshotTasks();
+}
+
+/** Every finish, resumes included: logs what changed in the tasks, and a Thread's finish with what it wrote. */
+function runFinished(m: RunMeta, lines: Record<string, any>[]) {
+  if (!isTracked(m)) return;
+  const by = author(m);
+  const alone = --tracked === 0;
+  try {
+    if (baseline) baseline = recordChanges(baseline, by, alone ? m.id : undefined);
+  } finally {
+    if (alone) baseline = undefined;
+  }
+  if (m.kind !== "task" || !m.project || !m.taskId || !store.readTask(m.project, m.taskId)) return;
+  // What it wrote, from the edits it made in the project: tasks/T-006.log.md is T-006, memory/x.md is x.
+  const dir = store.projectDir(m.project) + sep;
+  const written = new Set<string>();
+  for (const l of lines) {
+    for (const c of l.type === "assistant" && Array.isArray(l.message?.content) ? l.message.content : []) {
+      const file = String(c?.input?.file_path ?? c?.input?.notebook_path ?? "");
+      if (c?.type !== "tool_use" || !/^(Edit|Write|MultiEdit|NotebookEdit)$/.test(c.name) || !file.startsWith(dir)) continue;
+      const [folder, name = ""] = file.slice(dir.length).split(sep);
+      written.add(folder === "artifacts" ? name : name.replace(/(\.log)?\.md$/, ""));
+    }
+  }
+  for (const generated of ["", "MEMORY"]) written.delete(generated);
+  const detail = `${m.status}${written.size ? ` · wrote ${[...written].join(", ")}` : ""} · run ${m.id}`;
+  store.appendEvent(m.project, m.taskId, { by, type: "run", detail });
 }
 
 // ---------- actions ----------
@@ -217,7 +251,7 @@ async function runAutomation(a: Automation): Promise<RunMeta> {
   if (a.kind === "command") return startRun(init, { cwd, shell: true, permissionMode: "", allowedTools: [] }, a.run);
   await ensureConnectors();
   const cfg = store.loadConfig();
-  return startTracked(init, readerSpec(cfg, cwd), automationPrompt(cfg, a.run, p), "claude");
+  return startRun(init, readerSpec(cfg, cwd), automationPrompt(cfg, a.run, p));
 }
 
 const needText = (v: unknown, what = "text"): string =>
@@ -230,9 +264,9 @@ async function ingest(textIn: unknown, slugIn?: unknown): Promise<RunMeta> {
   const file = store.saveInbox(text);
   await ensureConnectors();
   const cfg = store.loadConfig();
-  return startTracked(
+  return startRun(
     { kind: "ingest", title: `Ingest: ${firstLine(text, 60)}`, ...(p ? { project: p.slug } : {}) },
-    readerSpec(cfg, DATA), ingestPrompt(cfg, text, p), "claude",
+    readerSpec(cfg, DATA), ingestPrompt(cfg, text, p),
     (m) => {
       if (m.status === "done") store.archiveInbox(file);
     },
@@ -245,7 +279,7 @@ async function ask(slug: string, textIn: unknown): Promise<RunMeta> {
   await ensureConnectors();
   const cfg = store.loadConfig();
   const p = readableProject(slug);
-  return startTracked({ kind: "ask", title: firstLine(text, 70), project: slug }, readerSpec(cfg, store.projectDir(slug)), askPrompt(cfg, p, text), "claude");
+  return startRun({ kind: "ask", title: firstLine(text, 70), project: slug }, readerSpec(cfg, store.projectDir(slug)), askPrompt(cfg, p, text));
 }
 
 async function generateArtifact(slug: string, textIn: unknown, taskIdIn?: unknown): Promise<RunMeta> {
@@ -258,11 +292,10 @@ async function generateArtifact(slug: string, textIn: unknown, taskIdIn?: unknow
   const p = readableProject(slug);
   const tasks = store.listTasks(slug);
   const task = taskId ? tasks.find((t) => t.id === taskId) : undefined;
-  return startTracked(
+  return startRun(
     { kind: "artifact", title: `Document: ${firstLine(text, 60)}`, project: slug, ...(task ? { taskId: task.id } : {}) },
     readerSpec(cfg, store.projectDir(slug)),
     artifactPrompt(cfg, p, text, task, task ? store.ancestorsOf(tasks, task.id) : []),
-    "claude",
   );
 }
 
@@ -291,12 +324,7 @@ function delegate(slug: string, taskId: string, body: { repoPath?: unknown; inst
     ancestors: store.ancestorsOf(tasks, taskId),
     siblings: task.parent ? tasks.filter((t) => t.parent === task.parent && t.id !== taskId) : [],
   });
-  const run = startTracked(
-    { kind: "task", title: `${taskId}: ${task.title}`, project: slug, taskId }, spec, prompt, "agent",
-    (m) => {
-      if (store.readTask(slug, taskId)) store.appendEvent(slug, taskId, { by: "agent", type: "run", detail: `${m.status} · run ${m.id}` });
-    },
-  );
+  const run = startRun({ kind: "task", title: `${taskId}: ${task.title}`, project: slug, taskId }, spec, prompt);
   const repo = p.repos.find((r) => r.path === repoPath);
   const patched = store.patchTask(slug, taskId, { status: "doing", run: run.id, ...(repo ? { repo: repo.name } : {}) }, "me");
   store.appendEvent(slug, taskId, { by: "me", type: "run", detail: `started in ${repo?.name ?? repoPath} · run ${run.id}` });
@@ -307,6 +335,33 @@ function delegate(slug: string, taskId: string, body: { repoPath?: unknown; inst
   return run;
 }
 
+/**
+ * A note goes on the task's timeline first, then into every running Thread of the task, or the one
+ * it names, at its next step. Only the owner's note starts a session: it resumes the latest ended
+ * Thread while its cache is warm, and starts the next Thread in the same directory when it is cold.
+ */
+function note(slug: string, taskId: string, body: { text?: unknown; thread?: unknown }, owner: boolean): { delivered: number; run?: RunMeta } {
+  if (!store.readTask(slug, taskId)) bad("no such task", 404);
+  const text = needText(body.text);
+  if (!owner && text.split(/\s+/).length > 100) bad("a note is at most 100 words; name a file for the rest");
+  const thread = typeof body.thread === "string" && body.thread ? body.thread : undefined;
+  const threads = threadsOf(slug, taskId).filter((t) => !thread || t.address === thread);
+  if (thread && !threads.length) bad(`no Thread ${thread} on this task`, 404);
+  const by = owner ? "me" : "agent";
+  store.appendEvent(slug, taskId, { by, type: "note", detail: thread ?? "", body: text });
+  const delivered = threads.filter((t) => sendNote(t.run.id, noteText(by, text))).length;
+  const last = threads.at(-1);
+  if (delivered || !owner || !last || last.run.status === "queued" || last.run.status === "running") return { delivered };
+  // The note is on the timeline after the Thread's last result, so the resume or the brief carries it.
+  if (last.run.endedAt && Date.now() - Date.parse(last.run.endedAt) < CACHE_COLD_MS && last.run.sessionId)
+    return { delivered: 1, run: sendMessage(last.run.id, "") };
+  const run = delegate(slug, taskId, {
+    repoPath: last.run.sessionCwd ?? last.run.spec.cwd, worktree: false,
+    instructions: `You continue ${last.address} in its working directory and branch. Check the directory and git history before repeating anything.`,
+  });
+  return { delivered: 1, run };
+}
+
 const indent = (text: string) => text.split("\n").map((l) => `  ${l}`);
 const cut = (text: string, n: number) => (text.length > n ? `${text.slice(0, n)}…` : text);
 
@@ -315,15 +370,14 @@ const cut = (text: string, n: number) => (text.length > n ? `${text.slice(0, n)}
  * waiting first. Capped, so it cannot grow the way a state snapshot does.
  */
 function ledger(): string[] {
-  const threads = listRuns().filter((r) => r.kind === "task").reverse();
   const cards: { first: number; line: string }[] = [];
   for (const slug of store.listProjectSlugs()) {
     for (const t of store.listTasks(slug)) {
-      const mine = threads.filter((r) => r.project === slug && r.taskId === t.id);
+      const mine = threadsOf(slug, t.id);
       const waiting = t.status === "review" || t.status === "blocked";
       if (t.status === "done" || (!mine.length && !waiting)) continue;
-      const states = mine.map((r, i) => `${t.id}.${i + 1} ${r.status}${r.status === "running" ? ` ${r.turns} turns` : ""}`);
-      const live = mine.some((r) => r.status === "queued" || r.status === "running");
+      const states = mine.map(({ address, run: r }) => `${address} ${r.status}${r.status === "running" ? ` ${r.turns} turns` : ""}`);
+      const live = mine.some(({ run: r }) => r.status === "queued" || r.status === "running");
       cards.push({ first: waiting ? 0 : live ? 1 : 2, line: `${t.id} ${t.status} ${slug} "${t.title}"${states.length ? ` · ${states.join(", ")}` : ""}` });
     }
   }
@@ -475,6 +529,11 @@ function taskDetail(slug: string, id: string): TaskDetail {
 // ---------- http ----------
 
 const json = (data: unknown, status = 200) => Response.json(data, { status });
+
+// Marks the dashboard page's notes and Starts as the owner's. Held in memory only, and handed to a
+// browser page, never to curl: it stops an agent being mislabelled, not a deliberate forgery.
+const OWNER_TOKEN = crypto.randomUUID();
+const isOwner = (req: Request) => req.headers.get("x-loom-owner") === OWNER_TOKEN;
 const LOCAL_HOSTS = [`127.0.0.1:${PORT}`, `localhost:${PORT}`, `[::1]:${PORT}`];
 
 /** Loopback Host, a local Origin when one is sent, and JSON for anything that mutates. */
@@ -520,6 +579,8 @@ async function api(req: Request, url: URL): Promise<Response> {
     });
 
   if (is("GET", "usage")) return json(usageRows(listRuns()));
+  if (is("GET", "owner"))
+    return req.headers.get("sec-fetch-site") === "same-origin" ? json({ token: OWNER_TOKEN }) : bad("the owner's token goes only to the dashboard page", 403);
 
   if (is("GET", "config")) return json(store.loadConfig());
   if (is("PUT", "config")) return json(store.saveConfig(await readBody(req)));
@@ -607,7 +668,11 @@ async function api(req: Request, url: URL): Promise<Response> {
         if (!Number.isInteger(b.index) || typeof b.checked !== "boolean") bad("index and checked are required");
         return json(store.toggleChecklist(slug, id, b.index, b.checked));
       }
-      if (P("POST", "tasks", null, "delegate")) return json(delegate(slug, id, await readBody(req)));
+      if (P("POST", "tasks", null, "note")) return json(note(slug, id, await readBody(req), isOwner(req)));
+      if (P("POST", "tasks", null, "delegate")) {
+        if (!isOwner(req)) bad("only the owner starts a Thread", 403);
+        return json(delegate(slug, id, await readBody(req)));
+      }
     }
 
     if (P("GET", "artifacts")) return json(store.listArtifacts(slug));
@@ -644,7 +709,7 @@ async function api(req: Request, url: URL): Promise<Response> {
 // ---------- startup ----------
 
 store.initStorage();
-initRuns(notify);
+initRuns(notify, { started: runStarted, finished: runFinished });
 // After the run records, so a Thread that died with the last server shows as interrupted.
 for (const slug of store.listProjectSlugs()) store.writeGraph(slug);
 await initBackup(hasLiveRuns);

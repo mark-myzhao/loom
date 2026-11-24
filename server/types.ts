@@ -158,6 +158,8 @@ export interface RunMeta {
   sessionId?: string;
   sessionCwd?: string;
   result?: string;
+  /** When the session last returned a result: a note recorded after it never reached the session. */
+  resultAt?: string;
   error?: string;
   usage?: RunUsage[];
   /** The largest prompt the main session sent, in tokens: how full its context got. */

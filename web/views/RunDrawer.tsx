@@ -128,6 +128,8 @@ export function Transcript({ lines, chat }: { lines: Line[]; chat?: boolean }) {
               </div>
             );
           }
+          case "dash_note":
+            return <div key={i} className="owner-msg"><Markdown text={String(l.text ?? "")} /></div>;
           case "dash_output":
             // A command's output arrives line by line; it is shown as one block where it starts.
             return lines[i - 1]?.type === "dash_output" ? null : <pre key={i} className="output">{output}</pre>;

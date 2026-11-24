@@ -55,3 +55,14 @@ The owner has decided the Shuttle may send notes on its own judgement, within th
 | Tells the Shuttle instead | "Stop T-012", "tell T-013 to skip Windows" do the same things. | The Shuttle calls the same endpoints. The board and the conversation are two hands on one set of controls. |
 
 Three of the six rows are the same call. Editing a task with a live Thread sends nothing by itself; the owner steers if the Thread needs to know. What this costs in code: `runs.ts` starts each session with its prompt on standard input and keeps the pipe open, closing it when the result arrives; `sendMessage` gains a branch for a live run. A note written in the instant a run is finishing is covered by the re-send rule above. The same change lets the owner send the Shuttle a second message while it is still answering the first, which is refused today.
+
+## As built
+
+Step 5 built the above, with these choices:
+
+- **Sessions read their input as a stream.** Each starts with `--input-format stream-json`; Loom writes the prompt and keeps the pipe open, and a note sent while the run is queued waits and follows the prompt. Loom closes the input at each result rather than waiting for a further one: Claude Code still reads what was already written before it ends, and a note that comes after the close is on the timeline after the session's last result (`resultAt` on the run record), so the next resume or restart sends it again.
+- **The owner's token** is served at `GET /api/owner` only to a request a browser marks `Sec-Fetch-Site: same-origin`, and the page sends it on every change. Delegate refuses a request without it.
+- **The 100-word cap applies to an agent's note.** The owner's own words are not cut.
+- **A cold note from the owner starts the next Thread** in the earlier one's working directory with no new worktree, told to check the directory and git history first. Its brief carries the earlier Thread's card and every note.
+- **Every start and resume is tracked**, not only the first: task changes are logged under the run's author (a Thread's address), and a Thread's finish event lists what it wrote, read from its Edit and Write calls inside the project. `GRAPH.md` derives "wrote" edges from it.
+- **The task page sends a comment as a note.** "Comment & mark done" only records the comment, so closing a task wakes no Thread.

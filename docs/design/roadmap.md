@@ -14,6 +14,7 @@ Nine steps build the Shuttle and Threads design, each useful alone and small eno
 | Step 3, first part: `[[links]]`, `projectGraph` in `store.ts`, `GRAPH.md`, links and "linked from" in the UI | [graph.md](graph.md) |
 | Step 3, second part: the task's neighbourhood in the Thread brief | [threads/context.md](threads/context.md) T1 T2 |
 | Step 4, first part: the size rules in the conventions and the Over length mark on artifacts | [threads/context.md](threads/context.md) T6 |
+| Step 5: notes, the owner token, Thread addresses as authors, what a Thread wrote, tracking on every finish | [threads/notes.md](threads/notes.md) |
 
 ## Build order
 

@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-11-24
-- Implementation: Not built
+- Implementation: Partly built: Thread addresses, notes by address, the next Thread on a cold note (roadmap step 5)
 - Design: [graph.md](../design/graph.md)
 
 ## Context
