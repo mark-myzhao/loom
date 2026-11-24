@@ -236,6 +236,8 @@ ${i.instructions?.trim() ? `\n## Extra instructions from the owner\n\n${i.instru
 
 ## When you stop
 
+If you cannot go on without a decision only the owner can make, ask one question instead of guessing: append \`<!-- event: <current ISO time> | ${address} | question -->\` to the task's timeline with the question on the next line, leave the task's status as it is, and stop. The owner's note answers it and resumes you. Otherwise:
+
 1. In the task file: tick the "Things to do" and "Exit criteria" items you completed (\`- [x]\`), set frontmatter status to "review" if the work is ready for the owner to look at or "blocked" if you could not finish, and set updated to ${today()}. Leave the rest of the body as it is.
 2. Append your report to the task's timeline, ${taskLogFile(p.slug, task.id)} (create it if missing), as one entry in exactly this form:
 

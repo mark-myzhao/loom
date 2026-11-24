@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-11-24
-- Implementation: Partly built: Thread addresses, notes by address, the next Thread on a cold note (roadmap step 5)
+- Implementation: Partly built: Thread addresses, notes by address, the next Thread on a cold note, a board row per Thread, a further Thread on Start (roadmap steps 5 and 6); no "continues" edge
 - Design: [graph.md](../design/graph.md)
 
 ## Context

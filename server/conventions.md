@@ -158,7 +158,8 @@ The fields are timestamp, author, type, then an optional detail.
 - Types: `created`, `comment`, `status` (`old -> new`), `field`
   (`priority: p2 -> p1`; `none` for an empty value), `run` (a Thread started or finished;
   a finish lists what it wrote), `note` (a message to the task's Threads, sent through Loom;
-  the detail names the Thread it was for, if one).
+  the detail names the Thread it was for, if one), `question` (a Thread asks the owner one
+  question; the owner's next note answers it).
 - Only ever append. Never rewrite or reorder earlier entries.
 - When Loom started your session, append only a `comment` to each existing task you
   change, saying what changed and why; the app records `created`, `status` and `field`

@@ -220,6 +220,11 @@ button.pill:hover:not(:disabled) { background: var(--accent); border-color: var(
 .chip.st-blocked { background: var(--st-blocked); }
 .chip.st-done { background: var(--st-done); }
 .pill.run-done { color: var(--moss); }
+.pill.state-asks, .pill.state-broken { color: var(--bad); }
+.pill.state-running, .pill.state-queued { color: var(--accent); }
+.pill.state-blocked { color: var(--amber); }
+.pill.state-review { color: var(--slate); }
+.thread-detail { margin: -4px 0 6px 16px; font-size: 13px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pill.run-failed { color: var(--bad); }
 .pill.run-stopped, .pill.run-interrupted { color: var(--amber); }
 .live { animation: pulse 1.6s ease-in-out infinite; }
