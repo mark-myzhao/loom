@@ -50,20 +50,20 @@ function Delegate({ p, task, runs }: { p: ProjectSnapshot; task: Task; runs: Run
   };
   return (
     <section className="delegate">
-      <h3 className="label">Delegate to Claude Code</h3>
+      <h3 className="label">Start a Thread</h3>
       <label>Repository
         {p.repos.length > 0 && (
           <Select value={p.repos.some((r) => r.path === path) ? path : ""} onChange={setPath} options={[{ value: "", label: "Another path…" }, ...p.repos.map((r) => ({ value: r.path, label: r.name }))]} />
         )}
         <input value={path} placeholder="/absolute/path/to/checkout" spellCheck={false} onChange={(e) => setPath(e.target.value)} />
       </label>
-      <label>Extra instructions
-        <textarea rows={3} value={instructions} placeholder="Constraints, where to start, whether to open a draft PR…" onChange={(e) => setInstructions(e.target.value)} />
+      <label>Purpose
+        <textarea rows={3} value={instructions} placeholder="One line on what this Thread is for; constraints, whether to open a draft PR…" onChange={(e) => setInstructions(e.target.value)} />
       </label>
       <label className="check"><input type="checkbox" checked={worktree} onChange={(e) => setWorktree(e.target.checked)} /> Separate git worktree</label>
-      {live && <button className="wide live" onClick={() => openRun(live.id)}>Agent is working…</button>}
-      <button className="primary wide" disabled={!path.trim()} onClick={start}>{runs.some((r) => r.kind === "task") ? "Start another Thread" : "Delegate task"}</button>
-      <small>The agent gets this task and the project memory, commits locally, and reports back in the timeline. It does not push unless told to.</small>
+      {live && <button className="wide live" onClick={() => openRun(live.id)}>Thread is working…</button>}
+      <button className="primary wide" disabled={!path.trim()} onClick={start}>{runs.some((r) => r.kind === "task") ? "Start another Thread" : "Start a Thread"}</button>
+      <small>A Thread is one run of an agent on this task. It gets the task and what it touches, commits locally, and reports back in the timeline. It does not push unless told to.</small>
     </section>
   );
 }
@@ -142,7 +142,7 @@ export function TaskPage({ project: p, id, edit }: { project: ProjectSnapshot; i
           <Progress done={task.checked} total={task.total} title="Checklist" />
           {parent && <span>subtask of <a href={taskHref(p.slug, parent.id)}>{parent.id} {parent.title}</a></span>}
         </p>
-        {working && <button className="pill run-running" onClick={() => openRun(working.id)}><span className="dot live" />agent working</button>}
+        {working && <button className="pill run-running" onClick={() => openRun(working.id)}><span className="dot live" />Thread working</button>}
       </header>
 
       <div className="task-layout">

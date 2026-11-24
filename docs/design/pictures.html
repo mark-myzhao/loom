@@ -112,7 +112,7 @@
 </div>
 
 <h2>A day of bobbins</h2>
-<p>A Shuttle session is swapped whenever the prompt cache has gone cold, or at a context budget. Rule R2.</p>
+<p>A Shuttle session is swapped whenever the prompt cache has gone cold. Rule R2; a swap at a context budget is left out of the first version.</p>
 <figure>
 <svg viewBox="0 0 860 190" width="100%" role="img" aria-label="Timeline of three bobbins separated by idle gaps">
   <line x1="20" y1="150" x2="840" y2="150" stroke="var(--rule)" stroke-width="1.5"/>
@@ -133,17 +133,13 @@
   <line x1="560" y1="22" x2="560" y2="150" stroke="var(--ink-2)" stroke-dasharray="3 4"/>
   <text x="566" y="18">swap</text>
   <!-- bobbin 3 -->
-  <polygon points="560,150 560,116 700,40 700,150" fill="var(--accent)" opacity=".22"/>
-  <polyline points="560,116 700,40" fill="none" stroke="var(--accent)" stroke-width="2"/>
-  <text x="706" y="44" class="mute">100K budget reached</text>
-  <line x1="700" y1="8" x2="700" y2="150" stroke="var(--ink-2)" stroke-dasharray="3 4"/>
-  <text x="706" y="62">swap while warm</text>
-  <polygon points="700,150 700,116 830,96 830,150" fill="var(--accent)" opacity=".22"/>
-  <polyline points="700,116 830,96" fill="none" stroke="var(--accent)" stroke-width="2"/>
+  <polygon points="560,150 560,116 830,44 830,150" fill="var(--accent)" opacity=".22"/>
+  <polyline points="560,116 830,44" fill="none" stroke="var(--accent)" stroke-width="2"/>
+  <text x="700" y="64" class="mute">warm all afternoon: compaction is the backstop</text>
   <!-- unbroken alternative -->
   <polyline points="30,118 200,84 300,84 470,38 560,38 700,14" fill="none" stroke="var(--ink-2)" stroke-width="1.5" stroke-dasharray="6 4"/>
 </svg>
-<figcaption>Context size through a day. Solid: a bobbin is swapped whenever the cache is cold, or at the budget. Dashed: today's single resumed session, which pays 2× its whole height at 13:30 and again at 16:10.</figcaption>
+<figcaption>Context size through a day. Solid: a bobbin is swapped whenever the cache is cold. Dashed: today's single resumed session, which pays 2× its whole height at 13:30 and again at 16:10.</figcaption>
 </figure>
 
 <h2>What a Thread reads</h2>
@@ -177,7 +173,7 @@
 </figure>
 
 <h2>Dispatch</h2>
-<p>The Shuttle writes a task and starts a Thread without waiting. The board is derived from the files.</p>
+<p>The Shuttle writes a task and does not wait. The owner starts each Thread from the board, and a task may have several. The board is derived from the files.</p>
 <figure>
 <svg viewBox="0 0 860 250" width="100%" role="img" aria-label="Flow from owner through Shuttle and task files to Threads and back to the board">
   <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1 9 5 1 9" fill="none" stroke="var(--ink-2)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
@@ -193,20 +189,20 @@
   <text x="65" y="56" text-anchor="middle" font-weight="600">Owner</text><text x="65" y="74" text-anchor="middle" class="mute">says a thing</text>
   <text x="255" y="56" text-anchor="middle" font-weight="600">Shuttle</text><text x="255" y="74" text-anchor="middle" class="mute">one pick</text>
   <text x="475" y="46" text-anchor="middle" font-weight="600">Task files</text><text x="475" y="64" text-anchor="middle" class="mute">the brief, the state,</text><text x="475" y="80" text-anchor="middle" class="mute">the timeline</text>
-  <text x="740" y="32" text-anchor="middle">Thread · T-012 · worktree</text>
-  <text x="740" y="74" text-anchor="middle">Thread · T-013 · worktree</text>
-  <text x="740" y="116" text-anchor="middle">Thread · T-014 · document</text>
+  <text x="740" y="32" text-anchor="middle">Thread · T-012.1 · worktree</text>
+  <text x="740" y="74" text-anchor="middle">Thread · T-012.2 · same worktree</text>
+  <text x="740" y="116" text-anchor="middle">Thread · T-013.1 · document</text>
   <text x="475" y="196" text-anchor="middle" font-weight="600">Threads board</text><text x="475" y="214" text-anchor="middle" class="mute">derived, no model call</text>
   <g fill="none" stroke="var(--ink-2)" stroke-width="1.5" marker-end="url(#ah)">
     <path d="M120 60h66"/><path d="M320 52h76"/>
-    <path d="M320 74c30 30 250 60 316 40"/>
+    <path d="M554 196c60 0 76-58 82-80"/>
     <path d="M636 27C600 27 590 40 554 44"/><path d="M636 69h-82"/>
     <path d="M475 100v66"/>
     <path d="M396 200H65V94"/>
     <path d="M120 78c120 80 200 110 276 112" stroke-dasharray="4 4" marker-end="none"/>
   </g>
   <text x="330" y="44" class="mute">writes</text>
-  <text x="566" y="148" class="mute">dispatches, does not wait</text>
+  <text x="604" y="170" class="mute">the owner's Start</text>
   <text x="566" y="62" class="mute">status,</text><text x="566" y="78" class="mute">report</text>
   <text x="482" y="140" class="mute">watched</text>
   <text x="150" y="218" class="mute">shows what needs the owner</text>
@@ -216,47 +212,52 @@
 </figure>
 
 <h2>The Threads board</h2>
-<p>A mock-up of Today. The Shuttle sits on top with its context meter; Threads are grouped by what they need, and an empty group takes no space.</p>
+<p>A mock-up of Today. The Shuttle sits on top with its context size and whether its cache is warm; below it, one row per Thread, grouped by what they need and by task, and an empty group takes no space.</p>
 <div class="mock" aria-label="Mock-up of the Today view">
   <div class="mock-head">
     <svg width="20" height="20" viewBox="0 0 32 32" class="mark"><path d="M3 16C9 6 23 6 29 16 23 26 9 26 3 16Z" transform="rotate(-24 16 16)"/><path d="M12 16h8" transform="rotate(-24 16 16)"/></svg>
     Shuttle <small>bobbin 3 today</small>
-    <span class="meter">41K / 100K <span class="bar"><i style="width:41%"></i></span> warm 48 min</span>
+    <span class="meter">41K context · warm</span>
   </div>
   <div class="chat">
     <p class="me">me: split the backup work into restore test + retention, and have agents start</p>
-    <p><b>Shuttle:</b> Wrote T-012 and T-013 under T-010 and started both. T-011 is asking you one thing below.</p>
+    <p><b>Shuttle:</b> Wrote T-013 and T-014 under T-010; they wait below for your Start. T-011.1 is asking you one thing.</p>
   </div>
 
   <div class="grp">Needs you · 2</div>
   <div class="row">
     <svg width="20" height="20" viewBox="0 0 32 32" class="mark" style="stroke:var(--amber)"><path d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>
-    <div class="t"><b>T-011</b> Rename the ingest route <span class="tag warn">asks</span><div>"Keep the old /ingest route as an alias for one release?"</div></div>
+    <div class="t"><b>T-011.1</b> Rename the ingest route <span class="tag warn">asks</span><div>"Keep the old /ingest route as an alias for one release?"</div></div>
     <div class="a"><span class="btn p">Answer</span><span class="btn">Open</span></div>
   </div>
   <div class="row">
     <svg width="20" height="20" viewBox="0 0 32 32" class="mark" style="stroke:var(--slate)"><path d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>
-    <div class="t"><b>T-009</b> Investigate related work <span class="tag info">review</span><div>Report and one artifact ready · 94 turns · $16.64</div></div>
-    <div class="a"><span class="btn p">Review</span><span class="btn">Send back</span></div>
+    <div class="t"><b>T-009.2</b> Investigate related work <span class="tag info">review</span><div>Continued T-009.1 · report and one artifact ready</div></div>
+    <div class="a"><span class="btn p">Accept</span><span class="btn">Send back</span></div>
   </div>
 
   <div class="grp">Running · 2</div>
   <div class="row">
     <svg width="20" height="20" viewBox="0 0 32 32" class="mark"><path class="running" d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>
-    <div class="t"><b>T-012</b> Restore test for backups <span class="tag hot">running</span><div>12 turns · 8 min · 64K context · last: ran bun test</div></div>
-    <div class="a"><span class="btn">Steer</span><span class="btn">Stop</span><span class="btn">Edit task</span></div>
+    <div class="t"><b>T-012.1</b> Restore test for backups <span class="tag hot">running</span><div>"write the restore test" · 12 turns · 64K context</div></div>
+    <div class="a"><span class="btn">Steer</span><span class="btn">Stop</span></div>
   </div>
   <div class="row">
     <svg width="20" height="20" viewBox="0 0 32 32" class="mark"><path class="running" d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>
-    <div class="t"><b>T-013</b> Backup retention policy <span class="tag hot">running</span><div>3 turns · 1 min · 38K context</div></div>
-    <div class="a"><span class="btn">Steer</span><span class="btn">Stop</span><span class="btn">Edit task</span></div>
+    <div class="t"><b>T-012.2</b> Restore test for backups <span class="tag hot">running</span><div>"review T-012.1's test as it lands" · 3 turns · 38K context</div></div>
+    <div class="a"><span class="btn">Steer</span><span class="btn">Stop</span></div>
   </div>
 
-  <div class="grp">Waiting to start · 1</div>
+  <div class="grp">Waiting to start · 2</div>
   <div class="row">
     <svg width="20" height="20" viewBox="0 0 32 32" class="mark" style="stroke:var(--ink-2)"><path d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>
-    <div class="t"><b>T-014</b> Write the backup runbook <span class="tag" style="color:var(--ink-2)">proposed</span><div>The Shuttle wrote this; no rule lets it start a document Thread.</div></div>
-    <div class="a"><span class="btn p">Start</span><span class="btn">Edit task</span><span class="btn">Drop</span></div>
+    <div class="t"><b>T-013</b> Backup retention policy <span class="tag" style="color:var(--ink-2)">proposed</span><div>The Shuttle wrote this; it waits for your Start.</div></div>
+    <div class="a"><span class="btn p">Start</span><span class="btn">Drop</span></div>
+  </div>
+  <div class="row">
+    <svg width="20" height="20" viewBox="0 0 32 32" class="mark" style="stroke:var(--ink-2)"><path d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>
+    <div class="t"><b>T-014</b> Write the backup runbook <span class="tag" style="color:var(--ink-2)">proposed</span><div>The Shuttle wrote this; it waits for your Start.</div></div>
+    <div class="a"><span class="btn p">Start</span><span class="btn">Drop</span></div>
   </div>
 </div>
 
@@ -288,7 +289,7 @@
   <div class="states">
     <div><svg class="mark" width="24" height="24" viewBox="0 0 32 32" style="stroke:var(--ink-2)"><path d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>proposed, queued</div>
     <div><svg class="mark" width="24" height="24" viewBox="0 0 32 32"><path class="running" d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>running</div>
-    <div><svg class="mark" width="24" height="24" viewBox="0 0 32 32" style="stroke:var(--amber)"><path d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>asks, slow</div>
+    <div><svg class="mark" width="24" height="24" viewBox="0 0 32 32" style="stroke:var(--amber)"><path d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>asks, blocked</div>
     <div><svg class="mark" width="24" height="24" viewBox="0 0 32 32" style="stroke:var(--bad)"><path d="M3 20c4.5 0 4.5-8 9-8M21 20c4.5 0 4.5-8 9-8"/></svg>broken</div>
     <div><svg class="mark" width="24" height="24" viewBox="0 0 32 32" style="stroke:var(--slate)"><path d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>review</div>
     <div><svg class="mark" width="24" height="24" viewBox="0 0 32 32" style="stroke:var(--moss)"><path d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>done</div>

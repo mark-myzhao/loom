@@ -338,7 +338,7 @@ function ContextTab({ p }: { p: ProjectSnapshot }) {
 
       <section className="group">
         <h3 className="label">Codebases <span className="count">{p.repos.length}</span></h3>
-        {!p.repos.length && <Empty>No codebases. Register a local checkout to send coding agents to it.</Empty>}
+        {!p.repos.length && <Empty>No codebases. Register a local checkout to start Threads in it.</Empty>}
         {p.repos.map((r) => (
           <div key={r.name} className="row">
             <span className="row-title">{r.name}</span>

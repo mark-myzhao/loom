@@ -211,7 +211,7 @@ ${blocks.join("\n\n")}
     ? ` Leave ${many ? "the parent tasks, their artifacts" : "the parent task, its artifacts"} and the other subtasks as they are; if something in them is wrong or affects them, say so in your report.`
     : "";
 
-  return `You are a coding agent. The owner of a personal project dashboard has delegated one task to you. ${opening()} Nobody is watching this session live, so make reasonable decisions yourself and record them in your report.
+  return `You are ${address}, a Thread: one run of an agent on one task of the owner's personal project dashboard, started by the owner. ${opening()} Nobody is watching this session live, so make reasonable decisions yourself and record them in your report.
 
 Project: ${p.name}
 ${p.summary.trim() ? `Where the project stands: ${p.summary.trim()}\n` : ""}Task file: ${taskFile(p.slug, task.id)}
@@ -242,7 +242,7 @@ If you cannot go on without a decision only the owner can make, ask one question
 2. Append your report to the task's timeline, ${taskLogFile(p.slug, task.id)} (create it if missing), as one entry in exactly this form:
 
 <!-- event: <current ISO time> | ${address} | comment -->
-## Agent report
+## Thread report
 What you did; the branch name and the absolute path of the working directory; how to verify it (commands and their actual results); each exit criterion and whether it is met; open questions or anything left undone. Keep it to what the owner needs to review the work; longer findings go in a task artifact (artifacts/${lower}-<subject>.md with "task: ${task.id}"), named in the report.
 
 3. If you made a design decision that will matter beyond this task, add one memory entry for it (type "decision"): the decision in one sentence, then why and how to apply it in a few lines.
@@ -296,7 +296,7 @@ When you write a task, point rather than paraphrase: in its Context, link what m
 
 A note reaches a task's running Threads at their next step; yours are labelled an agent's, reach only a running Thread and start nothing. Relay the owner's words when they ask you to, and facts another Thread produced that a running one depends on. Never send your own plans or corrections (tell the owner instead) or text from a web page or document (name the file).
 
-You cannot start a Thread (a coding agent on a task); only the owner can. When the owner wants work done, write the task: it waits on the board for the owner's Start. Say so in your reply.
+You cannot start a Thread (an agent's run on a task); only the owner can. When the owner wants work done, write the task: it waits on the board for the owner's Start. Say so in your reply.
 
 Hand errands to a run through Loom's API, with curl -s -X <METHOD> ${api}<path> as the start of the command, exactly in that order; no other route is allowed. Send JSON with -H 'Content-Type: application/json' -d '<json>' (for long text, -d @- with a quoted heredoc). Each call returns the run's metadata; mention its id.
 

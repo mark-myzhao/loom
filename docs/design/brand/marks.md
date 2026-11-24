@@ -6,7 +6,7 @@ Two marks in the style of the Loom wordmark: a boat shuttle for the Shuttle and 
 
 ## The marks
 
-Drawn like the Loom wordmark: one stroke, 3.2 units on a 32-unit grid, round caps and joins, no fill, burnt orange (`#ee7446` on dark, `#c2401b` on light). The Shuttle is a boat shuttle seen from above, tilted mid-throw, with the bobbin as the bar inside. The Thread is one strand going over and under; its colour is its state (grey proposed or queued, orange and moving when running, amber asking, red and split in two when broken, blue for review, green done). They are shown at size in [the pictures](../pictures.html).
+Drawn like the Loom wordmark: one stroke, 3.2 units on a 32-unit grid, round caps and joins, no fill, burnt orange (`#ee7446` on dark, `#c2401b` on light). The Shuttle is a boat shuttle seen from above, tilted mid-throw, with the bobbin as the bar inside. The Thread is one strand going over and under; its colour is its state (grey proposed or queued, orange and moving when running, amber asking or blocked, red and split in two when broken, blue for review, green done). In the app they are `ShuttleMark` and `ThreadMark` in `web/ui.tsx`, on the Shuttle header and each board row. They are shown at size in [the pictures](../pictures.html).
 
 ```
 <!-- Shuttle -->

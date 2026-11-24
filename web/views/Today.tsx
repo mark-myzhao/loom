@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { CACHE_COLD_MS, type BoardRow, type RunMeta, type ThreadState } from "../../server/types";
 import { compact } from "../../server/usage";
 import { api, buildTree, enc, GROUPS, isLive, onSubmitKey, sortTasks, taskHref, useApp } from "../lib";
-import { Empty, RunList, TaskRow } from "../ui";
+import { Empty, RunList, ShuttleMark, TaskRow, ThreadMark } from "../ui";
 import { Transcript, useRunLines } from "./RunDrawer";
 
 /** The Shuttle: Loom's resident agent and the owner's one conversation with it. */
@@ -29,7 +29,7 @@ function Shuttle() {
   return (
     <section className="shuttle shadowed">
       <header className="shuttle-head">
-        <h2>Shuttle</h2>
+        <h2><ShuttleMark /> Shuttle</h2>
         <span className="hint">routes your notes, questions and work to the right place, and reports back</span>
         {run && (
           <span className="btn-row end">
@@ -46,8 +46,8 @@ function Shuttle() {
           <Transcript lines={lines} chat />
         ) : (
           <p className="empty">
-            Paste meeting notes or links, ask what needs you, or say “have an agent fix T-004”. Shuttle files notes, answers from your
-            projects, and hands bigger work to background runs. It remembers standing instructions in SHUTTLE.md.
+            Paste meeting notes or links, ask what needs you, or describe work for a Thread. Shuttle files notes, answers from your
+            projects and writes tasks that wait below for your Start. It remembers standing instructions in SHUTTLE.md.
           </p>
         )}
         {live && <p className="sysline"><span className="pill live run-running">{run.status}</span></p>}
@@ -100,6 +100,7 @@ function ThreadRow({ row }: { row: BoardRow }) {
   return (
     <div className="thread-row">
       <div className="row">
+        <ThreadMark state={row.state} />
         <span className={`pill state-${row.state}`}>{row.state}</span>
         <a className="row-title" href={taskHref(row.project, row.taskId)}>{row.taskId} {row.title}</a>
         <span className="row-meta">
