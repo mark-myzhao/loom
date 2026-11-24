@@ -10,6 +10,7 @@ import type { RunKind, RunMeta, RunSpec, RunStatus, RunUsage } from "./types";
 export interface RunInit {
   kind: RunKind;
   title: string;
+  purpose?: string;
   project?: string;
   taskId?: string;
 }

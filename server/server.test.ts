@@ -1,7 +1,7 @@
 // Runs the real server on a scratch data directory, with a stand-in for the claude binary.
 
 import { afterAll, expect, test } from "bun:test";
-import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -80,7 +80,7 @@ test("a message within the hour resumes the Shuttle; one after it starts fresh w
   expect(next).not.toBe(first);
   const prompt = JSON.parse(readFileSync(join(data, "runs", `${next}.jsonl`), "utf8").split("\n")[0]!).text as string;
   expect(prompt).toStartWith("Loom: ");
-  expect(prompt).toContain(`T-001 review ${p.slug} "Review the draft"`);
+  expect(prompt).toContain(`T-001 ${p.slug} "Review the draft" · review`);
   expect(prompt).toContain("  me: and remind me tomorrow");
   expect(prompt).toContain("  Shuttle: Noted.");
   expect(prompt).toEndWith("\n---\nwhat needs me?");
@@ -118,4 +118,12 @@ test("a note reaches a running Thread; only the owner's note wakes an ended one"
   expect(log).toMatch(/\| T-001\.1 \| status \| doing -> review/);
   expect(log).toMatch(/\| T-001\.1 \| run \| done · run /);
   expect(existsSync(join(data, "projects", p.slug, "GRAPH.md"))).toBe(true);
+
+  // The Thread asks; the board shows it first, and the owner's answer clears it.
+  appendFileSync(join(data, "projects", p.slug, "tasks", "T-001.log.md"), `\n<!-- event: ${new Date().toISOString()} | T-001.1 | question -->\nKeep the old route?\n`);
+  const asks = (await call("GET", "/state")).board.find((r: any) => r.project === p.slug && r.taskId === "T-001");
+  expect(asks).toMatchObject({ address: "T-001.1", state: "asks", detail: "Keep the old route?" });
+  await call("POST", `${tasks}/note`, { text: "Yes, keep it", thread: "T-001.1" }, token);
+  await until(run.id, "done");
+  expect((await call("GET", "/state")).board.find((r: any) => r.project === p.slug && r.taskId === "T-001")).toMatchObject({ address: "T-001.1", state: "review" });
 }, 30_000);

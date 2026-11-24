@@ -1021,7 +1021,8 @@ export function projectGraph(slug: string): { nodes: GraphNode[]; edges: GraphEd
       const report = log.filter((e) => e.type === "comment" && (e.by === address || (e.by === "agent" && e.time >= start.time && e.time < until))).pop();
       const line = report?.body.split("\n").find((l) => l.trim() && !l.startsWith("#"))?.trim().slice(0, 100).replace(/"/g, "'");
       const turns = run && state !== "running" && state !== "queued" ? `  ${run.turns} turns` : "";
-      return { address, time: start.time, state, card: `${address}  ${state}${turns}${line ? `  report "${line}"` : ""}` };
+      const purpose = run?.purpose ? `  "${run.purpose.slice(0, 100).replace(/"/g, "'")}"` : "";
+      return { address, time: start.time, state, card: `${address}${purpose}  ${state}${turns}${line ? `  report "${line}"` : ""}` };
     });
     const counts = new Map<string, number>();
     for (const th of threads) counts.set(th.state, (counts.get(th.state) ?? 0) + 1);

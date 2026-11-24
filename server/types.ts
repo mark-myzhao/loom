@@ -157,6 +157,8 @@ export interface RunMeta {
   endedAt?: string;
   sessionId?: string;
   sessionCwd?: string;
+  /** A Thread's purpose: the line the owner gave at Start. */
+  purpose?: string;
   result?: string;
   /** When the session last returned a result: a note recorded after it never reached the session. */
   resultAt?: string;
@@ -222,6 +224,22 @@ export interface AppState {
   shuttle?: string;
 }
 
+/** A Thread's state, never stored: the first that matches, in this order. */
+export const THREAD_STATES = ["asks", "running", "queued", "broken", "blocked", "review", "proposed"] as const;
+export type ThreadState = (typeof THREAD_STATES)[number];
+
+/** One row of the Threads board: a Thread, or a task waiting on the owner with none. */
+export interface BoardRow {
+  project: string;
+  taskId: string;
+  title: string;
+  state: ThreadState;
+  /** The question, the run's figures, the latest report line or the task's context. */
+  detail: string;
+  address?: string;
+  runId?: string;
+}
+
 export interface ProjectSnapshot extends Project {
   tasks: TaskSummary[];
 }
@@ -237,6 +255,7 @@ export interface Snapshot {
   projects: ProjectSnapshot[];
   /** The most recent runs, newest first (at most 150). */
   runs: RunMeta[];
+  board: BoardRow[];
 }
 
 /** GET /api/projects/<slug>/tasks/<id> */

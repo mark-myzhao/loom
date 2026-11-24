@@ -61,11 +61,8 @@ function Delegate({ p, task, runs }: { p: ProjectSnapshot; task: Task; runs: Run
         <textarea rows={3} value={instructions} placeholder="Constraints, where to start, whether to open a draft PR…" onChange={(e) => setInstructions(e.target.value)} />
       </label>
       <label className="check"><input type="checkbox" checked={worktree} onChange={(e) => setWorktree(e.target.checked)} /> Separate git worktree</label>
-      {live ? (
-        <button className="primary wide live" onClick={() => openRun(live.id)}>Agent is working…</button>
-      ) : (
-        <button className="primary wide" disabled={!path.trim()} onClick={start}>Delegate task</button>
-      )}
+      {live && <button className="wide live" onClick={() => openRun(live.id)}>Agent is working…</button>}
+      <button className="primary wide" disabled={!path.trim()} onClick={start}>{runs.some((r) => r.kind === "task") ? "Start another Thread" : "Delegate task"}</button>
       <small>The agent gets this task and the project memory, commits locally, and reports back in the timeline. It does not push unless told to.</small>
     </section>
   );

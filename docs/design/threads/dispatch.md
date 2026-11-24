@@ -47,3 +47,14 @@ The first row that matches is the state shown:
 A "slow" state for a Thread running past a turn or time threshold is left out of the first version; the detail line shows turns and time, and the Usage page shows what a long run cost.
 
 No new status field and no Thread record: these are a function of the task file, its timeline and its runs ([The graph](../graph.md)), which is what keeps a task from showing `doing` with nothing running.
+
+## As built
+
+Step 6 built the board in `board()` beside `talkToShuttle`, and the Shuttle's ledger is the same rows, one line per task. Choices made where this page is silent:
+
+- **Only a task's latest Thread takes the task's state** (broken, blocked, review). An earlier Thread shows only while it asks, runs or is queued, so a task with three finished Threads has one row.
+- **A task with no Thread** shows when it is `blocked` or `review`, or as proposed when it is `todo` and its `created` event is signed `shuttle`. Other `todo` tasks stay in the task lists, not on the board.
+- **A question is answered** by the owner's note to the task or to that Thread, written after it.
+- **The detail line** is the question; turns and peak context for a running Thread; the run's error for a broken one; the latest comment (the report) for review and blocked; the Context for a proposed task.
+- **Actions:** Answer, Steer and Note send a note; Send back sets `doing` and sends one; Continue sends the owner's note to carry on (resuming or starting the next Thread); Stop and Cancel stop the run; Accept sets `done`; Drop moves the task to the trash; Start delegates with a one-line purpose, kept on the run record and shown on the Thread's card.
+- **Errands** (ingest, ask, documents) are not Threads and no longer show on Today; the Shuttle reports them.

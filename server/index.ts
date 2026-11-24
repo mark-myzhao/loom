@@ -8,8 +8,8 @@ import { artifactPrompt, askPrompt, automationPrompt, gatewayTools, ingestPrompt
 import { findLiveRun, getRun, hasLiveRuns, initRuns, listRuns, noteText, readTranscript, sendMessage, sendNote, startRun, stopRun, subscribe, type RunInit } from "./runs";
 import * as store from "./store";
 import { DATA, HttpError } from "./store";
-import { usageRows } from "./usage";
-import { CACHE_COLD_MS, ownerText, type Automation, type Config, type RunMeta, type RunSpec, type Snapshot, type Task, type TaskDetail, type TaskSummary } from "./types";
+import { compact, usageRows } from "./usage";
+import { CACHE_COLD_MS, ownerText, THREAD_STATES, type Automation, type BoardRow, type ThreadState, type Config, type RunMeta, type RunSpec, type Snapshot, type Task, type TaskDetail, type TaskSummary } from "./types";
 
 const PORT = Number(process.env.PORT) || 4400;
 const PROD = process.env.NODE_ENV === "production";
@@ -303,8 +303,6 @@ function delegate(slug: string, taskId: string, body: { repoPath?: unknown; inst
   const p = readableProject(slug);
   const tasks = store.listTasks(slug);
   const task = tasks.find((t) => t.id === taskId) ?? bad("no such task", 404);
-  if (findLiveRun((m) => m.kind === "task" && m.project === slug && m.taskId === taskId))
-    bad("an agent is already working on this task", 409);
   const repoPath = store.checkRepoPath(body.repoPath);
   const cfg = store.loadConfig();
   const wantWorktree = typeof body.worktree === "boolean" ? body.worktree : cfg.agent.useWorktree;
@@ -324,7 +322,8 @@ function delegate(slug: string, taskId: string, body: { repoPath?: unknown; inst
     ancestors: store.ancestorsOf(tasks, taskId),
     siblings: task.parent ? tasks.filter((t) => t.parent === task.parent && t.id !== taskId) : [],
   });
-  const run = startRun({ kind: "task", title: `${taskId}: ${task.title}`, project: slug, taskId }, spec, prompt);
+  const purpose = instructions ? firstLine(instructions, 200) : undefined;
+  const run = startRun({ kind: "task", title: `${taskId}: ${task.title}`, project: slug, taskId, ...(purpose ? { purpose } : {}) }, spec, prompt);
   const repo = p.repos.find((r) => r.path === repoPath);
   const patched = store.patchTask(slug, taskId, { status: "doing", run: run.id, ...(repo ? { repo: repo.name } : {}) }, "me");
   store.appendEvent(slug, taskId, { by: "me", type: "run", detail: `started in ${repo?.name ?? repoPath} · run ${run.id}` });
@@ -366,22 +365,57 @@ const indent = (text: string) => text.split("\n").map((l) => `  ${l}`);
 const cut = (text: string, n: number) => (text.length > n ? `${text.slice(0, n)}…` : text);
 
 /**
- * Open work across projects, one card a line: tasks with a Thread or waiting on the owner, those
- * waiting first. Capped, so it cannot grow the way a state snapshot does.
+ * The Threads board: a row per Thread that needs the owner or is at work, and one for a task waiting
+ * on the owner with no Thread. A Thread's state is the first that matches in THREAD_STATES; only the
+ * latest Thread of a task takes the task's own state. Derived on every call, never stored.
  */
-function ledger(): string[] {
-  const cards: { first: number; line: string }[] = [];
+function board(): BoardRow[] {
+  const rows: BoardRow[] = [];
   for (const slug of store.listProjectSlugs()) {
     for (const t of store.listTasks(slug)) {
-      const mine = threadsOf(slug, t.id);
-      const waiting = t.status === "review" || t.status === "blocked";
-      if (t.status === "done" || (!mine.length && !waiting)) continue;
-      const states = mine.map(({ address, run: r }) => `${address} ${r.status}${r.status === "running" ? ` ${r.turns} turns` : ""}`);
-      const live = mine.some(({ run: r }) => r.status === "queued" || r.status === "running");
-      cards.push({ first: waiting ? 0 : live ? 1 : 2, line: `${t.id} ${t.status} ${slug} "${t.title}"${states.length ? ` · ${states.join(", ")}` : ""}` });
+      if (t.status === "done") continue;
+      const log = store.readTimeline(slug, t.id);
+      const lastWord = firstLine(log.findLast((e) => e.type === "comment")?.body.replace(/^#.*$/gm, "") ?? "", 160);
+      const row = { project: slug, taskId: t.id, title: t.title };
+      const threads = threadsOf(slug, t.id);
+      threads.forEach(({ address, run }, i) => {
+        const question = log.findLast((e) => e.type === "question" && e.by === address);
+        // The owner's note to the task, or to this Thread, answers its question.
+        const answered = question && log.some((e) => e.type === "note" && e.by === "me" && e.time > question.time && (!e.detail || e.detail === address));
+        const latest = i === threads.length - 1;
+        const ended = run.status === "failed" || run.status === "stopped" || run.status === "interrupted";
+        const state: ThreadState | undefined =
+          question && !answered ? "asks"
+          : run.status === "running" || run.status === "queued" ? run.status
+          : !latest ? undefined
+          : t.status === "doing" && ended ? "broken"
+          : t.status === "blocked" || t.status === "review" ? t.status
+          : undefined;
+        if (!state) return;
+        const detail = state === "asks" ? firstLine(question!.body, 200)
+          : state === "running" ? `${run.turns} turns · ${compact(run.peakContext ?? 0)} context`
+          : state === "queued" ? "waiting for a free slot"
+          : state === "broken" ? `${run.status}${run.error ? `: ${firstLine(run.error, 120)}` : ""}`
+          : lastWord;
+        rows.push({ ...row, state, detail, address, runId: run.id });
+      });
+      if (threads.length) continue;
+      const proposed = t.status === "todo" && log.some((e) => e.type === "created" && e.by === "shuttle");
+      const state = t.status === "blocked" || t.status === "review" ? t.status : proposed ? "proposed" : undefined;
+      if (state) rows.push({ ...row, state, detail: state === "proposed" ? firstLine(t.excerpt, 160) : lastWord });
     }
   }
-  const lines = cards.sort((a, b) => a.first - b.first).map((c) => c.line);
+  return rows.sort((a, b) => THREAD_STATES.indexOf(a.state) - THREAD_STATES.indexOf(b.state));
+}
+
+/** Open work for the Shuttle: the board, one line per task, those needing the owner first, capped. */
+function ledger(): string[] {
+  const tasks = new Map<string, BoardRow[]>();
+  for (const r of board()) tasks.set(`${r.project}/${r.taskId}`, [...(tasks.get(`${r.project}/${r.taskId}`) ?? []), r]);
+  const lines = [...tasks.values()].map((rows) => {
+    const states = rows.map((r) => `${r.address ? `${r.address} ` : ""}${r.state}${r.detail ? ` "${cut(r.detail, 100)}"` : ""}`);
+    return `${rows[0]!.taskId} ${rows[0]!.project} "${rows[0]!.title}" · ${states.join("; ")}`;
+  });
   return lines.length > 20 ? [...lines.slice(0, 19), `…and ${lines.length - 19} more on the board`] : lines;
 }
 
@@ -502,6 +536,7 @@ function snapshot(): Snapshot {
       tasks: store.listTasks(slug).map(summary),
     })),
     runs: listRuns(150),
+    board: board(),
   };
 }
 

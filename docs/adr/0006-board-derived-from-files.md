@@ -2,7 +2,7 @@
 
 - Status: Accepted; amended by 0013, 0015 and 0017
 - Date: 2026-11-23
-- Implementation: Not built
+- Implementation: Built
 - Design: [threads/dispatch.md](../design/threads/dispatch.md)
 
 ## Context
