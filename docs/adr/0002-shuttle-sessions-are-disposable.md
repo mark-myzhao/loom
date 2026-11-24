@@ -2,7 +2,7 @@
 
 - Status: Accepted; amended by 0014
 - Date: 2026-11-23
-- Implementation: Not built
+- Implementation: Built, without the budget (ADR 0014)
 - Design: [shuttle/context.md](../design/shuttle/context.md)
 
 ## Context

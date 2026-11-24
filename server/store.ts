@@ -82,7 +82,7 @@ export function writeAtomic(path: string, content: string | Uint8Array) {
   writeFileSync(tmp, content);
   renameSync(tmp, path);
 }
-function readText(path: string): string | undefined {
+export function readText(path: string): string | undefined {
   try {
     return readFileSync(path, "utf8");
   } catch {

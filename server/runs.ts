@@ -314,7 +314,7 @@ export function stopRun(id: string): boolean {
   return true;
 }
 
-function readTranscript(id: string): Line[] {
+export function readTranscript(id: string): Line[] {
   try {
     return readFileSync(logFile(id), "utf8")
       .split("\n")

@@ -199,6 +199,15 @@ export interface Config {
   };
 }
 
+/** Idle this long, the one-hour prompt cache is gone: a fresh Shuttle session costs less than a resume. */
+export const CACHE_COLD_MS = 55 * 60_000;
+
+/** A Shuttle message is Loom's context, a "---" line, then the owner's own words. */
+export function ownerText(message: string): string {
+  const i = message.indexOf("\n---\n");
+  return i < 0 ? message : message.slice(i + 5);
+}
+
 export interface AppState {
   /** Automation id to the local date its daily run was last started. */
   automationRan?: Record<string, string>;
