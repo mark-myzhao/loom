@@ -47,6 +47,7 @@ that link.
 
 | To | Call |
 | --- | --- |
+| Talk to the Shuttle, Loom's resident router (the owner's main conversation) | `POST /api/shuttle` with `{"text": "...", "fresh": false}` |
 | Run a saved automation (`automations` in the snapshot lists them) | `POST /api/automations/<id>/run` with `{}` |
 | File notes or links | `POST /api/ingest` with `{"text": "...", "project": "<slug, optional>"}` |
 | Ask a project a question | `POST /api/projects/<slug>/ask` with `{"text": "..."}` |

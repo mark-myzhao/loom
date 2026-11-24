@@ -167,9 +167,11 @@ export function startRun(init: RunInit, spec: RunSpec, prompt: string, onDone?: 
 
 function pump() {
   const max = Math.max(1, loadConfig().maxConcurrentRuns || 1);
-  while (queue.length && [...active.values()].filter((a) => a.proc).length < max) {
-    const job = queue.shift()!;
+  for (const job of [...queue]) {
     const a = active.get(job.id);
+    // The Shuttle is the owner's live conversation, so it never waits behind background work.
+    if (a?.meta.kind !== "shuttle" && [...active.values()].filter((x) => x.proc).length >= max) continue;
+    queue.splice(queue.indexOf(job), 1);
     if (a) void execute(a, job);
   }
 }
@@ -178,6 +180,7 @@ function buildArgs(meta: RunMeta, resume: boolean): string[] {
   const s = meta.spec;
   const args = ["-p", "--output-format", "stream-json", "--verbose", "--permission-mode", s.permissionMode];
   if (s.model) args.push("--model", s.model);
+  if (s.systemPrompt) args.push("--append-system-prompt", s.systemPrompt);
   for (const d of s.addDirs ?? []) args.push("--add-dir", d);
   if (resume) args.push("--resume", meta.sessionId!);
   else {

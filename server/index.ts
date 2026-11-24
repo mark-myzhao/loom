@@ -4,7 +4,7 @@ import { existsSync, watch } from "node:fs";
 import { join, sep } from "node:path";
 import index from "../web/index.html";
 import { initBackup, pushIfDue, scheduleBackup } from "./backup";
-import { artifactPrompt, askPrompt, automationPrompt, gatewayTools, ingestPrompt, setupPrompt, taskPrompt } from "./prompts";
+import { artifactPrompt, askPrompt, automationPrompt, gatewayTools, ingestPrompt, setupPrompt, shuttlePrompt, taskPrompt } from "./prompts";
 import { findLiveRun, getRun, hasLiveRuns, initRuns, listRuns, sendMessage, startRun, stopRun, subscribe, type RunInit } from "./runs";
 import * as store from "./store";
 import { DATA, HttpError } from "./store";
@@ -309,6 +309,33 @@ function delegate(slug: string, taskId: string, body: { repoPath?: unknown; inst
   return run;
 }
 
+/**
+ * The Shuttle is one long conversation: each message resumes the same session. Runs that ended since
+ * its last reply ride along with the message, so workers report back without waking it on their own.
+ */
+function talkToShuttle(textIn: unknown, fresh: unknown): RunMeta {
+  const text = needText(textIn);
+  const cfg = store.loadConfig();
+  const current = fresh === true ? undefined : getRun(store.loadState().shuttle ?? "");
+  if (current && (current.status === "queued" || current.status === "running")) bad("the Shuttle is still answering", 409);
+  if (current?.sessionId) {
+    const ended = listRuns().filter((r) => r.kind !== "shuttle" && r.endedAt && r.endedAt > (current.endedAt ?? ""));
+    const news = ended.map((r) => `- run ${r.id} (${r.kind}, "${r.title}") ${r.status}${r.error ? `: ${firstLine(r.error, 200)}` : ""}`);
+    return sendMessage(current.id, news.length ? `${text}\n\n---\nLoom: since your last reply these runs ended:\n${news.join("\n")}` : text);
+  }
+  const spec: RunSpec = {
+    cwd: DATA,
+    permissionMode: cfg.reader.permissionMode,
+    // Shell access is only Loom's own API; links go to ingest runs, so the Shuttle never reads the web.
+    allowedTools: ["Read", "Glob", "Grep", "Edit", "Write", `Bash(curl -s http://127.0.0.1:${PORT}/api/*)`],
+    systemPrompt: shuttlePrompt(cfg, `http://127.0.0.1:${PORT}`),
+    ...(cfg.reader.model ? { model: cfg.reader.model } : {}),
+  };
+  const run = startRun({ kind: "shuttle", title: `Shuttle: ${firstLine(text, 60)}` }, spec, text);
+  store.saveState({ shuttle: run.id });
+  return run;
+}
+
 // ---------- daily schedule ----------
 
 const hhmm = (d = new Date()) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
@@ -348,6 +375,7 @@ function snapshot(): Snapshot {
     config: store.loadConfig(),
     automations: store.listAutomations(),
     lastBackupPush: store.loadState().lastBackupPush,
+    shuttle: getRun(store.loadState().shuttle ?? ""),
     projects: store.listProjectSlugs().map((slug) => ({
       ...store.readProject(slug),
       tasks: store.listTasks(slug).map(summary),
@@ -429,6 +457,11 @@ async function api(req: Request, url: URL): Promise<Response> {
   if (is("POST", "ingest")) {
     const b = await readBody(req);
     return json(await ingest(b.text, b.project));
+  }
+
+  if (is("POST", "shuttle")) {
+    const b = await readBody(req);
+    return json(talkToShuttle(b.text, b.fresh));
   }
 
   if (is("POST", "automations")) return json(saveAutomation(undefined, await readBody(req)));

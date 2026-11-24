@@ -123,7 +123,7 @@ export interface Automation {
   enabled: boolean;
 }
 
-export type RunKind = "automation" | "ingest" | "ask" | "artifact" | "task" | "setup";
+export type RunKind = "automation" | "ingest" | "ask" | "artifact" | "task" | "setup" | "shuttle";
 export type RunStatus = "queued" | "running" | "done" | "failed" | "stopped" | "interrupted";
 
 export interface RunSpec {
@@ -136,6 +136,8 @@ export interface RunSpec {
   worktree?: string;
   /** The prompt is a shell command to run, not instructions for Claude. */
   shell?: boolean;
+  /** Standing instructions, passed again on every resume; the prompt is then only the owner's message. */
+  systemPrompt?: string;
 }
 
 export interface RunMeta {
@@ -203,6 +205,8 @@ export interface AppState {
   /** Local date of the last successful push of the data repository to its remote. */
   lastBackupPush?: string;
   connectors?: string;
+  /** The run that holds the current Shuttle conversation. */
+  shuttle?: string;
 }
 
 export interface ProjectSnapshot extends Project {
@@ -215,6 +219,8 @@ export interface Snapshot {
   config: Config;
   automations: Automation[];
   lastBackupPush?: string;
+  /** The run that holds the current Shuttle conversation, if one has started. */
+  shuttle?: RunMeta;
   projects: ProjectSnapshot[];
   /** The most recent runs, newest first (at most 150). */
   runs: RunMeta[];

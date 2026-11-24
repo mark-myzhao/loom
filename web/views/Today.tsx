@@ -1,47 +1,64 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { RunMeta } from "../../server/types";
 import { api, buildTree, enc, GROUPS, isLive, onSubmitKey, sortTasks, useApp } from "../lib";
-import { Select } from "../controls";
 import { Empty, RunList, RunRow, TaskRow } from "../ui";
+import { Transcript, useRunLines } from "./RunDrawer";
 
-export function DropBox() {
+/** The Shuttle: Loom's resident agent and the owner's one conversation with it. */
+function Shuttle() {
   const { snap, act, openRun } = useApp();
   const [text, setText] = useState("");
-  const [project, setProject] = useState("");
-  const [busy, setBusy] = useState(false);
-  const active = snap.projects.filter((p) => p.status === "active" && !p.error);
-  const submit = async () => {
-    if (!text.trim() || busy) return;
-    setBusy(true);
-    const run = await act(() => api<RunMeta>("POST", "/ingest", { text, project: project || undefined }));
-    setBusy(false);
-    if (run) {
+  const [fresh, setFresh] = useState(false);
+  const run = fresh ? undefined : snap.shuttle;
+  const live = !!run && isLive(run);
+  const lines = useRunLines(run?.id, live);
+  const feed = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    feed.current?.scrollTo({ top: feed.current.scrollHeight });
+  }, [lines.length, live]);
+  const send = async () => {
+    if (!text.trim() || live) return;
+    if (await act(() => api<RunMeta>("POST", "/shuttle", { text, fresh }))) {
       setText("");
-      openRun(run.id);
+      setFresh(false);
     }
   };
   return (
-    <div className="dropbox shadowed">
-      <textarea
-        rows={3}
-        value={text}
-        placeholder="Drop meeting notes or links here. Claude files them under the right project and pulls out your action items."
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={onSubmitKey(submit)}
-      />
-      <div className="dropbox-foot">
-        <Select value={project} onChange={setProject} aria-label="Project" options={[{ value: "", label: "Let Claude pick the project" }, ...active.map((p) => ({ value: p.slug, label: p.name }))]} />
-        <span className="hint">⌘↵</span>
-        <button className="primary" disabled={!text.trim() || busy} onClick={submit}>{busy ? "Starting…" : "Hand to Claude"}</button>
+    <section className="shuttle shadowed">
+      <header className="shuttle-head">
+        <h2>Shuttle</h2>
+        <span className="hint">routes your notes, questions and work to the right place, and reports back</span>
+        {run && (
+          <span className="btn-row end">
+            <button className="link" onClick={() => openRun(run.id)}>Details</button>
+            <button className="link" onClick={() => setFresh(true)}>New conversation</button>
+          </span>
+        )}
+      </header>
+      <div className="shuttle-feed" ref={feed}>
+        {run ? (
+          <Transcript lines={lines} chat />
+        ) : (
+          <p className="empty">
+            Paste meeting notes or links, ask what needs you, or say “have an agent fix T-004”. Shuttle files notes, answers from your
+            projects, and hands bigger work to background runs. It remembers standing instructions in SHUTTLE.md.
+          </p>
+        )}
+        {live && <p className="sysline"><span className="pill live run-running">{run.status}</span></p>}
       </div>
-    </div>
+      <div className="compose">
+        <textarea rows={2} value={text} aria-label="Message the Shuttle" placeholder={live ? "Shuttle is working…" : "Tell the Shuttle…"} onChange={(e) => setText(e.target.value)} onKeyDown={onSubmitKey(send)} />
+        <button className="primary" disabled={!text.trim() || live} onClick={send}>Send</button>
+      </div>
+    </section>
   );
 }
 
 export function Today() {
   const { snap } = useApp();
   const active = snap.projects.filter((p) => p.status === "active");
-  const live = snap.runs.filter(isLive);
+  // The Shuttle's own run shows in its panel, not here.
+  const live = snap.runs.filter((r) => isLive(r) && r.kind !== "shuttle");
   const open = useMemo(
     () =>
       GROUPS.filter((g) => g.status !== "done").flatMap((g) =>
@@ -61,7 +78,7 @@ export function Today() {
         </div>
       </header>
 
-      <DropBox />
+      <Shuttle />
 
       {live.length > 0 && (
         <section className="group">
@@ -77,8 +94,8 @@ export function Today() {
         ) : (
           <Empty>
             {snap.projects.length
-              ? "Nothing open. Drop in notes above, or add a task on a project."
-              : "No projects yet. Drop in your first notes above and Claude will create one, or use “New project” in the rail."}
+              ? "Nothing open. Tell the Shuttle what you are working on, or add a task on a project."
+              : "No projects yet. Give the Shuttle your first notes and it will create one, or use “New project” in the rail."}
           </Empty>
         )}
       </section>

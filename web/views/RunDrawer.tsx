@@ -68,7 +68,38 @@ function resultText(content: unknown): string {
   return content == null ? "" : JSON.stringify(content, null, 2);
 }
 
-function Transcript({ lines }: { lines: Line[] }) {
+/** A run's transcript: every line so far, then live lines. Re-subscribes when a follow-up makes the run live again. */
+export function useRunLines(id: string | undefined, live: boolean): Line[] {
+  const [lines, setLines] = useState<Line[]>([]);
+  useEffect(() => {
+    setLines([]);
+    if (!id) return;
+    const buffer: Line[] = [];
+    let frame = 0;
+    const es = new EventSource(`/api/runs/${enc(id)}/stream`);
+    const flush = () => {
+      frame = 0;
+      const batch = buffer.splice(0);
+      setLines((prev) => [...prev, ...batch]);
+    };
+    es.onmessage = (e) => {
+      try {
+        buffer.push(JSON.parse(e.data));
+      } catch {}
+      frame ||= requestAnimationFrame(flush);
+    };
+    es.addEventListener("end", () => es.close());
+    es.onerror = () => es.close();
+    return () => {
+      es.close();
+      cancelAnimationFrame(frame);
+    };
+  }, [id, live]);
+  return lines;
+}
+
+/** `chat` shows the opening prompt as the owner's first message, for runs whose instructions live elsewhere. */
+export function Transcript({ lines, chat }: { lines: Line[]; chat?: boolean }) {
   // Tool results arrive in later "user" lines; show each one under the call that produced it.
   const results = useMemo(() => {
     const map = new Map<string, { text: string; error: boolean }>();
@@ -85,6 +116,7 @@ function Transcript({ lines }: { lines: Line[] }) {
       {lines.map((l, i) => {
         switch (l.type) {
           case "dash_prompt":
+            if (chat) return <div key={i} className="owner-msg"><Markdown text={String(l.text ?? "")} /></div>;
             return <details key={i} className="prompt"><summary className="label">Prompt</summary><pre>{l.text}</pre></details>;
           case "dash_output":
             // A command's output arrives line by line; it is shown as one block where it starts.
@@ -127,7 +159,6 @@ export function RunDrawer({ id, onClose }: { id: string; onClose: () => void }) 
   const { snap, act } = useApp();
   const [fetched, setFetched] = useState<RunMeta | null>(null);
   const [missing, setMissing] = useState(false);
-  const [lines, setLines] = useState<Line[]>([]);
   const [reply, setReply] = useState("");
   const bottom = useRef<HTMLDivElement>(null);
   // The snapshot carries the latest 150 runs; an older one is fetched by id.
@@ -140,31 +171,7 @@ export function RunDrawer({ id, onClose }: { id: string; onClose: () => void }) 
     api<RunMeta>("GET", `/runs/${enc(id)}`).then(setFetched, () => setMissing(true));
   }, [id]);
 
-  // Replay, then follow. Re-subscribes when a follow-up makes the run live again.
-  useEffect(() => {
-    if (!run) return;
-    setLines([]);
-    const buffer: Line[] = [];
-    let frame = 0;
-    const es = new EventSource(`/api/runs/${enc(id)}/stream`);
-    const flush = () => {
-      frame = 0;
-      const batch = buffer.splice(0);
-      setLines((prev) => [...prev, ...batch]);
-    };
-    es.onmessage = (e) => {
-      try {
-        buffer.push(JSON.parse(e.data));
-      } catch {}
-      frame ||= requestAnimationFrame(flush);
-    };
-    es.addEventListener("end", () => es.close());
-    es.onerror = () => es.close();
-    return () => {
-      es.close();
-      cancelAnimationFrame(frame);
-    };
-  }, [id, !!run, live]);
+  const lines = useRunLines(run ? id : undefined, live);
 
   useEffect(() => {
     if (live) bottom.current?.scrollIntoView({ block: "end" });
@@ -192,7 +199,7 @@ export function RunDrawer({ id, onClose }: { id: string; onClose: () => void }) 
         ) : undefined
       }
     >
-      <Transcript lines={lines} />
+      <Transcript lines={lines} chat={run.kind === "shuttle"} />
       {live && <p className="sysline"><span className="pill live run-running">{run.status}</span></p>}
       {run.sessionId && !live && <p className="sysline">Resume in a terminal: <code>cd {run.sessionCwd ?? run.spec.cwd} && claude --resume {run.sessionId}</code></p>}
       <div ref={bottom} />
