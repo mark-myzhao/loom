@@ -12,6 +12,7 @@ Nine steps build the Shuttle and Threads design, each useful alone and small eno
 | Step 1: the clock in each message, write-through and "three reads" lines, links and the `shuttle` author, the allow-list | [shuttle/context.md](shuttle/context.md) R1 R4 R5 R7 |
 | Step 2: the ledger, the hand-over envelope, a fresh session when the cache is cold, `SESSIONS.md`, context and warm or cold in the Shuttle header | [shuttle/context.md](shuttle/context.md) R2 R3 |
 | Step 3, first part: `[[links]]`, `projectGraph` in `store.ts`, `GRAPH.md`, links and "linked from" in the UI | [graph.md](graph.md) |
+| Step 3, second part: the task's neighbourhood in the Thread brief | [threads/context.md](threads/context.md) T1 T2 |
 
 ## Build order
 

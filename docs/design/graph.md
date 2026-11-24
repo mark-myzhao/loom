@@ -242,6 +242,7 @@ Step 3's first part: `projectGraph(slug)` in `store.ts` returns the nodes with t
 - **A Thread is numbered by its task's `run` events** and its state is its run record's status; its report is the last `agent` comment after its start. No purpose yet (step 6).
 - **No "wrote" or "continues" edges** until timeline events are signed by Thread address (step 5).
 - **Sections are read from markdown only**; a link to a section of an HTML artifact resolves when the artifact exists (step 4 renders HTML).
+- **The brief prints the neighbourhood** (step 3, second part), capped at 60 lines; mentions come last, newest first, so the cap drops the oldest.
 - **Links inside code are not read**, so pages like this one can show the syntax; frontmatter and an HTML `<head>` are skipped, since they name the task already.
 
 ## Open questions

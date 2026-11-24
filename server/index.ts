@@ -278,9 +278,6 @@ function delegate(slug: string, taskId: string, body: { repoPath?: unknown; inst
   const useWorktree = wantWorktree && existsSync(join(repoPath, ".git"));
   const instructions = typeof body.instructions === "string" ? body.instructions : undefined;
 
-  const artifacts = store.listArtifacts(slug);
-  const namesFor = (id: string) => artifacts.filter((a) => a.task === id).map((a) => a.name).sort();
-  const ancestors = store.ancestorsOf(tasks, taskId);
   const spec: RunSpec = {
     cwd: repoPath,
     addDirs: [store.projectDir(slug)],
@@ -291,8 +288,7 @@ function delegate(slug: string, taskId: string, body: { repoPath?: unknown; inst
   };
   const prompt = taskPrompt({
     project: p, task, instructions, worktree: useWorktree,
-    artifacts: namesFor(taskId),
-    ancestors: ancestors.map((a) => ({ task: a, artifacts: namesFor(a.id) })),
+    ancestors: store.ancestorsOf(tasks, taskId),
     siblings: task.parent ? tasks.filter((t) => t.parent === task.parent && t.id !== taskId) : [],
   });
   const run = startTracked(
