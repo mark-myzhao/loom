@@ -96,15 +96,15 @@ DOMPurify.addHook("afterSanitizeAttributes", (node) => {
   }
 });
 
-const MENTION = /(?:[\w./-]*\/)?artifacts\/([A-Za-z0-9][\w.-]*\.(?:md|html?))|\[\[([a-z0-9][a-z0-9-]*)\]\]/g;
+const MENTION = /(?:[\w./-]*\/)?artifacts\/([A-Za-z0-9][\w.-]*\.(?:md|html?))|\[\[([^\]\n]+)\]\]/g;
 
-/** Turns artifact paths and [[memory-entry]] references in rendered text into links. */
+/** Turns artifact paths and `[[links]]` in rendered text into links. */
 function linkMentions(root: HTMLElement, slug: string) {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   const nodes: Text[] = [];
   while (walker.nextNode()) {
     const n = walker.currentNode as Text;
-    if (!n.parentElement?.closest("a, pre")) nodes.push(n);
+    if (!n.parentElement?.closest("a, pre, code")) nodes.push(n);
   }
   for (const node of nodes) {
     const text = node.data;
@@ -113,8 +113,16 @@ function linkMentions(root: HTMLElement, slug: string) {
     const frag = document.createDocumentFragment();
     while ((m = MENTION.exec(text))) {
       frag.append(text.slice(last, m.index));
-      const a = document.createElement("a");
-      a.href = m[1] ? docHref(slug, m[1]) : `#/p/${enc(slug)}/memory?entry=${m[2]}`;
+      // Where a link goes, by the shape of its address; a file in a repository has no page here.
+      const target = (m[2] ?? "").split("#")[0]!;
+      const task = /^(?:([a-z0-9][a-z0-9-]*)\/)?(T-\d+)(?:\.\d+)?$/.exec(target);
+      const href = m[1] ? docHref(slug, m[1])
+        : task ? taskHref(task[1] ?? slug, task[2]!)
+        : target.includes(":") ? undefined
+        : /\.(md|html?)$/i.test(target) ? docHref(slug, target)
+        : `#/p/${enc(slug)}/memory?entry=${enc(target)}`;
+      const a = document.createElement(href ? "a" : "code");
+      if (href) a.setAttribute("href", href);
       a.textContent = m[2] ?? m[0];
       frag.append(a);
       last = m.index + m[0].length;

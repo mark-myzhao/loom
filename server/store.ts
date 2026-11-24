@@ -5,12 +5,12 @@ import {
   appendFileSync, existsSync, mkdirSync, openSync, closeSync, readFileSync, readSync, readdirSync,
   renameSync, statSync, writeFileSync, writeSync,
 } from "node:fs";
-import { basename, dirname, isAbsolute, join, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
 import {
   memoryOver, PRIORITIES, PROJECT_STATUSES, SOURCE_KINDS, TASK_STATUSES,
   type AppState, type Artifact, type ArtifactDetail, type Automation, type Config, type MemoryEntry,
-  type Priority, type Project, type Repo, type Source, type SourceKind, type Task, type TaskStatus,
-  type TimelineEvent,
+  type GraphEdge, type GraphNode, type Priority, type Project, type Repo, type RunMeta, type Section, type Source,
+  type SourceKind, type Task, type TaskStatus, type TimelineEvent,
 } from "./types";
 
 export const APP_ROOT = resolve(import.meta.dir, "..");
@@ -963,6 +963,152 @@ export function deleteMemory(slug: string, file: string) {
   if (!existsSync(path)) bad("no such memory entry", 404);
   trash(path, slug);
   rebuildMemoryIndex(slug);
+}
+
+// ---------- graph ----------
+
+/** `[[address]]` anywhere, or a bare task id in prose, since its shape is unambiguous. */
+const LINK_RE = /\[\[([^\]\n]+)\]\]|\b(T-\d{3,})\b/g;
+/** Run ids stay out of the graph: no reader opens a transcript. */
+const RUN_ID_RE = /\b\d{14}-[a-z0-9]{4}\b/g;
+
+export const approxTokens = (chars: number) =>
+  chars >= 4000 ? `~${(chars / 4000).toFixed(1)}K tokens` : `~${Math.round(chars / 4)} tokens`;
+
+/** A markdown file's headings; a section runs to the next heading at its level or above. */
+export function outline(text: string): Section[] {
+  const lines = text.split("\n");
+  const heads: { level: number; heading: string; from: number }[] = [];
+  let fenced = false;
+  lines.forEach((line, i) => {
+    if (/^\s*(```|~~~)/.test(line)) fenced = !fenced;
+    const m = fenced ? null : /^(#{1,6})\s+(.+?)\s*#*\s*$/.exec(line);
+    if (m) heads.push({ level: m[1]!.length, heading: m[2]!, from: i + 1 });
+  });
+  return heads.map((h, i) => {
+    const next = heads.slice(i + 1).find((n) => n.level <= h.level);
+    const to = next ? next.from - 1 : lines.length;
+    return { ...h, to, tokens: Math.round(lines.slice(h.from - 1, to).join("\n").length / 4) };
+  });
+}
+
+/** A section is named by the start of its heading, so `#T1` survives the heading being reworded after the number. */
+const hasSection = (text: string, section?: string) =>
+  !section || outline(text).some((s) => s.heading.toLowerCase().startsWith(section.toLowerCase()));
+
+/**
+ * A project's nodes, each with its one-line card, and its edges: derived from the files and run
+ * records on every call, never stored. Until a project is a task, its root `T-000`, links and
+ * repositories come from project.json, and a Thread is numbered by the order of its task's run events.
+ */
+export function projectGraph(slug: string): { nodes: GraphNode[]; edges: GraphEdge[] } {
+  const p = readProject(slug);
+  const nodes: GraphNode[] = [{ address: "T-000", kind: "task", card: `T-000  project  ${p.status}  "${p.name}"` }];
+  const edges: GraphEdge[] = [];
+  const texts: { from: string; text: string; time?: string }[] = [];
+
+  for (const t of listTasks(slug)) {
+    const log = readTimeline(slug, t.id);
+    const starts = log.filter((e) => e.type === "run" && e.detail.startsWith("started"));
+    const threads = starts.map((start, i) => {
+      const run = readJson<RunMeta>(join(runsDir(), `${/run (\S+)$/.exec(start.detail)?.[1]}.json`));
+      const state = run?.status ?? "unknown";
+      const until = starts[i + 1]?.time ?? "~";
+      const report = log.filter((e) => e.by === "agent" && e.type === "comment" && e.time >= start.time && e.time < until).pop();
+      const line = report?.body.split("\n").find((l) => l.trim() && !l.startsWith("#"))?.trim().slice(0, 100).replace(/"/g, "'");
+      const turns = run && state !== "running" && state !== "queued" ? `  ${run.turns} turns` : "";
+      return { address: `${t.id}.${i + 1}`, time: start.time, state, card: `${t.id}.${i + 1}  ${state}${turns}${line ? `  report "${line}"` : ""}` };
+    });
+    const counts = new Map<string, number>();
+    for (const th of threads) counts.set(th.state, (counts.get(th.state) ?? 0) + 1);
+    const summary = threads.length
+      ? `${threads.length} Thread${threads.length > 1 ? "s" : ""}: ${[...counts].map(([s, n]) => `${n} ${s}`).join(", ")}`
+      : "no Thread";
+    nodes.push({ address: t.id, kind: "task", card: `${t.id}  ${t.status}  ${t.priority}  "${t.title}"  ${summary}` });
+    edges.push({ from: t.id, rel: "part of", to: t.parent ?? "T-000" });
+    if (t.repo) edges.push({ from: t.id, rel: "in", to: `${t.repo}.md` });
+    for (const th of threads) {
+      nodes.push({ address: th.address, kind: "thread", card: th.card });
+      edges.push({ from: th.address, rel: "weaves", to: t.id, time: th.time });
+    }
+    texts.push({ from: t.id, text: t.body });
+    for (const e of log) if (e.body) texts.push({ from: t.id, text: e.body, time: e.time });
+  }
+
+  const docs = new Map<string, string>();
+  for (const a of listArtifacts(slug)) {
+    const text = readText(join(artifactsDir(slug), a.name)) ?? "";
+    if (a.kind === "md") docs.set(a.name, text);
+    // Metadata names the task already; links are read from the body.
+    const body = a.kind === "md" ? parseFrontmatter(text).body : text.replace(/<head[\s\S]*?<\/head>/i, "");
+    nodes.push({ address: a.name, kind: "document", card: `${a.name}  document  "${a.title}"  ${approxTokens(a.size)}` });
+    edges.push({ from: a.name, rel: "documents", to: a.task ?? "T-000" });
+    const original = p.sources.find((s) => s.url === a.source);
+    if (original) edges.push({ from: a.name, rel: "copy of", to: `${original.id}.md` });
+    texts.push({ from: a.name, text: body });
+  }
+  for (const s of p.sources) nodes.push({ address: `${s.id}.md`, kind: "link", card: `${s.id}.md  link ${s.kind}  "${s.title ?? s.url}"` });
+  for (const r of p.repos) nodes.push({ address: `${r.name}.md`, kind: "repository", card: `${r.name}.md  repository  "${r.name}"` });
+  for (const m of listMemory(slug)) {
+    const name = m.file.replace(/\.md$/, "");
+    nodes.push({ address: name, kind: "memory", card: `${name}  memory  "${m.description}"` });
+    edges.push({ from: name, rel: "known to", to: "T-000" });
+    if (m.source) edges.push({ from: name, rel: "read from", to: `${m.source}.md` });
+    texts.push({ from: name, text: `${m.description}\n${m.body}` });
+  }
+
+  const known = new Set(nodes.map((n) => n.address));
+  const seen = new Set<string>();
+  const links: { from: string; to: string; line: string; time?: string }[] = [];
+  for (const { from, text, time } of texts) {
+    let fenced = false;
+    for (const line of text.split("\n")) {
+      if (/^\s*(```|~~~)/.test(line)) fenced = !fenced;
+      // Code shows the syntax rather than linking: skip fenced blocks and inline code.
+      if (fenced) continue;
+      for (const m of line.replace(/`[^`]*`/g, "").matchAll(LINK_RE)) links.push({ from, to: (m[1] ?? m[2]!).trim(), line, time });
+    }
+  }
+  for (const { from, to, line, time } of links) {
+    if (to === from || seen.has(`${from}|${to}`)) continue;
+    seen.add(`${from}|${to}`);
+    const [target = "", section] = to.split("#");
+    const other = /^([a-z0-9][a-z0-9-]*)\/(T-\d+)$/.exec(target);
+    const inRepo = /^([^:\s\/]+):(.+)$/.exec(target);
+    let found: boolean;
+    if (other) found = existsSync(join(projectsDir(), other[1]!, "tasks", `${other[2]}.md`));
+    else if (inRepo) {
+      // A file in a registered repository becomes a node the first time something links to it.
+      const repo = p.repos.find((r) => r.name === inRepo[1]);
+      const path = repo ? resolve(repo.path, inRepo[2]!) : "";
+      const content = repo && path.startsWith(resolve(repo.path) + sep) ? readText(path) : undefined;
+      found = content !== undefined && hasSection(content, section);
+      if (found && !known.has(target)) {
+        const title = /^#\s+(.+)$/m.exec(content!)?.[1]?.trim() ?? inRepo[2];
+        nodes.push({ address: target, kind: "file", card: `${target}  file in ${repo!.name}.md  "${title}"  ${approxTokens(content!.length)}` });
+        known.add(target);
+      }
+    } else found = known.has(target) && (!docs.has(target) || hasSection(docs.get(target)!, section));
+    const context = line.replace(RUN_ID_RE, "").replace(/\s+/g, " ").replace(/"/g, "'").trim().slice(0, 100);
+    edges.push({ from, rel: "mentions", to, ...(time ? { time } : {}), ...(found ? {} : { missing: true }), line: context });
+  }
+  return { nodes, edges };
+}
+
+/** Regenerates GRAPH.md: one line per node and per edge, so a grep for an address returns its card and every edge that touches it. */
+export function writeGraph(slug: string) {
+  if (!isDir(projectDir(slug))) return;
+  const { nodes, edges } = projectGraph(slug);
+  const edge = (e: GraphEdge) =>
+    [e.from, e.rel, e.to, e.time?.slice(0, 16).replace("T", " "), e.missing && "missing", e.line && `"${e.line}"`].filter(Boolean).join(" | ");
+  const text = [
+    "# Graph", "",
+    "Generated by Loom from this project's files; do not edit. Grep an address for its card and every edge that touches it.", "",
+    "## Nodes", ...nodes.map((n) => n.card), "",
+    "## Edges", ...edges.map(edge), "",
+  ].join("\n");
+  const file = join(projectDir(slug), "GRAPH.md");
+  if (readText(file) !== text) writeAtomic(file, text);
 }
 
 // ---------- inbox ----------

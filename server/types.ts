@@ -244,6 +244,34 @@ export interface TaskDetail {
   children: TaskSummary[];
   artifacts: Artifact[];
   runs: RunMeta[];
+  /** What links to this task or one of its Threads, with the line around each link. */
+  linkedFrom: { from: string; line: string }[];
+}
+
+/** One thing in a project's graph, by the address a link names, with its one-line card. */
+export interface GraphNode {
+  address: string;
+  kind: "task" | "thread" | "document" | "link" | "repository" | "file" | "memory";
+  card: string;
+}
+
+/** Derived from a field, the timeline or a `[[link]]`; `line` is the text around a link. */
+export interface GraphEdge {
+  from: string;
+  rel: string;
+  to: string;
+  time?: string;
+  line?: string;
+  missing?: boolean;
+}
+
+/** A heading of a markdown file, with its 1-based line range and size. */
+export interface Section {
+  level: number;
+  heading: string;
+  from: number;
+  to: number;
+  tokens: number;
 }
 
 export interface ArtifactDetail extends Artifact {

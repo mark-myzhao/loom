@@ -22,6 +22,7 @@ projects/<slug>/
   memory/<entry>.md           one durable fact per file
   memory/MEMORY.md            index of the entries (generated; never edit it)
   artifacts/<name>.md|.html   whole documents
+  GRAPH.md                    every node and edge of the project, one per line (generated; never edit it)
 runs/                         app-owned run metadata and transcripts. Leave them alone.
 .trash/                       recoverable deletes. Leave it alone.
 ```
@@ -29,6 +30,29 @@ runs/                         app-owned run metadata and transcripts. Leave them
 A slug is lowercase letters, digits and hyphens, beginning with a letter or digit
 (`checkout-latency`). Dates are local `YYYY-MM-DD`. Timestamps are UTC ISO 8601 with
 milliseconds (`2026-01-06T09:10:00.000Z`).
+
+## Links
+
+Point at something instead of restating it, in any file: a task body, a timeline entry, an
+artifact or a memory entry. A link is an address in double brackets, and its shape says
+what it names:
+
+- `[[T-005]]` a task, `[[T-005.2]]` its second Thread, `[[other-slug/T-004]]` a task in
+  another project. A bare task id in prose (`T-005`) counts as a link too.
+- `[[t-003-review.md]]` an artifact; `[[t-003-review.md#Must fix]]` one of its sections.
+- `[[loom:docs/design/graph.md#Edges]]` a file in the project's repository named `loom`.
+- `[[checkout-owns-rollout]]` a memory entry.
+
+A section is matched by the start of its heading, so `#T1` finds "T1. The brief carries a
+manifest". The sentence around a link says what the relation is ("waits on [[T-005]]").
+Links inside code are not read. A link adds context, never permission: a linked task may be
+read, not changed.
+
+`GRAPH.md` lists every node of the project with a one-line card, then every edge (part of,
+documents, mentions, …), one per line, with the address spelled the same everywhere. To find
+what touches something, grep its address there (`Grep "T-005" GRAPH.md`) instead of opening
+files. A link that resolves to nothing is marked `missing`; fix it when you next touch the
+file.
 
 ## Frontmatter
 

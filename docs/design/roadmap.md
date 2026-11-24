@@ -11,6 +11,7 @@ Nine steps build the Shuttle and Threads design, each useful alone and small eno
 | Usage tracking: per-run token records, the Usage page, `bun run usage` | [usage/tracking.md](usage/tracking.md) |
 | Step 1: the clock in each message, write-through and "three reads" lines, links and the `shuttle` author, the allow-list | [shuttle/context.md](shuttle/context.md) R1 R4 R5 R7 |
 | Step 2: the ledger, the hand-over envelope, a fresh session when the cache is cold, `SESSIONS.md`, context and warm or cold in the Shuttle header | [shuttle/context.md](shuttle/context.md) R2 R3 |
+| Step 3, first part: `[[links]]`, `projectGraph` in `store.ts`, `GRAPH.md`, links and "linked from" in the UI | [graph.md](graph.md) |
 
 ## Build order
 
