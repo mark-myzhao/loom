@@ -133,6 +133,7 @@ export function ArtifactRows({ slug, items, inherited }: { slug: string; items: 
           <span className="row-title">{a.title}</span>
           <span className="id">{a.name}</span>
           <span className="row-meta">
+            {a.over && <span className="memory-over" title={`Over length: ${a.over}.`}>Over length</span>}
             {inherited ? <span>from {inherited}</span> : a.task && <span>{a.task}</span>}
             {a.origin && <span className={`tag${ORIGIN[a.origin]?.className ?? ""}`}>{ORIGIN[a.origin]?.text ?? a.origin}</span>}
             <span>{ago(a.modifiedAt)}</span>

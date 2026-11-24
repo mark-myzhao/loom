@@ -79,6 +79,8 @@ export interface Artifact {
   created?: string;
   modifiedAt: string;
   size: number;
+  /** What to do, when the document is over length. */
+  over?: string;
 }
 
 export interface MemoryEntry {

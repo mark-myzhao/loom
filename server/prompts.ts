@@ -156,7 +156,7 @@ export function taskPrompt(i: TaskPromptInput): string {
     const title = a?.title ?? /^#\s+(.+)$/m.exec(text)?.[1]?.trim() ?? rel;
     const isLinked = (heading: string) => [...linked].some((l) => heading.toLowerCase().startsWith(l));
     return [
-      `${shown}  "${title}"  ${approxTokens(a?.size ?? text.length)}  ${why}`,
+      `${shown}  "${title}"  ${approxTokens(a?.size ?? text.length)}${a?.over ? "  Over length" : ""}  ${why}`,
       ...outline(text)
         .filter((s) => s.level === 2 || isLinked(s.heading))
         .map((s) => `    ${s.heading}  L${s.from}-${s.to}  ~${s.tokens} tokens${isLinked(s.heading) ? "  <- the section linked" : ""}`),

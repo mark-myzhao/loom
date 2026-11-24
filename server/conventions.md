@@ -190,6 +190,17 @@ created: 2026-01-06
 - Filenames are lowercase and hyphenated. If a document on the subject already exists,
   update it instead of adding another.
 
+Agents read documents one section at a time, so keep them small and sectioned:
+
+- Open with a `## Summary` of at most 120 words that stands on its own.
+- Keep a section to about 1,500 tokens (about 6,000 characters), and let it name what it
+  depends on instead of assuming the reader came from the section above.
+- Keep a document to about 8,000 tokens (about 32,000 characters). Past that, split it by
+  subject into several artifacts of the same task (`t-007-context.md`, `t-007-board.md`).
+  Loom marks a longer one **Over length**.
+- Use markdown for anything an agent will work from. HTML is for pages made for the owner's
+  eyes; when a subject needs both, put the facts in markdown and the pictures in HTML.
+
 ## Memory
 
 Memory is what a newcomer to the project must know: roughly five to fifteen entries, one

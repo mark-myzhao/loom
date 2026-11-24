@@ -13,6 +13,7 @@ Nine steps build the Shuttle and Threads design, each useful alone and small eno
 | Step 2: the ledger, the hand-over envelope, a fresh session when the cache is cold, `SESSIONS.md`, context and warm or cold in the Shuttle header | [shuttle/context.md](shuttle/context.md) R2 R3 |
 | Step 3, first part: `[[links]]`, `projectGraph` in `store.ts`, `GRAPH.md`, links and "linked from" in the UI | [graph.md](graph.md) |
 | Step 3, second part: the task's neighbourhood in the Thread brief | [threads/context.md](threads/context.md) T1 T2 |
+| Step 4, first part: the size rules in the conventions and the Over length mark on artifacts | [threads/context.md](threads/context.md) T6 |
 
 ## Build order
 
@@ -40,6 +41,7 @@ Decided after the review, in [ADR 0014](../adr/0014-first-version-scope.md): swa
 2. **How much lighter can the Shuttle's fixed prefix get?** Unmeasured. If `--strict-mcp-config` and a `--tools` list cut 32K to under 15K, every cold start and every warm pick gets proportionally cheaper. A two-turn test run, read off the Usage page, answers it.
 3. **Does Claude Code put the date in its own system prefix?** If so the cache breaks daily whatever Loom sends. The first cold-start figures after step 1 show it.
 4. **Are a killed session's tokens lost or folded into the next resume?** Affects only how the usage record reads after a crash.
+5. **Build the markdown renderings of HTML (T7)?** The design review suggested cutting it; the owner has not decided. Step 4's size rules are built without it, and until it is, an HTML artifact appears in a brief with no outline.
 
 Settled on 2026-11-24: one graph derived from files, several Threads on a task, and a project as a task (ADRs [0016](../adr/0016-one-graph-derived-from-files.md) to 0018).
 
