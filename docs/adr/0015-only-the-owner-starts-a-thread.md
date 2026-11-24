@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-11-23
-- Implementation: Partly built: delegate is off the Shuttle's list; the server check needs the owner token (roadmap step 5)
+- Implementation: Built
 - Design: [shuttle/context.md](../design/shuttle/context.md)
 
 ## Context

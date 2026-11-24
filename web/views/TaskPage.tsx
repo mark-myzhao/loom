@@ -17,7 +17,7 @@ function Event({ ev, slug }: { ev: TimelineEvent; slug: string }) {
   const head = (
     <p className="event-head">
       <strong>{who}</strong>{" "}
-      {ev.type === "comment" ? "commented" : ev.type === "created" ? "opened this task" : ev.type === "status" ? "changed status" : ev.type === "field" ? "changed" : ev.type}
+      {ev.type === "comment" ? "commented" : ev.type === "note" ? "sent a note" : ev.type === "created" ? "opened this task" : ev.type === "status" ? "changed status" : ev.type === "field" ? "changed" : ev.type}
       {detail && <span className="event-detail"> {detail}</span>}
       {m && <> · <button className="link" onClick={() => openRun(m[2]!)}>transcript</button></>}
       <time title={ev.time}>{!ev.time ? "" : ev.body ? ago(ev.time) : stamp(ev.time)}</time>
@@ -25,7 +25,7 @@ function Event({ ev, slug }: { ev: TimelineEvent; slug: string }) {
   );
   // Anything with a body is a card; the rest are one-line marks on the line.
   return (
-    <li className={`event ev-${ev.type} by-${ev.by}${ev.body ? "" : " event-line"}`}>
+    <li className={`event ev-${ev.type} by-${/^T-\d+\.\d+$/.test(ev.by) ? "agent" : ev.by}${ev.body ? "" : " event-line"}`}>
       {ev.body ? <article className="event-card">{head}<Markdown text={ev.body} slug={slug} className="event-body" /></article> : head}
     </li>
   );
@@ -106,9 +106,11 @@ export function TaskPage({ project: p, id, edit }: { project: ProjectSnapshot; i
     if (body !== null && body !== task.body) await patch({ body });
     setBody(null);
   };
+  // A comment is a note to the task's Threads; one that closes the task is only recorded, so it wakes none.
   const send = async (done: boolean) => {
     if (!comment.trim() && !done) return;
-    if (await act(() => api("POST", `${base}/comments`, { text: comment, done }))) setComment("");
+    const sent = await act(() => (done ? api("POST", `${base}/comments`, { text: comment, done }) : api("POST", `${base}/note`, { text: comment })));
+    if (sent) setComment("");
   };
   const addSub = async () => {
     if (!sub.trim()) return;
@@ -218,9 +220,9 @@ export function TaskPage({ project: p, id, edit }: { project: ProjectSnapshot; i
               {data.timeline.map((ev, i) => <Event key={i} ev={ev} slug={p.slug} />)}
             </ul>
             <div className="compose">
-              <textarea rows={2} value={comment} aria-label="Comment" placeholder="Comment…" onChange={(e) => setComment(e.target.value)} onKeyDown={onSubmitKey(() => send(false))} />
+              <textarea rows={2} value={comment} aria-label="Note" placeholder="Note for this task's Threads…" onChange={(e) => setComment(e.target.value)} onKeyDown={onSubmitKey(() => send(false))} />
               <span className="btn-row">
-                <button disabled={!comment.trim()} onClick={() => send(false)}>Comment</button>
+                <button disabled={!comment.trim()} onClick={() => send(false)}>Send note</button>
                 {task.status !== "done" && <button onClick={() => send(true)}>{comment.trim() ? "Comment & mark done" : "Mark done"}</button>}
               </span>
             </div>

@@ -1016,10 +1016,12 @@ export function projectGraph(slug: string): { nodes: GraphNode[]; edges: GraphEd
       const run = readJson<RunMeta>(join(runsDir(), `${/run (\S+)$/.exec(start.detail)?.[1]}.json`));
       const state = run?.status ?? "unknown";
       const until = starts[i + 1]?.time ?? "~";
-      const report = log.filter((e) => e.by === "agent" && e.type === "comment" && e.time >= start.time && e.time < until).pop();
+      const address = `${t.id}.${i + 1}`;
+      // A report is signed by the Thread; older ones, signed "agent", belong to the Thread that was running.
+      const report = log.filter((e) => e.type === "comment" && (e.by === address || (e.by === "agent" && e.time >= start.time && e.time < until))).pop();
       const line = report?.body.split("\n").find((l) => l.trim() && !l.startsWith("#"))?.trim().slice(0, 100).replace(/"/g, "'");
       const turns = run && state !== "running" && state !== "queued" ? `  ${run.turns} turns` : "";
-      return { address: `${t.id}.${i + 1}`, time: start.time, state, card: `${t.id}.${i + 1}  ${state}${turns}${line ? `  report "${line}"` : ""}` };
+      return { address, time: start.time, state, card: `${address}  ${state}${turns}${line ? `  report "${line}"` : ""}` };
     });
     const counts = new Map<string, number>();
     for (const th of threads) counts.set(th.state, (counts.get(th.state) ?? 0) + 1);
@@ -1032,6 +1034,11 @@ export function projectGraph(slug: string): { nodes: GraphNode[]; edges: GraphEd
     for (const th of threads) {
       nodes.push({ address: th.address, kind: "thread", card: th.card });
       edges.push({ from: th.address, rel: "weaves", to: t.id, time: th.time });
+    }
+    // A Thread's finish lists what it wrote.
+    for (const e of log) {
+      const wrote = e.type === "run" && /^T-\d+\.\d+$/.test(e.by) ? /· wrote (.+?) · run/.exec(e.detail)?.[1] : undefined;
+      for (const to of wrote?.split(", ") ?? []) edges.push({ from: e.by, rel: "wrote", to, time: e.time });
     }
     texts.push({ from: t.id, text: t.body });
     for (const e of log) if (e.body) texts.push({ from: t.id, text: e.body, time: e.time });

@@ -2,7 +2,7 @@
 
 - Status: Accepted; amended by 0012 and 0017
 - Date: 2026-11-23
-- Implementation: Not built; the mechanism is tested
+- Implementation: Built
 - Design: [threads/notes.md](../design/threads/notes.md)
 
 ## Context

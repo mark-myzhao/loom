@@ -3,10 +3,14 @@ import type { Priority, ProjectSnapshot, RunMeta, Snapshot, TaskStatus, TaskSumm
 
 // ---------- api ----------
 
+// The server gives this page, and no other caller, the token that marks its notes and Starts as the owner's.
+let ownerToken: Promise<string> | undefined;
+
 export async function api<T = unknown>(method: string, path: string, body?: unknown): Promise<T> {
+  ownerToken ??= fetch("/api/owner").then((r) => r.json()).then((d) => String(d.token ?? ""), () => "");
   const res = await fetch(`/api${path}`, {
     method,
-    headers: method === "GET" ? undefined : { "Content-Type": "application/json" },
+    headers: method === "GET" ? undefined : { "Content-Type": "application/json", "X-Loom-Owner": await ownerToken },
     body: method === "GET" ? undefined : JSON.stringify(body ?? {}),
   });
   const data = await res.json().catch(() => ({}));

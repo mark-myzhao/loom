@@ -4,7 +4,7 @@
 import { appendFile } from "node:fs/promises";
 import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { loadConfig, nowIso, randomId, runsDir, writeAtomic } from "./store";
+import { loadConfig, nowIso, randomId, readTimeline, runsDir, writeAtomic } from "./store";
 import type { RunKind, RunMeta, RunSpec, RunStatus, RunUsage } from "./types";
 
 export interface RunInit {
@@ -26,6 +26,9 @@ interface Active {
   /** Model calls of the main session already counted as turns. */
   calls: Set<string>;
   proc?: ReturnType<typeof Bun.spawn>;
+  /** The session's input, open until its result; notes written before the session starts wait in `pending`. */
+  input?: import("bun").FileSink;
+  pending: string[];
   stopRequested?: boolean;
 }
 interface Job {
@@ -39,6 +42,8 @@ const active = new Map<string, Active>();
 const hooks = new Map<string, DoneHook>();
 const queue: Job[] = [];
 let onChange: () => void = () => {};
+/** Called on every start and every resume of a session, and on every finish. */
+let lifecycle: { started: (meta: RunMeta) => void; finished: (meta: RunMeta, lines: Line[]) => void } = { started() {}, finished() {} };
 
 const metaFile = (id: string) => join(runsDir(), `${id}.json`);
 const logFile = (id: string) => join(runsDir(), `${id}.jsonl`);
@@ -52,8 +57,9 @@ function saveMeta(meta: RunMeta) {
 }
 
 /** Loads run records; anything still queued or running did not survive the restart. */
-export function initRuns(changed: () => void) {
+export function initRuns(changed: () => void, hooks: typeof lifecycle) {
   onChange = changed;
+  lifecycle = hooks;
   mkdirSync(runsDir(), { recursive: true });
   for (const f of readdirSync(runsDir())) {
     if (!f.endsWith(".json")) continue;
@@ -155,11 +161,12 @@ export function startRun(init: RunInit, spec: RunSpec, prompt: string, onDone?: 
   while (metas.has(id)) id = `${d}-${randomId(4)}`;
   const meta: RunMeta = { id, ...init, status: "queued", createdAt: nowIso(), costUsd: 0, turns: 0, spec };
   metas.set(id, meta);
-  const a: Active = { meta, lines: [], subs: new Set(), writes: Promise.resolve(), calls: new Set() };
+  const a: Active = { meta, lines: [], subs: new Set(), writes: Promise.resolve(), calls: new Set(), pending: [] };
   active.set(id, a);
   emit(a, { type: "dash_prompt", text: prompt, time: nowIso() });
   saveMeta(meta);
   if (onDone) hooks.set(id, onDone);
+  lifecycle.started(meta);
   queue.push({ id, prompt, resume: false });
   pump();
   return meta;
@@ -178,7 +185,8 @@ function pump() {
 
 function buildArgs(meta: RunMeta, resume: boolean): string[] {
   const s = meta.spec;
-  const args = ["-p", "--output-format", "stream-json", "--verbose", "--permission-mode", s.permissionMode];
+  // Input is a stream of messages too, so a note can reach the session while it works.
+  const args = ["-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose", "--permission-mode", s.permissionMode];
   if (s.model) args.push("--model", s.model);
   if (s.systemPrompt) args.push("--append-system-prompt", s.systemPrompt);
   for (const d of s.addDirs ?? []) args.push("--add-dir", d);
@@ -188,7 +196,7 @@ function buildArgs(meta: RunMeta, resume: boolean): string[] {
     if (s.worktree) args.push("--worktree", s.worktree);
   }
   if (s.disallowedTools?.length) args.push("--disallowedTools", s.disallowedTools.join(","));
-  // Last, because it is variadic. The prompt goes over stdin so it cannot be swallowed.
+  // Last, because it is variadic. The prompt goes over stdin, so it cannot be swallowed.
   if (s.allowedTools.length) args.push("--allowedTools", ...s.allowedTools);
   return args;
 }
@@ -207,12 +215,17 @@ async function execute(a: Active, job: Job) {
   try {
     // A command's stderr joins its stdout, so the transcript shows both in order.
     proc = Bun.spawn(shell ? ["sh", "-c", `exec 2>&1\n${job.prompt}`] : [bin, ...buildArgs(meta, job.resume)], {
-      cwd, env, stdin: shell ? "ignore" : new TextEncoder().encode(job.prompt), stdout: "pipe", stderr: "pipe",
+      cwd, env, stdin: shell ? "ignore" : "pipe", stdout: "pipe", stderr: "pipe",
     });
   } catch (e) {
     return finish(a, "failed", `could not run ${shell ? "sh" : bin}: ${(e as Error).message}`);
   }
   a.proc = proc;
+  if (!shell) {
+    a.input = proc.stdin as import("bun").FileSink;
+    for (const text of [job.prompt, ...a.pending.splice(0)]) a.input.write(userMessage(text));
+    a.input.flush();
+  }
   meta.status = "running";
   meta.startedAt ??= nowIso();
   saveMeta(meta);
@@ -248,6 +261,10 @@ async function execute(a: Active, job: Job) {
     } else if (line.type === "result") {
       if (typeof line.result === "string") meta.result = resultText = line.result;
       resultError = !!line.is_error;
+      meta.resultAt = nowIso();
+      // The session ends once its input closes. A note already written is still read first.
+      a.input?.end();
+      a.input = undefined;
     } else if (track(meta, line, a.calls)) saveMeta(meta);
     emit(a, line);
   };
@@ -287,7 +304,14 @@ async function finish(a: Active, status: RunStatus, error?: string) {
   account(meta, a.lines);
   await a.writes;
   a.proc = undefined;
+  a.input = undefined;
   active.delete(meta.id);
+  try {
+    const start = a.lines.findLastIndex((l) => l.type === "dash_prompt" || l.type === "dash_user");
+    lifecycle.finished(meta, a.lines.slice(start));
+  } catch (e) {
+    console.error(`run ${meta.id}: finish tracking failed:`, e);
+  }
   const hook = hooks.get(meta.id);
   hooks.delete(meta.id);
   if (hook) {
@@ -331,23 +355,49 @@ export function readTranscript(id: string): Line[] {
   }
 }
 
+const userMessage = (text: string) => JSON.stringify({ type: "user", message: { role: "user", content: text } }) + "\n";
+
+/** How a note reads to a Thread: whose words it is decides what it may change. */
+export const noteText = (by: string, text: string) => `Note from ${by === "me" ? "the owner" : "an agent"}: ${text}`;
+
 /**
- * Continues a finished run's session. Usage is added to the same run; no completion hook fires.
- * The message carries the time, since the session's opening prompt holds the time it started.
+ * Writes a note into a session that is queued or working; it is read at the next step. False when
+ * the run is not taking input, so the caller knows it did not arrive.
+ */
+export function sendNote(id: string, text: string): boolean {
+  const a = active.get(id);
+  if (!a || (a.proc && !a.input)) return false;
+  emit(a, { type: "dash_note", text, time: nowIso() });
+  if (!a.input) a.pending.push(text);
+  else {
+    a.input.write(userMessage(text));
+    a.input.flush();
+  }
+  return true;
+}
+
+/**
+ * Continues a finished run's session; usage is added to the same run, and the run's own completion
+ * hook does not fire again. The message carries the time, since the session's opening prompt holds
+ * the time it started, and a Thread first gets the notes recorded after its last result.
  */
 export function sendMessage(id: string, message: string): RunMeta {
   const meta = metas.get(id);
   if (!meta) throw new Error("no such run");
   if (active.has(id) || live(meta.status)) throw new Error("the run is still in progress");
   if (!meta.sessionId) throw new Error("the run has no session to resume");
-  const a: Active = { meta, lines: readTranscript(id), subs: new Set(), writes: Promise.resolve(), calls: new Set() };
+  const missed = meta.kind === "task" && meta.project && meta.taskId
+    ? readTimeline(meta.project, meta.taskId).filter((e) => e.type === "note" && e.time > (meta.resultAt ?? meta.endedAt ?? "")).map((e) => noteText(e.by, e.body))
+    : [];
+  const a: Active = { meta, lines: readTranscript(id), subs: new Set(), writes: Promise.resolve(), calls: new Set(), pending: [] };
   active.set(id, a);
   meta.status = "queued";
   delete meta.endedAt;
   delete meta.error;
-  const text = `Loom: ${nowIso()}\n${message}`;
+  const text = [`Loom: ${nowIso()}`, ...missed, message].filter(Boolean).join("\n");
   emit(a, { type: "dash_user", text, time: nowIso() });
   saveMeta(meta);
+  lifecycle.started(meta);
   queue.push({ id, prompt: text, resume: true });
   pump();
   return meta;
