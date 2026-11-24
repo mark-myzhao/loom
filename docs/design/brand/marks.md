@@ -2,16 +2,17 @@
 
 ## Summary
 
-Two marks in the style of the Loom wordmark: a boat shuttle for the Shuttle and an over-under strand for a Thread, whose colour shows its state. SVG source is below; they are drawn at size in the pictures page.
+Two marks in the style of the Loom wordmark: the weft crossing the warp for the Shuttle and an over-under strand for a Thread, whose colour shows its state. SVG source is below; they are drawn at size in the pictures page.
 
 ## The marks
 
-Drawn like the Loom wordmark: one stroke, 3.2 units on a 32-unit grid, round caps and joins, no fill, burnt orange (`#ee7446` on dark, `#c2401b` on light). The Shuttle is a boat shuttle seen from above, tilted mid-throw, with the bobbin as the bar inside. The Thread is one strand going over and under; its colour is its state (grey proposed or queued, orange and moving when running, amber asking or blocked, red and split in two when broken, blue for review, green done). In the app they are `ShuttleMark` and `ThreadMark` in `web/ui.tsx`, on the Shuttle header and each board row. They are shown at size in [the pictures](../pictures.html).
+Drawn like the Loom wordmark: one stroke, 3.2 units on a 32-unit grid, round caps and joins, no fill, burnt orange (`#ee7446` on dark, `#c2401b` on light). The Shuttle is the weft it carries: a line going over, under and over three warp threads and on, an arrow, so it reads as routing and shares the Loom mark's vertical rhythm ([ADR 0019](../../adr/0019-shuttle-page-and-live-graph.md); it replaced a boat shuttle that read as a leaf at small sizes). The Thread is one strand going over and under; its colour is its state (grey proposed or queued, orange and moving when running, amber asking or blocked, red and split in two when broken, blue for review, green done). In the app they are `ShuttleMark` and `ThreadMark` in `web/ui.tsx`, on the rail's Shuttle link, the Shuttle page and each board row. They are shown at size in [the pictures](../pictures.html).
 
 ```
 <!-- Shuttle -->
 <svg viewBox="0 0 32 32" fill="none" stroke="#ee7446" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
-  <g transform="rotate(-24 16 16)"><path d="M3 16C9 6 23 6 29 16 23 26 9 26 3 16Z"/><path d="M12 16h8"/></g>
+  <path d="M5 4v7.5M5 20.5V28M12 4v24M19 4v7.5M19 20.5V28"/>
+  <path d="M2.5 16h6.5M15 16h14M24 11l5 5-5 5"/>
 </svg>
 
 <!-- Thread -->

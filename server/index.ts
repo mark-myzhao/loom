@@ -672,6 +672,7 @@ async function api(req: Request, url: URL): Promise<Response> {
 
     if (P("PATCH")) return json(store.patchProject(slug, await readBody(req)));
     if (P("DELETE")) return store.deleteProject(slug), json({ ok: true });
+    if (P("GET", "graph")) return json(store.projectGraph(slug));
     if (P("POST", "ask")) return json(await ask(slug, (await readBody(req)).text));
 
     if (P("POST", "sources")) {

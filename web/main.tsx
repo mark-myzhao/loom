@@ -2,13 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Project, Snapshot } from "../server/types";
 import { api, Ctx, day, enc, go, hashWith, isLive, openCount, useApp, useRoute, useScrollMemory, type AppCtx } from "./lib";
-import { Wordmark } from "./ui";
+import { ShuttleMark, Wordmark } from "./ui";
 import { Automations } from "./views/Automations";
 import { DocPage } from "./views/Doc";
 import { ProjectPage } from "./views/Project";
 import { RunDrawer, Settings } from "./views/RunDrawer";
 import { TaskPage } from "./views/TaskPage";
-import { Activity, Today } from "./views/Today";
+import { Activity, Shuttle, Today } from "./views/Today";
 import { Usage } from "./views/Usage";
 
 function Rail({ snap, current, onSettings }: { snap: Snapshot; current: string[]; onSettings: () => void }) {
@@ -40,6 +40,7 @@ function Rail({ snap, current, onSettings }: { snap: Snapshot; current: string[]
     <nav className="rail">
       <a className="brand" href="#/" aria-label="Loom, Today"><Wordmark /></a>
       <a href="#/" {...on(current.length === 0)}>Today</a>
+      <a href="#/shuttle" {...on(current[0] === "shuttle")}><ShuttleMark /> Shuttle</a>
       <a href="#/activity" {...on(current[0] === "activity")}>
         Activity
         {live > 0 && <span className="pill" title="Runs in progress"><span className="dot live" />{live}</span>}
@@ -120,6 +121,7 @@ function App() {
   const detail = b === "t" || b === "a";
   useScrollMemory(route.parts.slice(0, a === "p" && !detail ? 2 : 4).join("/"));
   const heading = !a ? "Today"
+    : a === "shuttle" ? "Shuttle"
     : a === "activity" ? "Activity"
     : a === "automations" ? "Automations"
     : a === "usage" ? "Usage"
@@ -137,6 +139,7 @@ function App() {
   const edit = route.query.has("edit");
   let view;
   if (!a) view = <Today />;
+  else if (a === "shuttle") view = <div className="page shuttle-page"><Shuttle /></div>;
   else if (a === "activity") view = <Activity />;
   else if (a === "automations") view = <Automations />;
   else if (a === "usage") view = <Usage />;

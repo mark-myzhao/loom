@@ -5,8 +5,8 @@ import { api, buildTree, enc, GROUPS, isLive, onSubmitKey, sortTasks, taskHref, 
 import { Empty, RunList, ShuttleMark, TaskRow, ThreadMark } from "../ui";
 import { Transcript, useRunLines } from "./RunDrawer";
 
-/** The Shuttle: Loom's resident agent and the owner's one conversation with it. */
-function Shuttle() {
+/** The Shuttle: Loom's resident agent and the owner's one conversation with it, on a page of its own. */
+export function Shuttle() {
   const { snap, act, openRun } = useApp();
   const [text, setText] = useState("");
   const [fresh, setFresh] = useState(false);
@@ -30,7 +30,6 @@ function Shuttle() {
     <section className="shuttle shadowed">
       <header className="shuttle-head">
         <h2><ShuttleMark /> Shuttle</h2>
-        <span className="hint">routes your notes, questions and work to the right place, and reports back</span>
         {run && (
           <span className="btn-row end">
             <span className="id" title="The session's largest context, and whether its prompt cache is still warm">
@@ -42,14 +41,7 @@ function Shuttle() {
         )}
       </header>
       <div className="shuttle-feed" ref={feed}>
-        {run ? (
-          <Transcript lines={lines} chat />
-        ) : (
-          <p className="empty">
-            Paste meeting notes or links, ask what needs you, or describe work for a Thread. Shuttle files notes, answers from your
-            projects and writes tasks that wait below for your Start. It remembers standing instructions in SHUTTLE.md.
-          </p>
-        )}
+        {run && <Transcript lines={lines} chat />}
         {live && <p className="sysline"><span className="pill live run-running">{run.status}</span></p>}
       </div>
       <div className="compose">
@@ -147,8 +139,6 @@ export function Today() {
           <h1>{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</h1>
         </div>
       </header>
-
-      <Shuttle />
 
       {BOARD_GROUPS.map(({ label, states }) => {
         // Grouped by task, so a task's Threads sit together.
