@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import * as store from "./store";
@@ -31,4 +31,26 @@ test("GRAPH.md gives a task's card and every edge that touches it, in both direc
   expect(graph).toMatch(/T-002 \| mentions \| gone.md \| missing \|/);
   expect(graph).not.toContain("| code.md");
   expect(graph).not.toMatch(/\d{14}-[a-z0-9]{4}/);
+});
+
+test("a project.json becomes the root task T-000, with its sources and repos as artifacts", () => {
+  const dir = join(store.projectsDir(), "legacy");
+  mkdirSync(join(dir, "memory"), { recursive: true });
+  writeFileSync(join(dir, "project.json"), JSON.stringify({
+    name: "Legacy", status: "paused", summary: "Where it stands.", createdAt: "2026-01-05T10:00:00.000Z",
+    sources: [{ id: "k3x9ab", kind: "gdoc", url: "https://docs.google.com/d/1", title: "Weekly notes" }],
+    repos: [{ name: "app", path: "/tmp" }],
+  }));
+  writeFileSync(join(dir, "memory", "owner-reviews.md"), "---\nname: owner-reviews\ndescription: The owner reviews.\ntype: decision\nsource: k3x9ab\n---\n");
+  store.initStorage();
+
+  expect(existsSync(join(dir, "project.json"))).toBe(false);
+  expect(store.readTask("legacy", "T-000")).toMatchObject({ title: "Legacy", status: "todo", created: "2026-01-05" });
+  expect(store.readProject("legacy")).toMatchObject({
+    name: "Legacy", status: "paused", summary: "Where it stands.",
+    sources: [{ id: "k3x9ab", url: "https://docs.google.com/d/1", title: "Weekly notes" }], repos: [{ name: "app", path: "/tmp" }],
+  });
+  const { nodes, edges } = store.projectGraph("legacy");
+  expect(nodes.find((n) => n.address === "k3x9ab.md")?.kind).toBe("link");
+  expect(edges).toContainEqual({ from: "owner-reviews", rel: "read from", to: "k3x9ab.md" });
 });

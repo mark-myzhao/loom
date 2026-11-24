@@ -16,7 +16,7 @@ SHUTTLE.md                    the Shuttle's notebook: the owner's standing instr
 SESSIONS.md                   the Shuttle's past conversations, newest first (generated; never edit it)
 inbox/<timestamp>.md          unrouted drops from the owner; inbox/processed/ holds absorbed ones
 projects/<slug>/
-  project.json                project metadata
+  tasks/T-000.md              the project itself, its root task
   tasks/T-001.md              one task
   tasks/T-001.log.md          that task's timeline (append-only)
   memory/<entry>.md           one durable fact per file
@@ -61,28 +61,19 @@ lines. One `key: value` per line, all values are strings, no nesting and no list
 value with double quotes if it contains `: `, `#`, or starts or ends with a space or a
 quote. Omit fields that are empty.
 
-## project.json
+## The project: T-000
 
-```json
-{
-  "name": "Checkout latency",
-  "status": "active",
-  "summary": "Two or three sentences on where the project stands today.",
-  "repos": [{ "name": "checkout", "path": "/abs/path/to/checkout" }],
-  "sources": [
-    { "id": "k3x9ab", "kind": "gdoc", "url": "https://…", "title": "Weekly notes",
-      "addedAt": "2026-01-05T10:00:00.000Z" }
-  ],
-  "createdAt": "2026-01-05T10:00:00.000Z",
-  "updatedAt": "2026-01-06T08:30:00.000Z"
-}
-```
+A project is the root task of its directory, `tasks/T-000.md`, written like any task: its
+title is the project's name, its `## Context` says where the project stands in two or three
+sentences, its exit criteria say when the project is finished, and it has a timeline. A
+task with no `parent` is part of it. Its status is `doing` (active), `todo` (paused or not
+started) or `done`.
 
-- `status` is `active`, `paused` or `done`.
-- A source `id` is six random lowercase letters or digits. `kind` is `gdoc` (Google Docs,
-  Sheets, Slides), `slack`, `github`, `url` (anything else) or `note`.
-- Preserve fields you do not understand. Keep the file valid JSON.
-- To create a project, make `projects/<slug>/` with `project.json`, `memory/` and `tasks/`.
+The project's links and codebases are artifacts with no body of their own (see Artifacts):
+a link (`origin: link`, the URL in `source`) for each doc, thread or page the project draws
+on, and a repository (`origin: repo`, the absolute path in `source`) for each codebase.
+
+To create a project, make `projects/<slug>/` with `tasks/T-000.md`, `memory/` and `artifacts/`.
 
 ## Tasks
 
@@ -121,7 +112,7 @@ The checkout team needs to see p95 latency during rollout. The parent task holds
   timeline comment.
 - `priority`: `p0` (urgent) to `p3`; `p2` is the default.
 - Optional: `due` (date), `parent` (the id of another task in the same project), `source`
-  (the url the task came from), `repo` (the name of a codebase in project.json), `run`
+  (the url the task came from), `repo` (the name of a repository artifact, without `.md`), `run`
   (set by the app).
 - Set `updated` to today whenever you change the task.
 - The body has exactly these three headings, in this order: `## Context`,
@@ -183,7 +174,9 @@ created: 2026-01-06
 ```
 
 - `origin`: `generated` (Claude wrote it), `imported` (a faithful copy of a link; keep its
-  wording, headings, tables and lists), `written` (the owner wrote or uploaded it).
+  wording, headings, tables and lists), `written` (the owner wrote or uploaded it), `link`
+  (a pointer to a doc, thread or page at the URL in `source`, with an optional note as its
+  body), `repo` (a codebase at the absolute path in `source`).
 - `source`: the url an import came from, or the original name of an upload.
 - `task`: the id of the task it belongs to, if any. A task artifact's filename begins with
   the lowercase task id: `t-007-research.md`.
@@ -233,7 +226,7 @@ Source: the weekly sync of 2026-01-05.
   unrelated facts are two entries; a supporting fact goes in the body.
 - `type`: `project` (what the project is for, its goals and scope), `decision`, `people`
   (who owns what), `reference` (where key resources live), `note`.
-- `source` is the `id` of the project.json source the fact was read from. Omit it for a
+- `source` is the name, without `.md`, of the link artifact the fact was read from. Omit it for a
   fact that came from the owner or from no registered source. When a source changes,
   re-check every entry that names it.
 - `updated` is the date the entry was last written or checked against its source. Set it

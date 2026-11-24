@@ -9,7 +9,7 @@ import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
 import {
   memoryOver, PRIORITIES, PROJECT_STATUSES, SOURCE_KINDS, TASK_STATUSES,
   type AppState, type Artifact, type ArtifactDetail, type Automation, type Config, type MemoryEntry,
-  type GraphEdge, type GraphNode, type Priority, type Project, type Repo, type RunMeta, type Section, type Source,
+  type GraphEdge, type GraphNode, type Priority, type Project, type ProjectStatus, type Repo, type RunMeta, type Section, type Source,
   type SourceKind, type Task, type TaskStatus, type TimelineEvent,
 } from "./types";
 
@@ -296,7 +296,10 @@ export function initStorage() {
   if (readText(join(DATA, "CLAUDE.md")) !== conventions) writeAtomic(join(DATA, "CLAUDE.md"), conventions);
   if (readText(join(DATA, ".gitignore")) !== GITIGNORE) writeAtomic(join(DATA, ".gitignore"), GITIGNORE);
   if (!existsSync(configPath())) writeJson(configPath(), DEFAULT_CONFIG);
-  for (const slug of listProjectSlugs()) rebuildMemoryIndex(slug);
+  for (const slug of listProjectSlugs()) {
+    migrateProject(slug);
+    rebuildMemoryIndex(slug);
+  }
 }
 
 // ---------- projects ----------
@@ -318,52 +321,65 @@ export function sourceKind(url: string): SourceKind {
   return "url";
 }
 
+// A project is the root task of its directory, T-000; its links and repositories are artifact files
+// whose bodies live at the URL or path in `source` (ADR 0018). `Project` is the view built from them.
+const ROOT = "T-000";
+const PROJECT_STATUS: Record<TaskStatus, ProjectStatus> = { doing: "active", review: "active", blocked: "active", todo: "paused", done: "done" };
+const ROOT_STATUS: Record<ProjectStatus, TaskStatus> = { active: "doing", paused: "todo", done: "done" };
+
 export function readProject(slug: string): Project {
-  const file = join(projectDir(slug), "project.json");
-  const base: Project = { slug, name: slug, status: "active", summary: "", repos: [], sources: [] };
-  const text = readText(file);
-  if (text === undefined) return { ...base, error: "project.json is missing" };
-  let raw: any;
-  try {
-    raw = JSON.parse(text);
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("not an object");
-  } catch (e) {
-    return { ...base, error: `project.json could not be read: ${(e as Error).message}` };
-  }
-  const str = (v: unknown) => (typeof v === "string" ? v : undefined);
+  const root = readTask(slug, ROOT);
+  if (!root) return { slug, name: slug, status: "active", summary: "", repos: [], sources: [], error: "tasks/T-000.md is missing" };
+  const refs = listArtifacts(slug).filter((a) => a.source && (a.origin === "link" || a.origin === "repo"));
+  const stem = (name: string) => name.replace(/\.md$/, "");
   return {
     slug,
-    name: str(raw.name) || slug,
-    status: PROJECT_STATUSES.includes(raw.status) ? raw.status : "active",
-    summary: str(raw.summary) ?? "",
-    repos: (Array.isArray(raw.repos) ? raw.repos : [])
-      .filter((r: any) => r && typeof r.path === "string")
-      .map((r: any): Repo => ({ name: str(r.name) || basename(r.path), path: r.path })),
-    sources: (Array.isArray(raw.sources) ? raw.sources : [])
-      .filter((s: any) => s && typeof s.url === "string")
-      .map((s: any): Source => ({
-        id: str(s.id) || randomId(6),
-        kind: SOURCE_KINDS.includes(s.kind) ? s.kind : sourceKind(s.url),
-        url: s.url,
-        title: str(s.title),
-        addedAt: str(s.addedAt) ?? "",
-      })),
-    createdAt: str(raw.createdAt),
-    updatedAt: str(raw.updatedAt),
+    name: root.title,
+    status: PROJECT_STATUS[root.status],
+    summary: extractSection(root.body, "Context"),
+    repos: refs.filter((a) => a.origin === "repo").map((a) => ({ name: stem(a.name), path: a.source! })),
+    sources: refs.filter((a) => a.origin === "link").map((a) => ({ id: stem(a.name), kind: sourceKind(a.source!), url: a.source!, title: a.title, addedAt: a.created ?? "" })),
+    createdAt: root.created,
+    updatedAt: root.updated,
   };
 }
 
-/** Read-modify-write on the raw JSON, so unrelated fields survive. */
-export function updateProject(slug: string, fn: (raw: Record<string, any>, p: Project) => void): Project {
-  const p = readProject(slug);
-  if (p.error) bad(p.error, 409);
-  const raw = readJson<Record<string, any>>(join(projectDir(slug), "project.json"))!;
-  raw.repos = p.repos;
-  raw.sources = p.sources;
-  fn(raw, p);
-  raw.updatedAt = nowIso();
-  writeJson(join(projectDir(slug), "project.json"), raw);
-  return readProject(slug);
+/** A link or repository artifact: a title and where the body lives. Never overwrites; returns the name used. */
+function writeReference(slug: string, stem: string, origin: "link" | "repo", title: string, source: string): string {
+  let name = `${stem}.md`;
+  if (existsSync(join(artifactsDir(slug), name))) name = `${stem}-${origin}.md`;
+  writeAtomic(join(artifactsDir(slug), name), formatFrontmatter({ title, origin, source, created: today() }, ""));
+  return name;
+}
+
+const rootTask = (title: string, status: TaskStatus, created: string, updated: string, context: string) =>
+  formatFrontmatter({ id: ROOT, title, status, priority: "p2", created, updated }, `## Context\n${context}\n\n## Things to do\n\n## Exit criteria\n`);
+
+/**
+ * One-time: a project.json becomes tasks/T-000.md and an artifact per source and repository; then
+ * it goes to the trash. A source keeps its id as its filename, so memory entries citing it still resolve.
+ */
+function migrateProject(slug: string) {
+  const file = join(projectDir(slug), "project.json");
+  const raw = readJson<Record<string, any>>(file);
+  if (!raw || existsSync(taskFile(slug, ROOT))) return;
+  const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  const day = (iso: unknown) => str(iso).slice(0, 10) || today();
+  for (const d of ["tasks", "memory", "artifacts"]) mkdirSync(join(projectDir(slug), d), { recursive: true });
+  const status = ROOT_STATUS[raw.status as ProjectStatus] ?? "doing";
+  writeAtomic(taskFile(slug, ROOT), rootTask(str(raw.name) || slug, status, day(raw.createdAt), day(raw.updatedAt), str(raw.summary)));
+  appendEvent(slug, ROOT, { by: "me", type: "created", detail: "from project.json" });
+  for (const s of Array.isArray(raw.sources) ? raw.sources : []) {
+    if (typeof s?.url !== "string") continue;
+    const id = /^[a-z0-9][a-z0-9-]*$/.test(str(s.id)) ? str(s.id) : randomId(6);
+    writeReference(slug, id, "link", str(s.title) || s.url, s.url);
+  }
+  for (const r of Array.isArray(raw.repos) ? raw.repos : []) {
+    if (typeof r?.path !== "string") continue;
+    const name = str(r.name) || basename(r.path);
+    writeReference(slug, fileSlug(name) || "repo", "repo", name, r.path);
+  }
+  trash(file, slug);
 }
 
 export function createProject(name: string): Project {
@@ -372,31 +388,32 @@ export function createProject(name: string): Project {
   const base = slugify(clean);
   let slug = base;
   for (let n = 2; existsSync(join(projectsDir(), slug)); n++) slug = `${base}-${n}`;
-  const dir = join(projectsDir(), slug);
-  for (const d of ["tasks", "memory", "artifacts"]) mkdirSync(join(dir, d), { recursive: true });
-  const now = nowIso();
-  writeJson(join(dir, "project.json"), {
-    name: clean, status: "active", summary: "", repos: [], sources: [], createdAt: now, updatedAt: now,
-  });
+  for (const d of ["tasks", "memory", "artifacts"]) mkdirSync(join(projectsDir(), slug, d), { recursive: true });
+  writeAtomic(taskFile(slug, ROOT), rootTask(clean, "doing", today(), today(), ""));
+  appendEvent(slug, ROOT, { by: "me", type: "created" });
   rebuildMemoryIndex(slug);
   return readProject(slug);
 }
 
+/** The project's name, status and summary are its root task's title, status and Context. */
 export function patchProject(slug: string, patch: { name?: unknown; status?: unknown; summary?: unknown }): Project {
-  return updateProject(slug, (raw) => {
-    if (patch.name !== undefined) {
-      if (typeof patch.name !== "string" || !patch.name.trim()) bad("name must be a non-empty string");
-      raw.name = (patch.name as string).trim();
-    }
-    if (patch.status !== undefined) {
-      if (!PROJECT_STATUSES.includes(patch.status as any)) bad("status must be active, paused or done");
-      raw.status = patch.status;
-    }
-    if (patch.summary !== undefined) {
-      if (typeof patch.summary !== "string") bad("summary must be a string");
-      raw.summary = (patch.summary as string).trim();
-    }
-  });
+  const root = readTask(slug, ROOT) ?? bad("tasks/T-000.md is missing", 409);
+  const input: TaskInput = {};
+  if (patch.name !== undefined) input.title = patch.name;
+  if (patch.status !== undefined) {
+    if (!PROJECT_STATUSES.includes(patch.status as ProjectStatus)) bad("status must be active, paused or done");
+    input.status = ROOT_STATUS[patch.status as ProjectStatus];
+  }
+  if (patch.summary !== undefined) {
+    if (typeof patch.summary !== "string") bad("summary must be a string");
+    const lines = root.body.split("\n");
+    const at = lines.findIndex((l) => /^##\s+context\s*$/i.test(l));
+    const end = lines.findIndex((l, i) => i > at && l.startsWith("## "));
+    const context = (patch.summary as string).trim();
+    input.body = at < 0 ? `## Context\n${context}\n\n${root.body}` : [...lines.slice(0, at + 1), context, "", ...(end < 0 ? [] : lines.slice(end))].join("\n");
+  }
+  patchTask(slug, ROOT, input, "me");
+  return readProject(slug);
 }
 
 export function deleteProject(slug: string) {
@@ -405,22 +422,27 @@ export function deleteProject(slug: string) {
   trash(dir, slug);
 }
 
+/** A new link is named for its title, so `[[weekly-notes.md]]` reads well; memory entries cite that name. */
 export function addSource(slug: string, url: unknown, title?: unknown): Project {
   if (typeof url !== "string" || !/^https?:\/\/\S+$/i.test(url.trim())) bad("a source needs an http(s) url");
   const u = (url as string).trim();
-  return updateProject(slug, (raw, p) => {
-    if (p.sources.some((s) => s.url === u)) bad("that source is already registered", 409);
-    const src: Source = { id: randomId(6), kind: sourceKind(u), url: u, addedAt: nowIso() };
-    if (typeof title === "string" && title.trim()) src.title = title.trim();
-    raw.sources = [...p.sources, src];
-  });
+  const p = readProject(slug);
+  if (p.sources.some((s) => s.url === u)) bad("that source is already registered", 409);
+  const t = typeof title === "string" && title.trim() ? title.trim() : u;
+  writeReference(slug, fileSlug(t.replace(/^https?:\/\//, "")) || randomId(6), "link", t, u);
+  return readProject(slug);
+}
+
+/** Removes a link or repository artifact, checking it is one. */
+function removeReference(slug: string, stem: string, origin: "link" | "repo") {
+  const meta = artifactMeta(slug, `${stem}.md`);
+  if (meta?.origin !== origin) bad(origin === "link" ? "no such source" : "no such codebase", 404);
+  trash(join(artifactsDir(slug), `${stem}.md`), slug);
 }
 
 export function removeSource(slug: string, id: string): Project {
-  return updateProject(slug, (raw, p) => {
-    if (!p.sources.some((s) => s.id === id)) bad("no such source", 404);
-    raw.sources = p.sources.filter((s) => s.id !== id);
-  });
+  removeReference(slug, id, "link");
+  return readProject(slug);
 }
 
 /** An absolute path to an existing directory, or a 400. */
@@ -433,18 +455,16 @@ export function checkRepoPath(path: unknown): string {
 
 export function addRepo(slug: string, path: unknown, name?: unknown): Project {
   const p = checkRepoPath(path);
-  const n = (typeof name === "string" && name.trim()) || basename(p);
-  return updateProject(slug, (raw, proj) => {
-    if (proj.repos.some((r) => r.name === n)) bad(`a codebase named "${n}" is already registered`, 409);
-    raw.repos = [...proj.repos, { name: n, path: p }];
-  });
+  const n = fileSlug((typeof name === "string" && name.trim()) || basename(p));
+  if (!n) bad("a codebase needs a name");
+  if (existsSync(join(artifactsDir(slug), `${n}.md`))) bad(`an artifact named "${n}.md" already exists`, 409);
+  writeReference(slug, n, "repo", n, p);
+  return readProject(slug);
 }
 
 export function removeRepo(slug: string, name: string): Project {
-  return updateProject(slug, (raw, p) => {
-    if (!p.repos.some((r) => r.name === name)) bad("no such codebase", 404);
-    raw.repos = p.repos.filter((r) => r.name !== name);
-  });
+  removeReference(slug, name, "repo");
+  return readProject(slug);
 }
 
 // ---------- tasks ----------
@@ -733,6 +753,7 @@ export function toggleChecklist(slug: string, id: string, index: number, checked
 
 /** Trashes the task and its timeline; its immediate children move up to its former parent. */
 export function deleteTask(slug: string, id: string) {
+  if (id === ROOT) bad("T-000 is the project itself; delete the project instead");
   const tasks = listTasks(slug);
   const task = tasks.find((t) => t.id === id) ?? bad("no such task", 404);
   for (const child of tasks.filter((t) => t.parent === id)) patchTask(slug, child.id, { parent: task.parent ?? null }, "me");
@@ -1000,12 +1021,11 @@ const hasSection = (text: string, section?: string) =>
 
 /**
  * A project's nodes, each with its one-line card, and its edges: derived from the files and run
- * records on every call, never stored. Until a project is a task, its root `T-000`, links and
- * repositories come from project.json, and a Thread is numbered by the order of its task's run events.
+ * records on every call, never stored. A Thread is numbered by the order of its task's run events.
  */
 export function projectGraph(slug: string): { nodes: GraphNode[]; edges: GraphEdge[] } {
   const p = readProject(slug);
-  const nodes: GraphNode[] = [{ address: "T-000", kind: "task", card: `T-000  project  ${p.status}  "${p.name}"` }];
+  const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
   const texts: { from: string; text: string; time?: string }[] = [];
 
@@ -1030,7 +1050,7 @@ export function projectGraph(slug: string): { nodes: GraphNode[]; edges: GraphEd
       ? `${threads.length} Thread${threads.length > 1 ? "s" : ""}: ${[...counts].map(([s, n]) => `${n} ${s}`).join(", ")}`
       : "no Thread";
     nodes.push({ address: t.id, kind: "task", card: `${t.id}  ${t.status}  ${t.priority}  "${t.title}"  ${summary}` });
-    edges.push({ from: t.id, rel: "part of", to: t.parent ?? "T-000" });
+    if (t.id !== ROOT) edges.push({ from: t.id, rel: "part of", to: t.parent ?? ROOT });
     if (t.repo) edges.push({ from: t.id, rel: "in", to: `${t.repo}.md` });
     for (const th of threads) {
       nodes.push({ address: th.address, kind: "thread", card: th.card });
@@ -1048,17 +1068,20 @@ export function projectGraph(slug: string): { nodes: GraphNode[]; edges: GraphEd
   const docs = new Map<string, string>();
   for (const a of listArtifacts(slug)) {
     const text = readText(join(artifactsDir(slug), a.name)) ?? "";
-    if (a.kind === "md") docs.set(a.name, text);
-    // Metadata names the task already; links are read from the body.
-    const body = a.kind === "md" ? parseFrontmatter(text).body : text.replace(/<head[\s\S]*?<\/head>/i, "");
-    nodes.push({ address: a.name, kind: "document", card: `${a.name}  document  "${a.title}"  ${approxTokens(a.size)}${a.over ? "  Over length" : ""}` });
-    edges.push({ from: a.name, rel: "documents", to: a.task ?? "T-000" });
-    const original = p.sources.find((s) => s.url === a.source);
-    if (original) edges.push({ from: a.name, rel: "copy of", to: `${original.id}.md` });
+    // Metadata names the task already, and code shows syntax: links are read from the prose.
+    const body = a.kind === "md" ? parseFrontmatter(text).body : text.replace(/<(head|pre|code|script|style)\b[\s\S]*?<\/\1>/gi, "");
     texts.push({ from: a.name, text: body });
+    edges.push({ from: a.name, rel: "documents", to: a.task ?? ROOT });
+    // A link or a repository has no body here, so no size and no sections.
+    if (a.origin === "link") nodes.push({ address: a.name, kind: "link", card: `${a.name}  link ${sourceKind(a.source ?? "")}  "${a.title}"` });
+    else if (a.origin === "repo") nodes.push({ address: a.name, kind: "repository", card: `${a.name}  repository  "${a.title}"` });
+    else {
+      if (a.kind === "md") docs.set(a.name, text);
+      nodes.push({ address: a.name, kind: "document", card: `${a.name}  document  "${a.title}"  ${approxTokens(a.size)}${a.over ? "  Over length" : ""}` });
+      const original = p.sources.find((s) => s.url === a.source);
+      if (original) edges.push({ from: a.name, rel: "copy of", to: `${original.id}.md` });
+    }
   }
-  for (const s of p.sources) nodes.push({ address: `${s.id}.md`, kind: "link", card: `${s.id}.md  link ${s.kind}  "${s.title ?? s.url}"` });
-  for (const r of p.repos) nodes.push({ address: `${r.name}.md`, kind: "repository", card: `${r.name}.md  repository  "${r.name}"` });
   for (const m of listMemory(slug)) {
     const name = m.file.replace(/\.md$/, "");
     nodes.push({ address: name, kind: "memory", card: `${name}  memory  "${m.description}"` });

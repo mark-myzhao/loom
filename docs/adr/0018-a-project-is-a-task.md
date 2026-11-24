@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-11-24
-- Implementation: Not built
+- Implementation: Built, except that the project page keeps its tabs beside the task page of `T-000` (roadmap step 8)
 - Design: [graph.md](../design/graph.md)
 
 ## Context

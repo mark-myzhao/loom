@@ -17,6 +17,7 @@ Nine steps build the Shuttle and Threads design, each useful alone and small eno
 | Step 5: notes, the owner token, Thread addresses as authors, what a Thread wrote, tracking on every finish | [threads/notes.md](threads/notes.md) |
 | Step 6: the `question` event, the Threads board with derived states, Start with a purpose, more than one Thread on a task | [threads/dispatch.md](threads/dispatch.md) |
 | Step 7: the Shuttle and Thread marks; "Thread" in the interface and prompts; the pictures redrawn without the budget swap or the slow state | [brand/marks.md](brand/marks.md), [glossary.md](glossary.md) |
+| Step 8: a project is `T-000`, sources and repos are artifact files, a one-time migration from `project.json` | [graph.md](graph.md), "A project is a task" |
 
 ## Build order
 
@@ -45,6 +46,7 @@ Decided after the review, in [ADR 0014](../adr/0014-first-version-scope.md): swa
 3. **Does Claude Code put the date in its own system prefix?** If so the cache breaks daily whatever Loom sends. The first cold-start figures after step 1 show it.
 4. **Are a killed session's tokens lost or folded into the next resume?** Affects only how the usage record reads after a crash.
 5. **Build the markdown renderings of HTML (T7)?** The design review suggested cutting it; the owner has not decided. Step 4's size rules are built without it, and until it is, an HTML artifact appears in a brief with no outline.
+6. **Where do the project page's tabs go?** Step 8 made a project the task `T-000`, but the project page still has tabs a task page lacks (graph, artifacts, memory, context, activity), so it links to `T-000`'s task page instead of becoming it. Folding them into the task page, or keeping the hub, is the owner's call.
 
 Settled on 2026-11-24: one graph derived from files, several Threads on a task, and a project as a task (ADRs [0016](../adr/0016-one-graph-derived-from-files.md) to 0018).
 

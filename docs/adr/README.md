@@ -21,7 +21,7 @@ One file per decision, numbered in the order they were made. The design itself i
 | [0015](0015-only-the-owner-starts-a-thread.md) | Only the owner starts a Thread | Accepted | Built |
 | [0016](0016-one-graph-derived-from-files.md) | One graph, derived from files | Accepted | Partly built |
 | [0017](0017-several-threads-weave-a-task.md) | Several Threads may weave one task | Accepted | Partly built |
-| [0018](0018-a-project-is-a-task.md) | A project is a task, and sources and repos are artifacts | Accepted | Not built |
+| [0018](0018-a-project-is-a-task.md) | A project is a task, and sources and repos are artifacts | Accepted | Partly built |
 
 ## Adding one
 
