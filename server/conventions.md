@@ -12,6 +12,7 @@ This file is generated: the server overwrites it on every start. Do not edit it 
 CLAUDE.md                     this file (generated)
 config.json, state.json       app-owned settings and runtime state. Leave them alone.
 automations.json              the owner's saved automations (app-owned). Leave it alone.
+SHUTTLE.md                    the Shuttle's notebook: the owner's standing instructions. Only the Shuttle edits it
 inbox/<timestamp>.md          unrouted drops from the owner; inbox/processed/ holds absorbed ones
 projects/<slug>/
   project.json                project metadata

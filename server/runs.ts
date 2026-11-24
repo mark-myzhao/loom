@@ -5,7 +5,7 @@ import { appendFile } from "node:fs/promises";
 import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig, nowIso, randomId, runsDir, writeAtomic } from "./store";
-import type { RunKind, RunMeta, RunSpec, RunStatus } from "./types";
+import type { RunKind, RunMeta, RunSpec, RunStatus, RunUsage } from "./types";
 
 export interface RunInit {
   kind: RunKind;
@@ -23,6 +23,8 @@ interface Active {
   subs: Set<Subscriber>;
   /** Transcript appends are chained so they land in order. */
   writes: Promise<unknown>;
+  /** Model calls of the main session already counted as turns. */
+  calls: Set<string>;
   proc?: ReturnType<typeof Bun.spawn>;
   stopRequested?: boolean;
 }
@@ -58,11 +60,21 @@ export function initRuns(changed: () => void) {
     try {
       const meta = JSON.parse(readFileSync(join(runsDir(), f), "utf8")) as RunMeta;
       if (!meta?.id || !isRunId(meta.id)) continue;
-      if (live(meta.status)) {
+      const stale = live(meta.status);
+      if (stale) {
         meta.status = "interrupted";
         meta.endedAt ??= nowIso();
-        writeAtomic(metaFile(meta.id), JSON.stringify(meta, null, 2) + "\n");
       }
+      // Records written before usage was tracked get it from their transcript, once.
+      const untracked = !meta.usage;
+      if (untracked) {
+        const lines = readTranscript(meta.id);
+        const calls = new Set<string>();
+        meta.turns = 0;
+        for (const line of lines) track(meta, line, calls);
+        account(meta, lines);
+      }
+      if (stale || untracked) writeAtomic(metaFile(meta.id), JSON.stringify(meta, null, 2) + "\n");
       metas.set(meta.id, meta);
     } catch {
       // An unreadable record is skipped.
@@ -79,6 +91,57 @@ export function listRuns(limit?: number): RunMeta[] {
 export const hasLiveRuns = () => [...metas.values()].some((m) => live(m.status));
 export const findLiveRun = (pred: (m: RunMeta) => boolean) => listRuns().find((m) => live(m.status) && pred(m));
 
+const COUNTS = ["input", "output", "cacheRead", "cacheWrite", "costUsd"] as const;
+
+/**
+ * Counts a transcript line toward the figures shown while a run is live: a turn per model call of
+ * the main session, and the largest prompt it sent. True when the line changed them.
+ */
+function track(meta: RunMeta, line: Line, calls: Set<string>): boolean {
+  const id = line.message?.id;
+  if (line.type !== "assistant" || line.parent_tool_use_id || !id || calls.has(id)) return false;
+  calls.add(id);
+  const u = line.message.usage ?? {};
+  meta.turns++;
+  meta.peakContext = Math.max(meta.peakContext ?? 0, (u.input_tokens || 0) + (u.cache_read_input_tokens || 0) + (u.cache_creation_input_tokens || 0));
+  return true;
+}
+
+/**
+ * Sets a run's usage and cost from its transcript. Every result line carries totals
+ * for the whole session, resumes included, so what one start or resume used is the last total
+ * before the next message minus the total before it.
+ */
+function account(meta: RunMeta, lines: Line[]) {
+  const usage: RunUsage[] = [];
+  const totals = new Map<string, RunUsage>();
+  let at = meta.createdAt;
+  let result: Line | undefined;
+  const close = () => {
+    for (const [model, u] of Object.entries<Line>(result?.modelUsage ?? {})) {
+      const total: RunUsage = {
+        at, model, input: u.inputTokens || 0, output: u.outputTokens || 0,
+        cacheRead: u.cacheReadInputTokens || 0, cacheWrite: u.cacheCreationInputTokens || 0, costUsd: u.costUSD || 0,
+      };
+      const before = totals.get(model);
+      totals.set(model, total);
+      const used = { ...total };
+      for (const k of COUNTS) used[k] -= before?.[k] ?? 0;
+      if (COUNTS.some((k) => used[k] > 0)) usage.push(used);
+    }
+    result = undefined;
+  };
+  for (const line of lines) {
+    if (line.type === "dash_prompt" || line.type === "dash_user") {
+      close();
+      at = line.time ?? at;
+    } else if (line.type === "result") result = line;
+  }
+  close();
+  meta.usage = usage;
+  meta.costUsd = usage.reduce((sum, u) => sum + u.costUsd, 0);
+}
+
 function emit(a: Active, line: Line) {
   a.lines.push(line);
   const text = JSON.stringify(line) + "\n";
@@ -92,7 +155,7 @@ export function startRun(init: RunInit, spec: RunSpec, prompt: string, onDone?: 
   while (metas.has(id)) id = `${d}-${randomId(4)}`;
   const meta: RunMeta = { id, ...init, status: "queued", createdAt: nowIso(), costUsd: 0, turns: 0, spec };
   metas.set(id, meta);
-  const a: Active = { meta, lines: [], subs: new Set(), writes: Promise.resolve() };
+  const a: Active = { meta, lines: [], subs: new Set(), writes: Promise.resolve(), calls: new Set() };
   active.set(id, a);
   emit(a, { type: "dash_prompt", text: prompt, time: nowIso() });
   saveMeta(meta);
@@ -104,9 +167,11 @@ export function startRun(init: RunInit, spec: RunSpec, prompt: string, onDone?: 
 
 function pump() {
   const max = Math.max(1, loadConfig().maxConcurrentRuns || 1);
-  while (queue.length && [...active.values()].filter((a) => a.proc).length < max) {
-    const job = queue.shift()!;
+  for (const job of [...queue]) {
     const a = active.get(job.id);
+    // The Shuttle is the owner's live conversation, so it never waits behind background work.
+    if (a?.meta.kind !== "shuttle" && [...active.values()].filter((x) => x.proc).length >= max) continue;
+    queue.splice(queue.indexOf(job), 1);
     if (a) void execute(a, job);
   }
 }
@@ -115,6 +180,7 @@ function buildArgs(meta: RunMeta, resume: boolean): string[] {
   const s = meta.spec;
   const args = ["-p", "--output-format", "stream-json", "--verbose", "--permission-mode", s.permissionMode];
   if (s.model) args.push("--model", s.model);
+  if (s.systemPrompt) args.push("--append-system-prompt", s.systemPrompt);
   for (const d of s.addDirs ?? []) args.push("--add-dir", d);
   if (resume) args.push("--resume", meta.sessionId!);
   else {
@@ -180,11 +246,9 @@ async function execute(a: Active, job: Job) {
         return emit(a, { type: "system", subtype: "init", cwd: line.cwd, model: line.model, session_id: line.session_id });
       }
     } else if (line.type === "result") {
-      meta.costUsd += Number(line.total_cost_usd) || 0;
-      meta.turns += Number(line.num_turns) || 0;
       if (typeof line.result === "string") meta.result = resultText = line.result;
       resultError = !!line.is_error;
-    }
+    } else if (track(meta, line, a.calls)) saveMeta(meta);
     emit(a, line);
   };
 
@@ -220,6 +284,7 @@ async function finish(a: Active, status: RunStatus, error?: string) {
   meta.endedAt = nowIso();
   if (error) meta.error = error;
   emit(a, { type: "dash_end", status, time: meta.endedAt, ...(error ? { error } : {}) });
+  account(meta, a.lines);
   await a.writes;
   a.proc = undefined;
   active.delete(meta.id);
@@ -266,13 +331,13 @@ function readTranscript(id: string): Line[] {
   }
 }
 
-/** Continues a finished run's session. Usage accumulates on the same run; no completion hook fires. */
+/** Continues a finished run's session. Usage is added to the same run; no completion hook fires. */
 export function sendMessage(id: string, text: string): RunMeta {
   const meta = metas.get(id);
   if (!meta) throw new Error("no such run");
   if (active.has(id) || live(meta.status)) throw new Error("the run is still in progress");
   if (!meta.sessionId) throw new Error("the run has no session to resume");
-  const a: Active = { meta, lines: readTranscript(id), subs: new Set(), writes: Promise.resolve() };
+  const a: Active = { meta, lines: readTranscript(id), subs: new Set(), writes: Promise.resolve(), calls: new Set() };
   active.set(id, a);
   meta.status = "queued";
   delete meta.endedAt;

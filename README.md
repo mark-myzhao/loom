@@ -68,10 +68,14 @@ fetch sources" there, and clear "Connector gateway" to skip the one-time enable 
 | `server/store.ts` | Reads and writes every record |
 | `server/runs.ts` | Spawns, queues, streams and resumes Claude Code sessions and automation commands |
 | `server/prompts.ts` | The instructions for each kind of run |
+| `server/usage.ts` | Token usage rolled up for the Usage page and `bun run usage` |
 | `server/backup.ts` | Git snapshots of the data directory |
 | `server/conventions.md` | The file formats; copied to `<data>/CLAUDE.md` on every start |
 | `web/` | The React app (hash routes, one root state snapshot) |
 | `scripts/launchd.sh` | macOS login service |
+| `scripts/usage.ts` | `bun run usage [days]`: a token-usage report in markdown |
+| `docs/design/` | How Loom is designed, one subject per page; start at its README |
+| `docs/adr/` | Design decisions, one per file |
 | `skills/loom/` | Companion skill for using Loom from any Claude Code session |
 
 A change to a file format has to be made in `store.ts`, `conventions.md` and `prompts.ts`
