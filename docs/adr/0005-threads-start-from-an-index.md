@@ -2,7 +2,7 @@
 
 - Status: Accepted; amended by 0016
 - Date: 2026-11-23
-- Implementation: Not built; the size rules are followed in `docs/design`
+- Implementation: The brief is built (roadmap step 3); the size rules are followed in `docs/design`
 - Design: [threads/context.md](../design/threads/context.md)
 
 ## Context

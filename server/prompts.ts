@@ -1,8 +1,11 @@
 // The instructions each kind of run receives. File formats live in conventions.md, which every
 // session inside the data directory loads as CLAUDE.md; prompts point at it rather than restate it.
 
-import { join } from "node:path";
-import { DATA, extractSection, nowIso, projectDir, taskFile, taskLogFile, today } from "./store";
+import { join, resolve } from "node:path";
+import {
+  approxTokens, DATA, extractSection, listArtifacts, listMemory, nowIso, outline, projectDir, projectGraph, readText, readTimeline,
+  taskFile, taskLogFile, today,
+} from "./store";
 import type { Config, Project, Task } from "./types";
 
 const opening = () => `Today is ${today()} and the time is ${nowIso()} (use it for timeline events).`;
@@ -115,10 +118,8 @@ export interface TaskPromptInput {
   task: Task;
   instructions?: string;
   worktree: boolean;
-  /** Names of the artifacts whose task is this task. */
-  artifacts: string[];
-  /** Nearest first, each with the names of its own artifacts. */
-  ancestors: { task: Task; artifacts: string[] }[];
+  /** Nearest first. */
+  ancestors: Task[];
   /** The other subtasks of the direct parent. */
   siblings: Task[];
 }
@@ -127,32 +128,75 @@ export function taskPrompt(i: TaskPromptInput): string {
   const { project: p, task } = i;
   const dir = projectDir(p.slug);
   const lower = task.id.toLowerCase();
-  const art = (names: string[]) => names.map((n) => `- ${join(dir, "artifacts", n)}`).join("\n");
   const many = i.ancestors.length > 1;
+
+  // The task's neighbourhood in the graph, one hop out: cards and outlines, never bodies.
+  const { nodes, edges } = projectGraph(p.slug);
+  const near = new Set([task.id, ...i.ancestors.map((a) => a.id)]);
+  const kind = new Map(nodes.map((n) => [n.address, n.kind]));
+  const docs = new Map<string, { why: string; linked: Set<string> }>();
+  for (const e of edges) {
+    const [target = "", section] = e.to.split("#");
+    const own = e.rel === "documents" && near.has(e.to);
+    const mentioned = e.rel === "mentions" && near.has(e.from) && !e.missing && (kind.get(target) === "document" || kind.get(target) === "file");
+    if (!own && !mentioned) continue;
+    const address = own ? e.from : target;
+    const doc = docs.get(address) ?? { why: own ? `of ${e.to}` : `linked from ${e.from}`, linked: new Set<string>() };
+    if (mentioned && section) doc.linked.add(section.toLowerCase());
+    docs.set(address, doc);
+  }
+  const artifacts = listArtifacts(p.slug);
+  const documents = [...docs].flatMap(([address, { why, linked }]) => {
+    const a = artifacts.find((x) => x.name === address);
+    const [repoName, rel = ""] = address.split(":");
+    const repo = a ? undefined : p.repos.find((r) => r.name === repoName);
+    const path = a ? join(dir, "artifacts", address) : resolve(repo?.path ?? "", rel);
+    const text = (a?.kind ?? "md") === "md" ? readText(path) ?? "" : "";
+    const shown = a ? `artifacts/${address}` : path;
+    const title = a?.title ?? /^#\s+(.+)$/m.exec(text)?.[1]?.trim() ?? rel;
+    const isLinked = (heading: string) => [...linked].some((l) => heading.toLowerCase().startsWith(l));
+    return [
+      `${shown}  "${title}"  ${approxTokens(a?.size ?? text.length)}  ${why}`,
+      ...outline(text)
+        .filter((s) => s.level === 2 || isLinked(s.heading))
+        .map((s) => `    ${s.heading}  L${s.from}-${s.to}  ~${s.tokens} tokens${isLinked(s.heading) ? "  <- the section linked" : ""}`),
+    ];
+  });
+  const threads = nodes.filter((n) => n.kind === "thread" && n.address.startsWith(`${task.id}.`));
+  const notes = readTimeline(p.slug, task.id)
+    .filter((e) => e.by === "me" && e.type === "comment")
+    .map((e) => `${e.time.slice(0, 10)} me "${e.body.replace(/\s+/g, " ").slice(0, 100)}"`);
+  const mentionedBy = edges
+    .filter((e) => e.rel === "mentions" && e.from !== task.id && (e.to === task.id || e.to.startsWith(`${task.id}#`) || e.to.startsWith(`${task.id}.`)))
+    .sort((a, b) => (b.time ?? "").localeCompare(a.time ?? ""))
+    .map((e) => `${e.from} "${e.line}"`);
+  const memory = listMemory(p.slug).map((m) => `${m.file.replace(/\.md$/, "")}: ${m.description}`);
+  const group = (label: string, items: string[]) => items.map((item, k) => (k ? "" : label).padEnd(13) + item);
+  let neighbourhood = [
+    ...group("Parents", i.ancestors.map((a) => `${a.id} ${a.status} "${a.title}"`)),
+    ...group("Siblings", i.siblings.length ? [i.siblings.map((s) => `${s.id} ${s.status}`).join(" · ")] : []),
+    ...group("Threads", [...threads.map((t) => t.card), `(you are ${task.id}.${threads.length + 1})`]),
+    ...group("Documents", documents),
+    ...group("Memory", memory.length ? memory : ["no entries yet"]),
+    ...group("Notes", notes),
+    ...group("Mentioned by", mentionedBy),
+  ];
+  // Mentions come last and newest first, so the cap drops the oldest of them first.
+  if (neighbourhood.length > 60) neighbourhood = [...neighbourhood.slice(0, 59), `… ${neighbourhood.length - 59} more lines: grep "${task.id}" ${dir}/GRAPH.md`];
 
   let parentBlock = "";
   if (i.ancestors.length) {
-    const parent = i.ancestors[0]!.task;
-    const chain = i.ancestors.map((a) => a.task.id).join(", which is part of ");
-    const shared = many
-      ? "The context of each of those tasks, given below from the outermost in, and their artifacts are shared background for every subtask."
-      : `The context of ${parent.id}, given below, and its artifacts are shared background for every subtask.`;
-    const blocks = [...i.ancestors].reverse().map(({ task: a, artifacts }) => {
+    const chain = i.ancestors.map((a) => a.id).join(", which is part of ");
+    const blocks = [...i.ancestors].reverse().map((a) => {
       const context = extractSection(a.body, "Context") || a.body.trim() || "(No description.)";
-      const list = artifacts.length
-        ? `Artifacts of ${a.id} (read the ones that bear on ${task.id} before you start):\n${art(artifacts)}`
-        : `${a.id} has no artifacts.`;
-      return `### ${a.id}: ${a.title} (${taskFile(p.slug, a.id)})\n\n${context}\n\n${list}`;
+      return `### ${a.id}: ${a.title} (${taskFile(p.slug, a.id)})\n\n${context}`;
     });
-    const siblings = i.siblings.length
-      ? `\n\nThe other subtasks of ${parent.id}, which are not yours to do:\n${i.siblings.map((s) => `- ${s.id} (${s.status}): ${s.title}`).join("\n")}`
-      : "";
     parentBlock = `
 ## Parent task${many ? "s" : ""}
 
-This task is one part of ${chain}. ${shared} Use them to understand the goal and constraints; do only the work of ${task.id}.
+This task is one part of ${chain}. The context of ${many ? "each of those tasks, given below from the outermost in" : `${i.ancestors[0]!.id}, given below`}, and the documents of ${many ? "those tasks" : "it"} are shared background for every subtask. Use them to understand the goal and constraints; do only the work of ${task.id}.
 
-${blocks.join("\n\n")}${siblings}
+${blocks.join("\n\n")}
 `;
   }
 
@@ -169,9 +213,13 @@ ${blocks.join("\n\n")}${siblings}
   return `You are a coding agent. The owner of a personal project dashboard has delegated one task to you. ${opening()} Nobody is watching this session live, so make reasonable decisions yourself and record them in your report.
 
 Project: ${p.name}
-${p.summary.trim() ? `Where the project stands: ${p.summary.trim()}\n` : ""}Project memory: ${dir}/memory/MEMORY.md is the index; read it, then the entries that bear on this task.
-Task file: ${taskFile(p.slug, task.id)}
-${i.artifacts.length ? `Task artifacts, the detailed material for this task (read them before you start):\n${art(i.artifacts)}` : "This task has no artifacts yet."}
+${p.summary.trim() ? `Where the project stands: ${p.summary.trim()}\n` : ""}Task file: ${taskFile(p.slug, task.id)}
+
+## ${task.id} and what it touches
+
+Cards and outlines, not contents; artifacts/ is ${dir}/artifacts. Read one section at a time by its line range (search for the heading if the lines have moved); never a whole file. A memory entry's body is ${dir}/memory/<name>.md, read only when the work calls for it. For anything else, grep its address in ${dir}/GRAPH.md, which lists every card and link of the project.
+
+${neighbourhood.join("\n")}
 ${parentBlock}
 ## Task ${task.id}: ${task.title}
 

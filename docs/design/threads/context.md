@@ -29,6 +29,8 @@ Documents for this task. Read one section at a time with its line range; never a
 
 Change: `art()` in `taskPrompt` prints the outline of each file where it prints one line, and two sentences of instruction change. Headings are `## ` lines in markdown and `<h2>` in HTML.
 
+Built in step 3 as the "what it touches" block of the brief, in the order [the graph](../graph.md) gives: parents, siblings, Threads, documents with their `##` sections and line ranges (a linked section of any level is added and marked), memory, the owner's notes, mentioned by. Line ranges count the frontmatter, so they match the Read tool. HTML documents get no outline until step 4 renders them. The ancestors' Context stays inline below it.
+
 ## T2. The memory index goes inline
 
 `MEMORY.md` is already the right shape: one line per entry, and the line is the fact. Printing its five to fifteen lines in the brief saves a tool call and makes "read the body only when the work calls for it" the default instead of an instruction.
