@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shuttle and Threads: the pictures</title>
+<meta name="loom:origin" content="generated">
+<meta name="loom:task" content="T-003">
+<meta name="loom:created" content="2026-11-23">
+<style>
+  :root {
+    --paper: #f3efe4; --card: #fbf9f3; --sunk: #ebe6d8; --ink: #1d1b16; --ink-2: #5d584c;
+    --rule: #d8d1bf; --accent: #c2401b; --moss: #4c6b3a; --amber: #a86a10; --slate: #34587a; --bad: #a52a22;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #15140f; --card: #1d1b15; --sunk: #100f0b; --ink: #ebe5d5; --ink-2: #aaa392;
+      --rule: #35312a; --accent: #ee7446; --moss: #93b87a; --amber: #d9a441; --slate: #86acd0; --bad: #e8736a;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--paper); }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 940px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; line-height: 1.2; }
+  h1 { font-size: 32px; margin: 0 0 6px; }
+  h2 { font-size: 24px; margin: 52px 0 12px; padding-top: 18px; border-top: 1px solid var(--rule); }
+  h3 { font-size: 18px; margin: 28px 0 8px; }
+  p { margin: 0 0 12px; max-width: 74ch; }
+  ul, ol { margin: 0 0 12px; padding-left: 22px; max-width: 74ch; }
+  li { margin-bottom: 5px; }
+  a { color: var(--slate); text-underline-offset: 3px; overflow-wrap: anywhere; }
+  code { font: 13px ui-monospace, "SF Mono", Menlo, monospace; background: var(--sunk); padding: 1px 5px; border-radius: 3px; }
+  pre { font: 12.5px/1.5 ui-monospace, "SF Mono", Menlo, monospace; background: var(--sunk); border: 1px solid var(--rule); border-radius: 6px; padding: 12px 14px; overflow-x: auto; margin: 0 0 16px; }
+  .sub { color: var(--ink-2); margin-bottom: 24px; }
+  .lead { background: var(--card); border: 1px solid var(--rule); border-left: 4px solid var(--accent); border-radius: 6px; padding: 16px 20px; }
+  .lead ol { margin-bottom: 0; max-width: none; }
+  nav { margin: 20px 0 0; color: var(--ink-2); font-size: 14px; }
+  nav a { margin-right: 14px; white-space: nowrap; }
+  .scroll { overflow-x: auto; margin: 0 0 16px; border: 1px solid var(--rule); border-radius: 6px; background: var(--card); }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 11px; border-bottom: 1px solid var(--rule); }
+  tr:last-child td { border-bottom: 0; }
+  th { background: var(--sunk); font-weight: 600; white-space: nowrap; }
+  td.n { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  td.k { white-space: nowrap; font-weight: 600; }
+  #prior + p + .scroll td.k { white-space: normal; width: 21%; }
+  .tag { display: inline-block; font-size: 11.5px; font-weight: 600; padding: 1px 7px; border-radius: 10px; border: 1px solid currentColor; white-space: nowrap; }
+  .ok { color: var(--moss); } .warn { color: var(--amber); } .no { color: var(--bad); } .info { color: var(--slate); } .hot { color: var(--accent); }
+  .rule { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 14px 18px; margin: 0 0 12px; }
+  .rule h3 { margin: 0 0 6px; font-size: 17px; }
+  .rule p:last-child, .rule ul:last-child { margin-bottom: 0; }
+  .rule .where { color: var(--ink-2); font-size: 13.5px; }
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin: 0 0 16px; }
+  .fact { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 12px 14px; }
+  .fact b { display: block; font: 600 24px Georgia, serif; }
+  .fact span { color: var(--ink-2); font-size: 13px; }
+  figure { margin: 0 0 16px; background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 16px; overflow-x: auto; }
+  figcaption { color: var(--ink-2); font-size: 13px; margin-top: 10px; }
+  svg text { font: 12px system-ui, sans-serif; fill: var(--ink); }
+  svg .mute { fill: var(--ink-2); }
+  .mark { fill: none; stroke: var(--accent); stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* marks */
+  .marks { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 0 0 16px; }
+  .markcard { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 18px; text-align: center; }
+  .markcard svg.big { width: 96px; height: 96px; }
+  .markcard h3 { margin: 8px 0 4px; }
+  .markcard p { font-size: 13.5px; color: var(--ink-2); margin: 0 auto; }
+  .sizes { display: flex; gap: 14px; align-items: center; justify-content: center; margin-top: 12px; }
+  .states { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; }
+  .states div { display: flex; align-items: center; gap: 7px; font-size: 13.5px; }
+  @keyframes run { to { stroke-dashoffset: -16; } }
+  .running { stroke-dasharray: 5 3; animation: run 1.2s linear infinite; }
+  @media (prefers-reduced-motion: reduce) { .running { animation: none; } }
+
+  /* dashboard mock */
+  .mock { background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: 14px; margin: 0 0 16px; }
+  .mock-head { display: flex; align-items: center; gap: 8px; font: 600 16px Georgia, serif; margin: 2px 0 8px; }
+  .mock-head small { font: 12.5px system-ui, sans-serif; color: var(--ink-2); font-weight: 400; }
+  .mock-head .meter { margin-left: auto; font: 12px ui-monospace, Menlo, monospace; color: var(--ink-2); display: flex; align-items: center; gap: 6px; }
+  .bar { width: 70px; height: 6px; border-radius: 3px; background: var(--sunk); border: 1px solid var(--rule); overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--moss); }
+  .grp { font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); margin: 12px 0 4px; }
+  .row { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 10px; align-items: center; background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; }
+  .row .t { min-width: 0; }
+  .row .t b { font-weight: 600; }
+  .row .t div { font-size: 13px; color: var(--ink-2); overflow-wrap: anywhere; }
+  .row .a { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .btn { font-size: 12.5px; padding: 2px 9px; border: 1px solid var(--rule); border-radius: 5px; background: var(--paper); white-space: nowrap; }
+  .btn.p { background: var(--accent); border-color: var(--accent); color: var(--paper); }
+  .chat { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 10px 12px; font-size: 13.5px; }
+  .chat p { margin: 0 0 6px; max-width: none; } .chat p:last-child { margin: 0; }
+  .chat .me { color: var(--ink-2); }
+  @media (max-width: 560px) { .row { grid-template-columns: 22px minmax(0, 1fr); } .row .a { grid-column: 2; justify-content: flex-start; } }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Shuttle and Threads: the pictures</h1>
+<p class="sub">The diagrams, the board mock-up and the marks for the T-003 design. This page is for the owner's eyes; the design itself is in markdown, where an agent can read it a section at a time. 23 November 2026.</p>
+
+<div class="lead">
+<p><b>Where the design lives.</b></p>
+<ol>
+  <li><a href="README.md">Decisions, glossary and build order</a>: start here.</li>
+  <li><a href="shuttle/context.md">The Shuttle's context and cache</a>: rules R1 to R6, measurements, prior art.</li>
+  <li><a href="threads/context.md">What a Thread reads</a>: rules T1 to T7, document size limits, reading HTML.</li>
+  <li><a href="threads/dispatch.md">Dispatch, the Threads board and notes</a>.</li>
+</ol>
+</div>
+
+<h2>A day of bobbins</h2>
+<p>A Shuttle session is swapped whenever the prompt cache has gone cold, or at a context budget. Rule R2.</p>
+<figure>
+<svg viewBox="0 0 860 190" width="100%" role="img" aria-label="Timeline of three bobbins separated by idle gaps">
+  <line x1="20" y1="150" x2="840" y2="150" stroke="var(--rule)" stroke-width="1.5"/>
+  <text x="20" y="172" class="mute">09:00</text><text x="300" y="172" class="mute">13:30</text><text x="560" y="172" class="mute">16:10</text><text x="800" y="172" class="mute">17:00</text>
+  <!-- bobbin 1 -->
+  <polygon points="30,150 30,118 200,84 200,150" fill="var(--accent)" opacity=".22"/>
+  <polyline points="30,118 200,84" fill="none" stroke="var(--accent)" stroke-width="2"/>
+  <text x="30" y="74">Bobbin 1</text><text x="30" y="106" class="mute">32K</text><text x="170" y="76" class="mute">58K</text>
+  <!-- gap -->
+  <text x="216" y="140" class="mute">idle 4 h, cold</text>
+  <line x1="300" y1="22" x2="300" y2="150" stroke="var(--ink-2)" stroke-dasharray="3 4"/>
+  <text x="306" y="18">swap: envelope ≈ 3K</text>
+  <!-- bobbin 2 -->
+  <polygon points="300,150 300,116 470,70 470,150" fill="var(--accent)" opacity=".22"/>
+  <polyline points="300,116 470,70" fill="none" stroke="var(--accent)" stroke-width="2"/>
+  <text x="306" y="106" class="mute">35K</text><text x="440" y="62" class="mute">71K</text>
+  <text x="484" y="140" class="mute">idle 2 h</text>
+  <line x1="560" y1="22" x2="560" y2="150" stroke="var(--ink-2)" stroke-dasharray="3 4"/>
+  <text x="566" y="18">swap</text>
+  <!-- bobbin 3 -->
+  <polygon points="560,150 560,116 700,40 700,150" fill="var(--accent)" opacity=".22"/>
+  <polyline points="560,116 700,40" fill="none" stroke="var(--accent)" stroke-width="2"/>
+  <text x="706" y="44" class="mute">100K budget reached</text>
+  <line x1="700" y1="8" x2="700" y2="150" stroke="var(--ink-2)" stroke-dasharray="3 4"/>
+  <text x="706" y="62">swap while warm</text>
+  <polygon points="700,150 700,116 830,96 830,150" fill="var(--accent)" opacity=".22"/>
+  <polyline points="700,116 830,96" fill="none" stroke="var(--accent)" stroke-width="2"/>
+  <!-- unbroken alternative -->
+  <polyline points="30,118 200,84 300,84 470,38 560,38 700,14" fill="none" stroke="var(--ink-2)" stroke-width="1.5" stroke-dasharray="6 4"/>
+</svg>
+<figcaption>Context size through a day. Solid: a bobbin is swapped whenever the cache is cold, or at the budget. Dashed: today's single resumed session, which pays 2× its whole height at 13:30 and again at 16:10.</figcaption>
+</figure>
+
+<h2>What a Thread reads</h2>
+<p>The brief carries the first two tiers; the third is opened one section at a time. Rules T1 and T2.</p>
+<figure>
+<svg viewBox="0 0 860 200" width="100%" role="img" aria-label="Three tiers of context for a Thread">
+  <rect x="10" y="20" width="250" height="150" rx="6" fill="var(--paper)" stroke="var(--accent)" stroke-width="1.5"/>
+  <text x="24" y="44" font-weight="600">Tier 0 · in the brief</text>
+  <text x="24" y="66" class="mute">always, about 1K tokens</text>
+  <text x="24" y="92">Task body and checklists</text>
+  <text x="24" y="110">Parent's Context section</text>
+  <text x="24" y="128">Memory index (the facts)</text>
+  <text x="24" y="146">Rules and report format</text>
+  <rect x="305" y="20" width="250" height="150" rx="6" fill="var(--paper)" stroke="var(--slate)" stroke-width="1.5"/>
+  <text x="319" y="44" font-weight="600">Tier 1 · the manifest</text>
+  <text x="319" y="66" class="mute">always, one line per section</text>
+  <text x="319" y="92">Each artifact: title, size,</text>
+  <text x="319" y="110">its section headings</text>
+  <text x="319" y="128">Sibling subtasks: id, status</text>
+  <text x="319" y="146">Pointers the task names</text>
+  <rect x="600" y="20" width="250" height="150" rx="6" fill="var(--paper)" stroke="var(--rule)" stroke-width="1.5"/>
+  <text x="614" y="44" font-weight="600">Tier 2 · the bodies</text>
+  <text x="614" y="66" class="mute">on demand, by section</text>
+  <text x="614" y="92">Artifact sections</text>
+  <text x="614" y="110">Memory entry bodies</text>
+  <text x="614" y="128">Other tasks' timelines</text>
+  <text x="614" y="146">The repository</text>
+  <path d="M262 95h38m-8-6 8 6-8 6M557 95h38m-8-6 8 6-8 6" fill="none" stroke="var(--ink-2)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="10" y="192" class="mute">Every id or path shown in one tier can be opened in the next, so the agent walks to detail one hop at a time.</text>
+</svg>
+</figure>
+
+<h2>Dispatch</h2>
+<p>The Shuttle writes a task and starts a Thread without waiting. The board is derived from the files.</p>
+<figure>
+<svg viewBox="0 0 860 250" width="100%" role="img" aria-label="Flow from owner through Shuttle and task files to Threads and back to the board">
+  <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1 9 5 1 9" fill="none" stroke="var(--ink-2)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+  <g fill="var(--paper)" stroke="var(--rule)" stroke-width="1.5">
+    <rect x="10" y="30" width="110" height="60" rx="6"/>
+    <rect x="190" y="30" width="130" height="60" rx="6" stroke="var(--accent)"/>
+    <rect x="400" y="20" width="150" height="80" rx="6" stroke="var(--ink-2)"/>
+    <rect x="640" y="10" width="200" height="34" rx="6" stroke="var(--accent)"/>
+    <rect x="640" y="52" width="200" height="34" rx="6" stroke="var(--accent)"/>
+    <rect x="640" y="94" width="200" height="34" rx="6" stroke="var(--accent)"/>
+    <rect x="400" y="170" width="150" height="60" rx="6" stroke="var(--slate)"/>
+  </g>
+  <text x="65" y="56" text-anchor="middle" font-weight="600">Owner</text><text x="65" y="74" text-anchor="middle" class="mute">says a thing</text>
+  <text x="255" y="56" text-anchor="middle" font-weight="600">Shuttle</text><text x="255" y="74" text-anchor="middle" class="mute">one pick</text>
+  <text x="475" y="46" text-anchor="middle" font-weight="600">Task files</text><text x="475" y="64" text-anchor="middle" class="mute">the brief, the state,</text><text x="475" y="80" text-anchor="middle" class="mute">the timeline</text>
+  <text x="740" y="32" text-anchor="middle">Thread · T-012 · worktree</text>
+  <text x="740" y="74" text-anchor="middle">Thread · T-013 · worktree</text>
+  <text x="740" y="116" text-anchor="middle">Thread · T-014 · document</text>
+  <text x="475" y="196" text-anchor="middle" font-weight="600">Threads board</text><text x="475" y="214" text-anchor="middle" class="mute">derived, no model call</text>
+  <g fill="none" stroke="var(--ink-2)" stroke-width="1.5" marker-end="url(#ah)">
+    <path d="M120 60h66"/><path d="M320 52h76"/>
+    <path d="M320 74c30 30 250 60 316 40"/>
+    <path d="M636 27C600 27 590 40 554 44"/><path d="M636 69h-82"/>
+    <path d="M475 100v66"/>
+    <path d="M396 200H65V94"/>
+    <path d="M120 78c120 80 200 110 276 112" stroke-dasharray="4 4" marker-end="none"/>
+  </g>
+  <text x="330" y="44" class="mute">writes</text>
+  <text x="566" y="148" class="mute">dispatches, does not wait</text>
+  <text x="566" y="62" class="mute">status,</text><text x="566" y="78" class="mute">report</text>
+  <text x="482" y="140" class="mute">watched</text>
+  <text x="150" y="218" class="mute">shows what needs the owner</text>
+  <text x="76" y="156" class="mute">edits, steers, stops</text>
+</svg>
+<figcaption>Solid arrows are writes and reads of files. The dashed line is the owner acting on the board directly; those actions change a task file or message a Thread and never pass through the Shuttle.</figcaption>
+</figure>
+
+<h2>The Threads board</h2>
+<p>A mock-up of Today. The Shuttle sits on top with its context meter; Threads are grouped by what they need, and an empty group takes no space.</p>
+<div class="mock" aria-label="Mock-up of the Today view">
+  <div class="mock-head">
+    <svg width="20" height="20" viewBox="0 0 32 32" class="mark"><path d="M3 16C9 6 23 6 29 16 23 26 9 26 3 16Z" transform="rotate(-24 16 16)"/><path d="M12 16h8" transform="rotate(-24 16 16)"/></svg>
+    Shuttle <small>bobbin 3 today</small>
+    <span class="meter">41K / 100K <span class="bar"><i style="width:41%"></i></span> warm 48 min</span>
+  </div>
+  <div class="chat">
+    <p class="me">me: split the backup work into restore test + retention, and have agents start</p>
+    <p><b>Shuttle:</b> Wrote T-012 and T-013 under T-010 and started both. T-011 is asking you one thing below.</p>
+  </div>
+
+  <div class="grp">Needs you · 2</div>
+  <div class="row">
+    <svg width="20" height="20" viewBox="0 0 32 32" class="mark" style="stroke:var(--amber)"><path d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>
+    <div class="t"><b>T-011</b> Rename the ingest route <span class="tag warn">asks</span><div>"Keep the old /ingest route as an alias for one release?"</div></div>
+    <div class="a"><span class="btn p">Answer</span><span class="btn">Open</span></div>
+  </div>
+  <div class="row">
+    <svg width="20" height="20" viewBox="0 0 32 32" class="mark" style="stroke:var(--slate)"><path d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>
+    <div class="t"><b>T-009</b> Investigate related work <span class="tag info">review</span><div>Report and one artifact ready · 94 turns · $16.64</div></div>
+    <div class="a"><span class="btn p">Review</span><span class="btn">Send back</span></div>
+  </div>
+
+  <div class="grp">Running · 2</div>
+  <div class="row">
+    <svg width="20" height="20" viewBox="0 0 32 32" class="mark"><path class="running" d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>
+    <div class="t"><b>T-012</b> Restore test for backups <span class="tag hot">running</span><div>12 turns · 8 min · 64K context · last: ran bun test</div></div>
+    <div class="a"><span class="btn">Steer</span><span class="btn">Stop</span><span class="btn">Edit task</span></div>
+  </div>
+  <div class="row">
+    <svg width="20" height="20" viewBox="0 0 32 32" class="mark"><path class="running" d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>
+    <div class="t"><b>T-013</b> Backup retention policy <span class="tag hot">running</span><div>3 turns · 1 min · 38K context</div></div>
+    <div class="a"><span class="btn">Steer</span><span class="btn">Stop</span><span class="btn">Edit task</span></div>
+  </div>
+
+  <div class="grp">Waiting to start · 1</div>
+  <div class="row">
+    <svg width="20" height="20" viewBox="0 0 32 32" class="mark" style="stroke:var(--ink-2)"><path d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>
+    <div class="t"><b>T-014</b> Write the backup runbook <span class="tag" style="color:var(--ink-2)">proposed</span><div>The Shuttle wrote this; no rule lets it start a document Thread.</div></div>
+    <div class="a"><span class="btn p">Start</span><span class="btn">Edit task</span><span class="btn">Drop</span></div>
+  </div>
+</div>
+
+
+<h2>Marks</h2>
+<p>Drawn like the Loom wordmark: one stroke, 3.2 units on a 32-unit grid, round caps and joins, no fill. The SVG source is in the glossary document.</p>
+<div class="marks">
+  <div class="markcard">
+    <svg class="big mark" viewBox="0 0 32 32" role="img" aria-label="Loom mark"><path d="M5 4v24h23M12 4v17h16M19 4v10h9"/></svg>
+    <h3>Loom</h3>
+    <p>Existing. Warp and weft meeting at a corner.</p>
+    <div class="sizes"><svg class="mark" width="32" height="32" viewBox="0 0 32 32"><path d="M5 4v24h23M12 4v17h16M19 4v10h9"/></svg><svg class="mark" width="16" height="16" viewBox="0 0 32 32"><path d="M5 4v24h23M12 4v17h16M19 4v10h9"/></svg></div>
+  </div>
+  <div class="markcard">
+    <svg class="big mark" viewBox="0 0 32 32" role="img" aria-label="Shuttle mark"><g transform="rotate(-24 16 16)"><path d="M3 16C9 6 23 6 29 16 23 26 9 26 3 16Z"/><path d="M12 16h8"/></g></svg>
+    <h3>Shuttle</h3>
+    <p>A boat shuttle seen from above, tilted mid-throw. The bar inside is the bobbin.</p>
+    <div class="sizes"><svg class="mark" width="32" height="32" viewBox="0 0 32 32"><g transform="rotate(-24 16 16)"><path d="M3 16C9 6 23 6 29 16 23 26 9 26 3 16Z"/><path d="M12 16h8"/></g></svg><svg class="mark" width="16" height="16" viewBox="0 0 32 32"><g transform="rotate(-24 16 16)"><path d="M3 16C9 6 23 6 29 16 23 26 9 26 3 16Z"/><path d="M12 16h8"/></g></svg></div>
+  </div>
+  <div class="markcard">
+    <svg class="big mark" viewBox="0 0 32 32" role="img" aria-label="Thread mark"><path d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>
+    <h3>Thread</h3>
+    <p>One strand going over and under. Its colour is its state.</p>
+    <div class="sizes"><svg class="mark" width="32" height="32" viewBox="0 0 32 32"><path d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg><svg class="mark" width="16" height="16" viewBox="0 0 32 32"><path d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg></div>
+  </div>
+</div>
+
+<figure>
+  <div class="states">
+    <div><svg class="mark" width="24" height="24" viewBox="0 0 32 32" style="stroke:var(--ink-2)"><path d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>proposed, queued</div>
+    <div><svg class="mark" width="24" height="24" viewBox="0 0 32 32"><path class="running" d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>running</div>
+    <div><svg class="mark" width="24" height="24" viewBox="0 0 32 32" style="stroke:var(--amber)"><path d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>asks, slow</div>
+    <div><svg class="mark" width="24" height="24" viewBox="0 0 32 32" style="stroke:var(--bad)"><path d="M3 20c4.5 0 4.5-8 9-8M21 20c4.5 0 4.5-8 9-8"/></svg>broken</div>
+    <div><svg class="mark" width="24" height="24" viewBox="0 0 32 32" style="stroke:var(--slate)"><path d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>review</div>
+    <div><svg class="mark" width="24" height="24" viewBox="0 0 32 32" style="stroke:var(--moss)"><path d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>done</div>
+  </div>
+  <figcaption>Thread states use the palette's existing status colours. Running is the only one that moves; broken is the only one whose shape changes, so it reads without colour.</figcaption>
+</figure>
+
+
+</main>
+</body>
+</html>

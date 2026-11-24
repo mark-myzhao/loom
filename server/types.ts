@@ -155,6 +155,21 @@ export interface RunMeta {
   sessionCwd?: string;
   result?: string;
   error?: string;
+  usage?: RunUsage[];
+  /** The largest prompt the main session sent, in tokens: how full its context got. */
+  peakContext?: number;
+}
+
+/** What one start or resume of a run's session used on one model. Token counts; cache writes and reads are apart from `input`. */
+export interface RunUsage {
+  /** When that start or resume was sent. */
+  at: string;
+  model: string;
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  costUsd: number;
 }
 
 export interface Config {

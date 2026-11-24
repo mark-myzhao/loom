@@ -9,6 +9,7 @@ import { ProjectPage } from "./views/Project";
 import { RunDrawer, Settings } from "./views/RunDrawer";
 import { TaskPage } from "./views/TaskPage";
 import { Activity, Today } from "./views/Today";
+import { Usage } from "./views/Usage";
 
 function Rail({ snap, current, onSettings }: { snap: Snapshot; current: string[]; onSettings: () => void }) {
   const { act } = useApp();
@@ -44,6 +45,7 @@ function Rail({ snap, current, onSettings }: { snap: Snapshot; current: string[]
         {live > 0 && <span className="pill" title="Runs in progress"><span className="dot live" />{live}</span>}
       </a>
       <a href="#/automations" {...on(current[0] === "automations")}>Automations</a>
+      <a href="#/usage" {...on(current[0] === "usage")}>Usage</a>
       <p className="label">Projects</p>
       {open.map(item)}
       {name === null ? (
@@ -120,6 +122,7 @@ function App() {
   const heading = !a ? "Today"
     : a === "activity" ? "Activity"
     : a === "automations" ? "Automations"
+    : a === "usage" ? "Usage"
     : !project ? ""
     : b === "t" && c ? `${c} ${project.tasks.find((t) => t.id === c)?.title ?? ""} · ${project.name}`
     : b === "a" && c ? `${c} · ${project.name}`
@@ -136,6 +139,7 @@ function App() {
   if (!a) view = <Today />;
   else if (a === "activity") view = <Activity />;
   else if (a === "automations") view = <Automations />;
+  else if (a === "usage") view = <Usage />;
   else if (a === "p" && project && b === "t" && c) view = <TaskPage project={project} id={c} edit={edit} />;
   else if (a === "p" && project && b === "a" && c) view = <DocPage project={project} name={c} edit={edit} />;
   else if (a === "p" && project) view = <ProjectPage project={project} tab={b ?? "tasks"} />;

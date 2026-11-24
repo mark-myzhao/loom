@@ -567,3 +567,77 @@ a.row-title:hover { text-decoration: underline; text-decoration-color: var(--acc
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+/* ---------- usage ---------- */
+
+/* Chart colours: a fixed categorical order, checked for colour-blind separation on both papers. */
+:root { --viz-1: #2a78d6; --viz-2: #eb6834; --viz-3: #1baf7a; --viz-4: #eda100; --viz-5: #e87ba4; --viz-6: #008300; --viz-7: #6250d6; --viz-8: #e34948; }
+@media (prefers-color-scheme: dark) {
+  :root { --viz-1: #3987e5; --viz-2: #d95926; --viz-3: #199e70; --viz-4: #c98500; --viz-5: #d55181; --viz-6: #0ca30c; --viz-7: #9085e9; --viz-8: #e66767; }
+}
+
+.usage section { margin-top: 34px; min-width: 0; }
+.usage section > .label { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-bottom: 8px; margin-bottom: 10px; border-bottom: 1px solid var(--rule); }
+.usage section > .label .btn-row { margin-left: auto; }
+/* Chart marks are buttons; they drop the page's button chrome. */
+.usage :is(.viz-chip, .viz-row, .viz-timeline > button) { border: 0; box-shadow: none; background: none; color: inherit; transform: none; }
+.usage :is(.viz-row, .viz-timeline > button):hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 6%, transparent); color: inherit; }
+.usage .dim { opacity: 0.35; }
+
+.viz-filters { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: -8px 0 22px; font-size: 12.5px; }
+.viz-filters .sep { width: 1px; height: 16px; background: var(--rule); margin: 0 8px; }
+.usage .viz-chip { font: 500 12px/1 var(--sans); letter-spacing: 0; text-transform: none; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--rule); color: var(--ink-2); }
+.usage .viz-chip:hover:not(:disabled) { background: none; color: var(--ink); border-color: var(--ink-3); }
+.usage .viz-chip:is([aria-pressed="true"], .on) { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+
+.usage-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }
+.usage-tiles > div { background: var(--card); border: 1px solid var(--rule-2); border-radius: 8px; padding: 14px 16px; }
+.usage-tiles strong { display: block; font: 500 32px/1.2 var(--serif); letter-spacing: -0.02em; margin-top: 4px; }
+.usage-tiles span { font-size: 12.5px; color: var(--ink-3); }
+.viz-meter { display: block; height: 6px; margin-top: 8px; border-radius: 3px; background: var(--rule-2); overflow: hidden; }
+.viz-meter i { display: block; height: 100%; background: var(--viz-1); border-radius: 3px; }
+
+.viz-legend { display: inline-flex; gap: 12px; flex-wrap: wrap; font: 12px var(--sans); letter-spacing: 0; text-transform: none; color: var(--ink-2); }
+.viz-legend i, .viz-tip i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; }
+
+.viz-timeline { display: flex; align-items: flex-end; gap: 4px; padding-top: 8px; overflow-x: auto; border-bottom: 1px solid var(--rule); }
+.viz-timeline > button { flex: 0 1 64px; min-width: 40px; padding: 6px 4px 0; border-radius: 4px 4px 0 0; display: flex; flex-direction: column; align-items: center; gap: 5px; font: 11px var(--mono); color: var(--ink-2); }
+.viz-timeline > button > div { width: min(100%, 28px); display: flex; flex-direction: column; gap: 2px; }
+.viz-timeline i:first-child { border-radius: 4px 4px 0 0; }
+.viz-timeline small { font-size: 11px; color: var(--ink-3); padding-bottom: 5px; }
+
+.viz-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 36px; }
+.viz-cols.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 1000px) { .viz-cols, .viz-cols.three { grid-template-columns: minmax(0, 1fr); } }
+.usage .viz-row { display: grid; grid-template-columns: minmax(0, 9fr) 10fr auto; align-items: center; gap: 10px; width: 100%; padding: 6px 4px; border-radius: 4px; font: 13px var(--sans); text-align: left; }
+.usage .viz-row.runs { grid-template-columns: minmax(0, 1fr) auto; }
+.viz-row span { overflow: hidden; text-overflow: ellipsis; }
+.viz-row b { display: flex; gap: 2px; height: 12px; }
+.viz-row.runs b { grid-column: 1 / -1; grid-row: 2; }
+.viz-row i { border-radius: 0 4px 4px 0; min-width: 1px; }
+.viz-row.runs i { border-radius: 0; }
+.viz-row.runs i:last-child { border-radius: 0 4px 4px 0; }
+.viz-row em { font: 12px var(--mono); font-style: normal; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.viz-row[aria-pressed="true"] span { font-weight: 600; }
+
+.viz-scatter { width: 100%; max-width: 620px; display: block; }
+.viz-scatter text { font: 10.5px var(--mono); fill: var(--ink-3); }
+.viz-scatter .grid { stroke: var(--rule-2); }
+.viz-scatter .axis { stroke: var(--rule); }
+.viz-scatter .mark { stroke: var(--ink-3); stroke-dasharray: 3 4; }
+.viz-scatter .dot { fill: var(--viz-1); stroke: var(--paper); stroke-width: 2; }
+.viz-scatter g[role="button"] { cursor: pointer; outline: none; }
+.viz-scatter g[role="button"]:is(:hover, :focus-visible) .dot { r: 7px; }
+
+.viz-tip { position: fixed; z-index: 50; pointer-events: none; width: max-content; max-width: 236px; padding: 9px 11px; background: var(--card); border: 1px solid var(--rule); border-radius: 6px; box-shadow: 0 6px 20px var(--scrim); font-size: 12.5px; }
+.viz-tip p { margin: 0 0 5px; font-weight: 600; overflow-wrap: anywhere; }
+.viz-tip div { display: flex; align-items: baseline; gap: 6px; }
+.viz-tip div i { margin-right: 0; flex: none; align-self: center; }
+.viz-tip span { color: var(--ink-2); }
+
+.viz-numbers { margin-top: 40px; }
+.viz-numbers summary { cursor: pointer; }
+.usage-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; margin-top: 14px; }
+.usage-table th { font: 500 12px var(--sans); color: var(--ink-3); }
+.usage-table th, .usage-table td { text-align: right; padding: 7px 0 7px 18px; border-bottom: 1px solid var(--rule-2); white-space: nowrap; }
+.usage-table th:first-child, .usage-table td:first-child { text-align: left; padding-left: 0; white-space: normal; width: 99%; }

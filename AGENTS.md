@@ -36,3 +36,9 @@ traceability is the minimum gate.** A human should understand code in one pass.
 Concise "why" only, 2-4 lines, written for an external reader: no job ids,
 commit hashes, single-run metrics, or internal cluster paths; keep upstream
 issue/PR links.
+
+## Design and decisions
+
+`docs/design/README.md` maps the design pages; read the one for the area you are changing,
+a section at a time. `docs/adr/` holds the decisions. A change that alters a design updates
+its page, and a new or reversed decision adds an ADR, in the same change.

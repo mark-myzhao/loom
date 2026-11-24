@@ -8,6 +8,7 @@ import { artifactPrompt, askPrompt, automationPrompt, gatewayTools, ingestPrompt
 import { findLiveRun, getRun, hasLiveRuns, initRuns, listRuns, sendMessage, startRun, stopRun, subscribe, type RunInit } from "./runs";
 import * as store from "./store";
 import { DATA, HttpError } from "./store";
+import { usageRows } from "./usage";
 import type { Automation, Config, RunMeta, RunSpec, Snapshot, Task, TaskDetail, TaskSummary } from "./types";
 
 const PORT = Number(process.env.PORT) || 4400;
@@ -419,6 +420,8 @@ async function api(req: Request, url: URL): Promise<Response> {
       send("data: hello\n\n");
       return () => listeners.delete(send);
     });
+
+  if (is("GET", "usage")) return json(usageRows(listRuns()));
 
   if (is("GET", "config")) return json(store.loadConfig());
   if (is("PUT", "config")) return json(store.saveConfig(await readBody(req)));
