@@ -9,6 +9,7 @@ Nine steps build the Shuttle and Threads design, each useful alone and small eno
 | What | Where |
 | --- | --- |
 | Usage tracking: per-run token records, the Usage page, `bun run usage` | [usage/tracking.md](usage/tracking.md) |
+| Step 1: the clock in each message, write-through and "three reads" lines, links and the `shuttle` author, the allow-list | [shuttle/context.md](shuttle/context.md) R1 R4 R5 R7 |
 
 ## Build order
 

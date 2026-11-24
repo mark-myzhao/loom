@@ -4,7 +4,7 @@ import { existsSync, watch } from "node:fs";
 import { join, sep } from "node:path";
 import index from "../web/index.html";
 import { initBackup, pushIfDue, scheduleBackup } from "./backup";
-import { artifactPrompt, askPrompt, automationPrompt, gatewayTools, ingestPrompt, setupPrompt, shuttlePrompt, taskPrompt } from "./prompts";
+import { artifactPrompt, askPrompt, automationPrompt, gatewayTools, ingestPrompt, setupPrompt, SHUTTLE_ROUTES, shuttlePrompt, taskPrompt } from "./prompts";
 import { findLiveRun, getRun, hasLiveRuns, initRuns, listRuns, sendMessage, startRun, stopRun, subscribe, type RunInit } from "./runs";
 import * as store from "./store";
 import { DATA, HttpError } from "./store";
@@ -323,15 +323,20 @@ function talkToShuttle(textIn: unknown, fresh: unknown): RunMeta {
     const news = ended.map((r) => `- run ${r.id} (${r.kind}, "${r.title}") ${r.status}${r.error ? `: ${firstLine(r.error, 200)}` : ""}`);
     return sendMessage(current.id, news.length ? `${text}\n\n---\nLoom: since your last reply these runs ended:\n${news.join("\n")}` : text);
   }
+  const api = `http://127.0.0.1:${PORT}`;
+  // The method comes before the URL, so a rule cannot match a route it does not name (POST .../delegate
+  // under GET .../tasks/*). A wildcard can still be abused; the server's own checks are the hard stop.
+  const routes = SHUTTLE_ROUTES.map(([, method, path, body]) => `Bash(curl -s -X ${method} ${api}${path.replace(/<[^>]+>/g, "*")}${body ? " *" : ""})`);
   const spec: RunSpec = {
     cwd: DATA,
-    permissionMode: cfg.reader.permissionMode,
-    // Shell access is only Loom's own API; links go to ingest runs, so the Shuttle never reads the web.
-    allowedTools: ["Read", "Glob", "Grep", "Edit", "Write", `Bash(curl -s http://127.0.0.1:${PORT}/api/*)`],
-    systemPrompt: shuttlePrompt(cfg, `http://127.0.0.1:${PORT}`),
+    // Anything not allowed below is refused: no writes outside projects/ and SHUTTLE.md, no other route.
+    permissionMode: "default",
+    // Links go to ingest runs, so the Shuttle never reads the web.
+    allowedTools: ["Read", "Glob", "Grep", "Edit(projects/**)", "Write(projects/**)", "Edit(SHUTTLE.md)", "Write(SHUTTLE.md)", ...routes],
+    systemPrompt: shuttlePrompt(cfg, api),
     ...(cfg.reader.model ? { model: cfg.reader.model } : {}),
   };
-  const run = startRun({ kind: "shuttle", title: `Shuttle: ${firstLine(text, 60)}` }, spec, text);
+  const run = startRun({ kind: "shuttle", title: `Shuttle: ${firstLine(text, 60)}` }, spec, `Loom: ${store.nowIso()}\n${text}`);
   store.saveState({ shuttle: run.id });
   return run;
 }

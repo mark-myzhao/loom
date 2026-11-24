@@ -331,8 +331,11 @@ function readTranscript(id: string): Line[] {
   }
 }
 
-/** Continues a finished run's session. Usage is added to the same run; no completion hook fires. */
-export function sendMessage(id: string, text: string): RunMeta {
+/**
+ * Continues a finished run's session. Usage is added to the same run; no completion hook fires.
+ * The message carries the time, since the session's opening prompt holds the time it started.
+ */
+export function sendMessage(id: string, message: string): RunMeta {
   const meta = metas.get(id);
   if (!meta) throw new Error("no such run");
   if (active.has(id) || live(meta.status)) throw new Error("the run is still in progress");
@@ -342,6 +345,7 @@ export function sendMessage(id: string, text: string): RunMeta {
   meta.status = "queued";
   delete meta.endedAt;
   delete meta.error;
+  const text = `Loom: ${nowIso()}\n${message}`;
   emit(a, { type: "dash_user", text, time: nowIso() });
   saveMeta(meta);
   queue.push({ id, prompt: text, resume: true });

@@ -14,11 +14,11 @@ One file per decision, numbered in the order they were made. The design itself i
 | [0008](0008-shuttle-may-send-notes.md) | The Shuttle may send notes on its own judgement | Accepted; amended by 0012 | Not built |
 | [0009](0009-five-words.md) | Five words and two marks | Accepted; amended by 0017 | Not built |
 | [0010](0010-usage-from-session-totals.md) | Usage is recorded per session start, from the transcript's running totals | Accepted | Built |
-| [0011](0011-shuttle-permissions-allow-list.md) | The Shuttle's permissions are an allow-list | Accepted; amended by 0015 | Not built |
+| [0011](0011-shuttle-permissions-allow-list.md) | The Shuttle's permissions are an allow-list | Accepted; amended by 0015 | Built |
 | [0012](0012-server-sets-note-author.md) | The server sets a note's author, and only the owner's note starts a session | Accepted | Not built |
 | [0013](0013-broken-is-derived.md) | Broken is derived from the run, and blocked keeps its meaning | Accepted | Not built |
 | [0014](0014-first-version-scope.md) | Scope of the first version | Accepted; amended by 0017 | Decided |
-| [0015](0015-only-the-owner-starts-a-thread.md) | Only the owner starts a Thread | Accepted | Not built |
+| [0015](0015-only-the-owner-starts-a-thread.md) | Only the owner starts a Thread | Accepted | Partly built |
 | [0016](0016-one-graph-derived-from-files.md) | One graph, derived from files | Accepted | Not built |
 | [0017](0017-several-threads-weave-a-task.md) | Several Threads may weave one task | Accepted | Not built |
 | [0018](0018-a-project-is-a-task.md) | A project is a task, and sources and repos are artifacts | Accepted | Not built |
