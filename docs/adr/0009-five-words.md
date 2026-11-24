@@ -1,6 +1,6 @@
 # 0009. Five words and two marks
 
-- Status: Accepted
+- Status: Accepted; amended by 0017
 - Date: 2026-11-23
 - Implementation: Not built
 - Design: [glossary.md](../design/glossary.md)

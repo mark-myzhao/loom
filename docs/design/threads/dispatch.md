@@ -2,7 +2,7 @@
 
 ## Summary
 
-The Shuttle writes a task file and replies; the owner starts the Thread from the board with one click. The Threads board on Today is derived from task files and run records, so it is live and costs no model call; a Thread's state is never stored. Only the owner starts a Thread; they also edit, steer, answers, stops or drops from the board. A note, at most 100 words, reaches a Thread even while it runs, through one endpoint addressed by task; the owner or the Shuttle can send one, and it is recorded on the timeline first; see [Notes](notes.md). Part of the design in [the design index](../README.md).
+The Shuttle writes a task file and replies; the owner starts a Thread on it from the board with one click, and may start more than one. The Threads board on Today is derived from task files and run records, so it is live and costs no model call; a Thread's state is never stored. Only the owner starts a Thread; they also edit, steer, answers, stops or drops from the board. A note, at most 100 words, reaches a Thread even while it runs, through one endpoint addressed by task; the owner or the Shuttle can send one, and it is recorded on the timeline first; see [Notes](notes.md). Part of the design in [the design index](../README.md).
 
 ## The flow
 
@@ -26,7 +26,7 @@ The Shuttle is still not woken by a finishing Thread. The board already shows th
 
 The Threads board sits under the Shuttle on Today and replaces the list of live runs. It absorbs the "Needs you" list. An empty group takes no space.
 
-Groups, in order: **Needs you** (asks, broken, blocked, review), **Running**, **Waiting to start** (proposed, queued). Each row shows the Thread mark in its state colour, the task id and title, a state tag, one line of detail (the question, or turns, time, context size and last action) and its actions. The Shuttle header above shows the bobbin's context against the budget and whether the cache is warm. Mock-up in [the pictures](../pictures.html), which still draws a "slow" state that is not in the first version.
+Groups, in order: **Needs you** (asks, broken, blocked, review), **Running**, **Waiting to start** (proposed, queued). There is one row per Thread, grouped under its task; a task with no Thread yet has one row. Each row shows the Thread mark in its state colour, the task id and title, a state tag, one line of detail (the question, or turns, time, context size and last action) and its actions. The Shuttle header above shows the bobbin's context against the budget and whether the cache is warm. Mock-up in [the pictures](../pictures.html), which still draws a "slow" state that is not in the first version.
 
 The detail line needs figures while a Thread runs. Today a run's turns update only when its session stops and its cost and peak context only when it ends, so `runs.ts` must update turns and peak context as transcript lines arrive.
 
@@ -36,14 +36,14 @@ The first row that matches is the state shown:
 
 | Shown as | Derived from | The owner can |
 | --- | --- | --- |
-| asks | Task has a `question` | Answer (resumes or restarts per T5) |
-| running | Latest run `running` | Steer, stop, edit the task |
-| queued | Latest run `queued` | Cancel; raise the task's priority to move it up the queue |
-| broken | Task is `doing` and its latest run failed, was stopped or was interrupted | Continue from the files, or drop |
+| asks | The Thread's latest `question` event on the timeline has no note from the owner after it | Answer (resumes it, or starts the next Thread, per T5) |
+| running | Its run is `running` | Steer, stop, edit the task |
+| queued | Its run is `queued` | Cancel; raise the task's priority to move it up the queue |
+| broken | Task is `doing`, the Thread's run failed, was stopped or was interrupted, and no later Thread continues it | Continue from the files, or drop |
 | blocked | Task is `blocked`: waiting on someone, as today | Read the reason on the timeline; send a note or edit the task |
 | review | Task `review` | Accept (done), or send back with a comment |
 | proposed | Task is `todo`, written by the Shuttle, no run | Start (the only way a Thread begins), edit, drop |
 
 A "slow" state for a Thread running past a turn or time threshold is left out of the first version; the detail line shows turns and time, and the Usage page shows what a long run cost.
 
-No new status field and no Thread record: these are a function of the task file and its latest run, which is what keeps a task from showing `doing` with nothing running.
+No new status field and no Thread record: these are a function of the task file, its timeline and its runs ([The graph](../graph.md)), which is what keeps a task from showing `doing` with nothing running.

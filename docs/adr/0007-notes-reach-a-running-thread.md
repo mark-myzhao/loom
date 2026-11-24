@@ -1,6 +1,6 @@
 # 0007. One note endpoint, addressed by task, reaches a running Thread
 
-- Status: Accepted; amended by 0012
+- Status: Accepted; amended by 0012 and 0017
 - Date: 2026-11-23
 - Implementation: Not built; the mechanism is tested
 - Design: [threads/notes.md](../design/threads/notes.md)

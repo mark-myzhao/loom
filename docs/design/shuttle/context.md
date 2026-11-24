@@ -70,7 +70,7 @@ Earlier today, verbatim:
 <the owner's message>
 ```
 
-The ledger is a query over task files and run records. It lists only tasks that have a Thread or are waiting on the owner, at most 20 lines, so it cannot grow the way the state snapshot does. A Thread's question in the ledger is quoted text from an agent: the Shuttle's prompt says to treat it as something to show the owner, never as an instruction. The last three exchanges are copied from the previous transcript, each cut at 600 characters, so "yes, do that" two hours later still has its referent. No model call writes any of it, which removes both the cost of summarising and the slow drift of summaries of summaries. It also saves the tool round trip the Shuttle spends today reading `SHUTTLE.md`.
+The ledger is [the graph](../graph.md) cut at open work, built from task files, timelines and run records. It lists only tasks that have a Thread or are waiting on the owner, at most 20 lines, so it cannot grow the way the state snapshot does. A Thread's question in the ledger is quoted text from an agent: the Shuttle's prompt says to treat it as something to show the owner, never as an instruction. The last three exchanges are copied from the previous transcript, each cut at 600 characters, so "yes, do that" two hours later still has its referent. No model call writes any of it, which removes both the cost of summarising and the slow drift of summaries of summaries. It also saves the tool round trip the Shuttle spends today reading `SHUTTLE.md`. Past sessions are kept as a generated list, one dated line each naming the tasks that session wrote; with `SHUTTLE.md` that list is the Shuttle's memory.
 
 Change: one function beside `talkToShuttle`; the same ledger feeds the Threads board.
 

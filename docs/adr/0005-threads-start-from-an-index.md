@@ -1,6 +1,6 @@
 # 0005. A Thread starts from an index, and documents stay small
 
-- Status: Accepted
+- Status: Accepted; amended by 0016
 - Date: 2026-11-23
 - Implementation: Not built; the size rules are followed in `docs/design`
 - Design: [threads/context.md](../design/threads/context.md)

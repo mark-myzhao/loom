@@ -2,7 +2,7 @@
 
 ## Summary
 
-A Thread's brief carries the task, the parent's context, the memory index and a manifest: each document's title, size and sections with line ranges. Bodies are read one section at a time, because a token read at turn one is re-read on every later turn. Documents therefore stay small (a 120-word summary, 1,500 tokens a section, 8,000 a document) and are split by subject past that. HTML pages are read through a markdown rendering Loom generates, which measured 24% to 41% smaller; an accessibility tree measured no smaller. A Thread is its task, not its session: resume when the cache is warm, restart from the files when it is cold. Part of the design in [the design index](../README.md).
+A Thread's brief carries the task, the parent's context and the task's neighbourhood in [the graph](../graph.md): its other Threads, the memory index and a manifest of each linked artifact's title, size and sections with line ranges. Bodies are read one section at a time, because a token read at turn one is re-read on every later turn. Documents therefore stay small (a 120-word summary, 1,500 tokens a section, 8,000 a document). HTML pages are read through a markdown rendering Loom generates, which measured 24% to 41% smaller. A Thread is one run: resume it while its cache is warm; cold, the work goes to the next Thread, which starts from the files. Part of the design in [the design index](../README.md).
 
 ## Today, and the three tiers
 
@@ -12,7 +12,7 @@ A **Thread** is the agent working one task. Today its brief (`taskPrompt`) says 
 
 ## T1. The brief carries a manifest in place of "read them"
 
-For each artifact of the task and of its ancestors, Loom lists the path, title, approximate size and second-level headings, all computed from the file. No new frontmatter field and nothing for anyone to keep up to date.
+For each artifact of the task and of its ancestors, Loom lists the path, title, approximate size and second-level headings, all computed from the file. The manifest is one group of the task's neighbourhood in [the graph](../graph.md), which adds every artifact the task links to, wherever it lives. No new frontmatter field and nothing for anyone to keep up to date.
 
 ```
 Documents for this task. Read one section at a time with its line range; never a whole file.
@@ -35,17 +35,19 @@ Change: `art()` in `taskPrompt` prints the outline of each file where it prints 
 
 ## T3. The Shuttle points, it does not paraphrase
 
-When the Shuttle writes a task it names the section that matters ("see `docs/design/shuttle/context.md`, rule R2") in the task's Context, in the owner's words where it can, and adds no plan. DeepSeek caps the router's note at 30 words for the same reason: a router that rewrites a request loses detail and invents requirements, and the worker then reads both versions. Loom's task format already limits Context to about 120 words, so this is a prompt line, not a mechanism.
+When the Shuttle writes a task it names the section that matters as a link (`[[loom:docs/design/shuttle/context.md#R2]]`) in the task's Context, so that section's outline reaches the brief, in the owner's words where it can, and adds no plan. DeepSeek caps the router's note at 30 words for the same reason: a router that rewrites a request loses detail and invents requirements, and the worker then reads both versions. Loom's task format already limits Context to about 120 words, so this is a prompt line, not a mechanism.
 
 ## T4. What comes back is a card
 
-The full report stays on the task's timeline, where the owner reviews it. What travels is small: the task's status, a one-line result, and at most one question in a `question` field on the task. This is the same card R5 gives the Shuttle: task id, status, the first line of the report cut at 300 characters, and the question. The Shuttle and the board both read that, never the transcript.
+The full report stays on the task's timeline, where the owner reviews it. What travels is small: the task's status, a one-line result, and at most one open question, a `question` event on the task's timeline authored by the Thread. This is the same card R5 gives the Shuttle: task id, status, the first line of the report cut at 300 characters, and the question. The Shuttle and the board both read that, never the transcript.
 
-## T5. A Thread is its task, not its session
+## T5. A Thread is one run; cold work goes to the next Thread
 
-The Shuttle's swap rule ([The Shuttle's context and cache](../shuttle/context.md), R2) applies to Threads too. Answer a Thread's question within the hour and Loom resumes the same session: warm, exact, cheap. Come back the next morning to a 270K session and resuming costs about 540K token-equivalents before it does anything. Then a new session in the same worktree and branch, opened with the task, the last report, the question and its answer, and DeepSeek's recovery note ("check the directory and git history before repeating anything"), costs a seventh of that. What makes a Thread one thing is the task file, the worktree, the branch and the timeline. "Continue" for an interrupted run is the same code path.
+The Shuttle's swap rule ([The Shuttle's context and cache](../shuttle/context.md), R2) applies to Threads too. Answer a Thread's question within the hour and Loom resumes the same session: warm, exact, cheap. Come back the next morning to a 270K session and resuming costs about 540K token-equivalents before it does anything. Then Loom starts the next Thread on the task (`T-006.2` after `T-006.1`) in the same worktree and branch. It opens with the task, the earlier Thread's report as a card, the question and its answer, and DeepSeek's recovery note ("check the directory and git history before repeating anything"), and costs a seventh of that. "Continue" for an interrupted run is the same code path.
 
-Rule: resume when the cache is warm (the session's last turn ended under 55 minutes ago); otherwise restart from the files. Like the Shuttle's, a size budget is deferred until there are numbers. The message that resumes a Thread carries the current time, because the clock in its brief is frozen (R4).
+What ties a task's Threads together is the task file, the worktree, the branch and the timeline, which records each start, report and hand-over ([The graph](../graph.md)). A task may also have Threads side by side, for a review or a second attempt; the owner starts each.
+
+Rule: resume when the cache is warm (the session's last turn ended under 55 minutes ago); otherwise start the next Thread from the files. Like the Shuttle's, a size budget is deferred until there are numbers. The message that resumes a Thread carries the current time, because the clock in its brief is frozen (R4).
 
 ## T6. Documents stay small, sectioned, and in markdown when an agent will work from them
 

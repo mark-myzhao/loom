@@ -2,7 +2,7 @@
 
 ## Summary
 
-A note is up to 100 words sent to a task's Thread by the owner or by an agent, in practice the Shuttle. One endpoint, addressed by task, records the note on the timeline and then delivers it into the running session. Only the owner's note starts a session: it resumes or restarts an ended Thread. The server, not the caller, says whose note it is. Most of the owner's controls over running work are this one call. Dispatch and the board are in [Dispatch and the Threads board](dispatch.md).
+A note is up to 100 words sent to a task's Threads, or to one of them, by the owner or by an agent, in practice the Shuttle. One endpoint, addressed by task, records the note on the timeline and then delivers it into the running session. Only the owner's note starts a session: it resumes or restarts an ended Thread. The server, not the caller, says whose note it is. Most of the owner's controls over running work are this one call. Dispatch and the board are in [Dispatch and the Threads board](dispatch.md).
 
 ## The mechanism
 
@@ -21,11 +21,11 @@ One run, on the smallest model, with a trivial task: enough to show the mechanis
 
 ## One door, addressed by task
 
-`POST /api/projects/<slug>/tasks/<T-nnn>/note {"text": "…"}`, used by the board, the task page and the Shuttle alike. Loom then does four things in order:
+`POST /api/projects/<slug>/tasks/<T-nnn>/note {"text": "…"}`, used by the board, the task page and the Shuttle alike. A note addressed to the task reaches every running Thread on it; `"thread": "T-006.2"` in the body narrows it to one. Loom then does four things in order:
 
-1. **Decides the author and writes the note on the task's timeline.** The author is the owner only when the request carries the token the server hands the dashboard page at load, kept in server memory and never in the data directory. Every other caller is recorded as an agent, whatever it claims. This is the Shuttle's write-through rule (R1) applied to notes: it is durable, the owner can see it, and a Thread that is later restarted from the files (rule T5 in [What a Thread reads](context.md)) still receives it.
+1. **Decides the author and writes the note on the task's timeline.** The author is the owner only when the request carries the token the server hands the dashboard page at load, kept in server memory and never in the data directory. Every other caller is recorded as an agent, whatever it claims. This is the Shuttle's write-through rule (R1) applied to notes: it is durable, the owner can see it, and a Thread that later continues the work from the files (rule T5 in [What a Thread reads](context.md)) still receives it.
 2. **Thread running:** writes it to the session's input. It lands after the current step.
-3. **Thread ended, note from the owner:** resumes the session if warm, restarts from the files if cold (T5). This is the only way a note starts a session, and it is how the owner continues a Thread they stopped.
+3. **Thread ended, note from the owner:** resumes the session if warm, starts the next Thread from the files if cold (T5). This is the only way a note starts a session, and it is how the owner continues a Thread they stopped.
 4. **Thread ended, note from an agent:** nothing more. An agent's note never starts a session, so a fact relayed to a finished Thread costs nothing and a stopped Thread stays stopped.
 5. **Thread queued, or no Thread yet:** nothing more. The brief tells a Thread to read the notes on its task's timeline before it starts.
 
@@ -48,7 +48,7 @@ The owner has decided the Shuttle may send notes on its own judgement, within th
 | The owner does | What happens | Mechanism |
 | --- | --- | --- |
 | Steer | The Thread reads the owner's message after its current step and carries on with it. | A note from the owner. |
-| Answer | The question clears and the Thread goes on. | Clears `question`, then a note with the answer. |
+| Answer | The question clears and the Thread goes on. | A note with the answer to the Thread that asked; the note is what clears its question. |
 | Send back | A reviewed task returns to its Thread with a comment. | Status back to `doing`, then a note. |
 | Stop | The Thread halts now; the task shows broken with "stopped by you". | Existing stop. **A person's stop holds**: no agent's note and no automation restarts it. Only the owner does, with Continue or a note of their own. |
 | Drop | The task and its Thread end. | Stop if live; the task goes to the trash, as deletes do today. The worktree is left for the owner to remove. |

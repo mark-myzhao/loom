@@ -2,7 +2,7 @@
 
 ## Summary
 
-Loom becomes a super-agent: the owner talks to one resident agent, the Shuttle, which routes work to Threads, one per task. A Shuttle session is disposable and starts fresh from files; a Thread reads an index before any document; the board is derived from files; notes reach a running Thread. Token usage is recorded per run so each of these claims can be checked. The design was reviewed on 2026-11-23 and amended; the amendments are ADRs 0011 to 0015.
+Loom becomes a super-agent: the owner talks to one resident agent, the Shuttle, which routes work to Threads on tasks. A Shuttle session is disposable and starts fresh from files; a Thread reads an index before any document; the board is derived from files; notes reach a running Thread. Token usage is recorded per run so each of these claims can be checked. It was reviewed and amended on 2026-11-23 (ADRs 0011 to 0015). On 2026-11-24 it became one graph derived from files, where a project is a task and a task may have several Threads (ADRs 0016 to 0018).
 
 Designs live here, one subject per file. Decisions live in [`../adr`](../adr/README.md), one per file; a design page explains how something works, an ADR records that it was chosen and why.
 
@@ -12,6 +12,8 @@ Designs live here, one subject per file. Decisions live in [`../adr`](../adr/REA
 | --- | --- | --- |
 | Start | [glossary.md](glossary.md) | The five words (Loom, Shuttle, Thread, Bobbin, Pick) and the plain words that stay |
 | | [roadmap.md](roadmap.md) | Build order, what is built, open questions |
+| | [graph.md](graph.md) | Nodes and their attributes, edges and `[[links]]` derived from files; `GRAPH.md`; how a Thread and the Shuttle walk it |
+| | [graph.svg](graph.svg) | For people: the graph drawn, with each node's attributes |
 | | [pictures.html](pictures.html) | For people: the diagrams, the board mock-up and the marks at size |
 | Shuttle | [shuttle/context.md](shuttle/context.md) | Rules R1 to R7 for the Shuttle's context, prompt cache and permissions, with the measurements |
 | | [shuttle/prior-art.md](shuttle/prior-art.md) | Where the rules come from, ideas left out, what three other systems publish |

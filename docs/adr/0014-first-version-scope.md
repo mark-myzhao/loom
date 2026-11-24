@@ -1,6 +1,6 @@
 # 0014. Scope of the first version
 
-- Status: Accepted
+- Status: Accepted; amended by 0017
 - Date: 2026-11-23
 - Implementation: Decided; nothing to build
 - Design: [roadmap.md](../design/roadmap.md)
