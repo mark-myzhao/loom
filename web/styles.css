@@ -507,6 +507,8 @@ a.row-title:hover { text-decoration: underline; text-decoration-color: var(--acc
 .gk-link { fill: var(--moss); }
 .gk-repository { fill: var(--ink-2); }
 .gk-file { fill: var(--ink-3); }
+.gk-done { fill: var(--card); stroke: var(--moss); stroke-width: 2.5; }
+.link-graph .done text { fill: var(--ink-3); text-decoration: line-through; }
 .gk-memory { fill: var(--card); stroke: var(--ink-2); stroke-width: 1.5; }
 .graph-loose { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
 .gnode {

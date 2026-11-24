@@ -83,7 +83,7 @@ export function Graph({ project: p }: { project: ProjectSnapshot }) {
       <button className={links ? "" : "primary"} onClick={() => setLinks(false)}>Task tree</button>
     </span>
   );
-  if (links) return <LinkGraph slug={p.slug} views={views} />;
+  if (links) return <LinkGraph project={p} views={views} />;
 
   const toggle = (id: string) => {
     const next = new Set(collapsed);
@@ -240,7 +240,9 @@ function around(graph: Edges, task: string): GraphNode[] {
 }
 
 /** The project's graph as GRAPH.md has it, live from the files: pan, zoom, drag a node, or narrow it to one task. */
-function LinkGraph({ slug, views }: { slug: string; views: React.ReactNode }) {
+function LinkGraph({ project: p, views }: { project: ProjectSnapshot; views: React.ReactNode }) {
+  const slug = p.slug;
+  const done = new Set(p.tasks.filter((t) => t.status === "done").map((t) => t.id));
   const { rev, act } = useApp();
   const [graph, setGraph] = useState<Edges | null>(null);
   const [task, setTask] = useState("");
@@ -347,8 +349,9 @@ function LinkGraph({ slug, views }: { slug: string; views: React.ReactNode }) {
       </div>
       <p className="legend link-legend">
         {KINDS.filter((k) => drawn.nodes.some((n) => n.kind === k)).map((k) => (
-          <span key={k}><svg width="12" height="12"><circle className={`gk-${k}`} cx="6" cy="6" r="5" /></svg> {k}</span>
+          <span key={k}><svg width="12" height="12"><circle className={`gk-${k}`} cx="6" cy="6" r="5" /></svg> {k === "task" ? "open task" : k}</span>
         ))}
+        {drawn.nodes.some((n) => done.has(n.address)) && <span><svg width="12" height="12"><circle className="gk-done" cx="6" cy="6" r="4.5" /></svg> done task</span>}
       </p>
       <p className="graph-card">{card ? card.card : "Drag to pan, scroll to zoom, drag a node to move it, click a node to open it."}</p>
       <svg ref={svg} className="link-graph" onPointerDown={(e) => start(e, null)} onPointerMove={move} onPointerUp={end} onPointerCancel={() => (drag.current = null)}>
@@ -361,9 +364,9 @@ function LinkGraph({ slug, views }: { slug: string; views: React.ReactNode }) {
               </line>
             ))}
             {drawn.nodes.map((n, i) => (
-              <g key={n.address} className={`gn${near && !near.has(i) ? " dim" : ""}${n.address === task ? " picked" : ""}`} transform={`translate(${pos[i]!.x} ${pos[i]!.y})`}
+              <g key={n.address} className={`gn${near && !near.has(i) ? " dim" : ""}${n.address === task ? " picked" : ""}${done.has(n.address) ? " done" : ""}`} transform={`translate(${pos[i]!.x} ${pos[i]!.y})`}
                 onPointerDown={(e) => start(e, i)} onMouseEnter={() => !drag.current && setFocus(i)} onMouseLeave={() => !drag.current && setFocus(null)}>
-                <circle className={`gk-${n.kind}`} r={n.kind === "task" ? 7 : 5} />
+                <circle className={done.has(n.address) ? "gk-done" : `gk-${n.kind}`} r={n.kind === "task" ? 7 : 5} />
                 <text x="10" y="4">{n.address}</text>
               </g>
             ))}
