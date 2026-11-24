@@ -81,11 +81,12 @@ export function editable(open: () => void, title: string) {
   };
 }
 
-/** The Shuttle's mark: a boat shuttle mid-throw, the bar inside its bobbin (docs/design/brand/marks.md). */
+/** The Shuttle's mark: the weft carried over, under and over three warp threads (docs/design/brand/marks.md). */
+export const SHUTTLE_PATH = "M5 4v7.5M5 20.5V28M12 4v24M19 4v7.5M19 20.5V28M2.5 16h6.5M15 16h14M24 11l5 5-5 5";
 export function ShuttleMark() {
   return (
     <svg className="mark" viewBox="0 0 32 32" aria-hidden="true">
-      <g transform="rotate(-24 16 16)"><path d="M3 16C9 6 23 6 29 16 23 26 9 26 3 16Z" /><path d="M12 16h8" /></g>
+      <path d={SHUTTLE_PATH} />
     </svg>
   );
 }

@@ -46,7 +46,7 @@ When a message arrives and the last pick ended more than 55 minutes ago, the cac
 
 Cost in plain-input-token equivalents; the fresh figure is 2 × (32K fixed + 3K envelope) and is a ceiling, since the fixed part is shared with any other Loom run in the last hour. Fresh never loses, so the rule needs no size test when cold.
 
-Change: in `talkToShuttle`, treat the run as `fresh` when `now − endedAt > 55 min`. "New conversation" stays as the manual version. Built in step 2; the Shuttle header on Today shows the session's peak context and whether its cache is warm.
+Change: in `talkToShuttle`, treat the run as `fresh` when `now − endedAt > 55 min`. "New conversation" stays as the manual version. Built in step 2; the header of the Shuttle page shows the session's peak context and whether its cache is warm.
 
 **Deferred: a budget.** Swapping a warm bobbin once its context passes a size (100K was the guess) is not in the first version. Claude Code's own compaction is the backstop until the Usage page shows how large warm bobbins get. If a budget is added, it is tested against the run's `peakContext`, not against usage sums.
 

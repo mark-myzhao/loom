@@ -276,6 +276,8 @@ button.pill:hover:not(:disabled) { background: var(--accent); border-color: var(
 .rail .label { padding: 18px 8px 6px; }
 .rail-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rail .count { margin: 0; }
+.rail-icon { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
+.rail > a.on .rail-icon { stroke: var(--accent); }
 .rail-new { text-align: left; padding: 6px 8px !important; text-decoration: none !important; color: var(--ink-3) !important; }
 .rail-input { margin: 4px 0; }
 .rail footer { margin: auto 4px 0; padding: 14px 4px 0; border-top: 1px solid var(--rule); font-size: 12px; line-height: 1.6; color: var(--ink-2); }
@@ -336,7 +338,8 @@ a.row-title:hover { text-decoration: underline; text-decoration-color: var(--acc
 .shuttle-head { display: flex; align-items: baseline; gap: 12px; padding: 12px 16px; border-bottom: 1px dashed var(--rule); }
 .shuttle-head h2 { font: 600 20px/1.2 var(--serif); }
 .shuttle-head .btn-row { margin-left: auto; gap: 16px; }
-.shuttle-feed { max-height: min(62vh, 640px); min-height: 120px; overflow-y: auto; padding: 4px 16px 14px; }
+.shuttle-page { padding-bottom: 24px; }
+.shuttle-feed { height: calc(100vh - 200px); min-height: 240px; overflow-y: auto; padding: 4px 16px 14px; }
 .shuttle .compose { margin: 0; padding: 10px 12px; border-top: 1px dashed var(--rule); align-items: center; }
 .shuttle .compose textarea { border: 0; background: none; resize: none; font-size: 15px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 14px; margin-top: 14px; }
@@ -488,6 +491,25 @@ a.row-title:hover { text-decoration: underline; text-decoration-color: var(--acc
 .graph-canvas { position: relative; }
 .graph-canvas svg { position: absolute; inset: 0; overflow: visible; }
 .graph-canvas path { fill: none; stroke: var(--rule); stroke-width: 1.5; transition: opacity 0.12s; }
+.link-legend { margin-top: 18px; }
+.graph-card { margin-top: 10px; min-height: 1.5em; font: 12px var(--mono); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.link-graph { display: block; width: 100%; height: 72vh; margin-top: 8px; background: var(--card); border: 1px solid var(--rule); border-radius: 6px; }
+.link-graph { cursor: grab; touch-action: none; user-select: none; }
+.link-graph:active { cursor: grabbing; }
+.link-graph .picked circle { stroke: var(--ink); stroke-width: 2.5; }
+.link-graph line { stroke: var(--rule); stroke-width: 1.2; transition: opacity 0.12s; }
+.link-graph .gn { cursor: pointer; transition: opacity 0.12s; }
+.link-graph text { font: 10px var(--mono); fill: var(--ink-2); }
+.link-graph .gn:hover text { fill: var(--ink); font-weight: 600; }
+.gk-task { fill: var(--accent); }
+.gk-thread { fill: var(--amber); }
+.gk-document { fill: var(--slate); }
+.gk-link { fill: var(--moss); }
+.gk-repository { fill: var(--ink-2); }
+.gk-file { fill: var(--ink-3); }
+.gk-done { fill: var(--card); stroke: var(--moss); stroke-width: 2.5; }
+.link-graph .done text { fill: var(--ink-3); text-decoration: line-through; }
+.gk-memory { fill: var(--card); stroke: var(--ink-2); stroke-width: 1.5; }
 .graph-loose { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
 .gnode {
   width: 184px; height: 46px; display: flex; background: var(--card);

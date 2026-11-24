@@ -236,7 +236,7 @@ Unchanged: the task and memory formats, derived Thread states, the size rules of
 
 ## What is built
 
-Step 3's first part: `projectGraph(slug)` in `store.ts` returns the nodes with their cards and the edges, and `writeGraph` writes `GRAPH.md` whenever a project file changes and at start. The UI renders `[[…]]` as links and the task page lists what links to it. Until the later steps land:
+Step 3's first part: `projectGraph(slug)` in `store.ts` returns the nodes with their cards and the edges, and `writeGraph` writes `GRAPH.md` whenever a project file changes and at start. The UI renders `[[…]]` as links and the task page lists what links to it. The project's Graph tab draws every node and edge from `GET /api/projects/<slug>/graph` with a spring layout: the owner pans, zooms and drags nodes, done tasks are hollow green rings with struck-through labels, hovering a node shows its card and lights its neighbours, clicking opens it, and choosing a task narrows it to the task's subtree and everything one edge away; the parent and child tree is the tab's other view. Until the later steps land:
 
 - **A project is `tasks/T-000.md`** (step 8), migrated once from `project.json` on start. Links and repositories are artifacts with `origin: link` and `origin: repo`; a migrated link keeps its old id as its name. The store still offers a `Project` view (name, status, summary, sources, repos) built from them, so the dashboard's project pages read as before; the project page links to the task page of `T-000`, which lists every task with no parent as its subtask.
 - **A Thread is numbered by its task's `run` events** and its state is its run record's status; its report is the last `agent` comment after its start. No purpose yet (step 6).
@@ -250,4 +250,4 @@ Step 3's first part: `projectGraph(slug)` in `store.ts` returns the nodes with t
 1. **Do two Threads on one task collide?** The timeline is append-only and each coding Thread has its own worktree, so the task file's checklist is the one shared thing they both edit.
 2. **Does one task need to wait on another by rule?** A mention says "waits on [[T-005]]" and the board does not act on it. A typed `after` field would let the board hold a Start button; nothing asks for that yet.
 3. **Should a card show when a linked section changed after the link was written?** It would tell a Thread its pointer may be stale. It needs the link's date, which only timeline entries carry.
-4. **Should the dashboard draw the live graph?** [graph.svg](graph.svg) draws the design; the task page's "linked from" list may be all a person needs day to day.
+4. ~~Should the dashboard draw the live graph?~~ Yes ([ADR 0019](../adr/0019-shuttle-page-and-live-graph.md)): the project's Graph tab draws it.

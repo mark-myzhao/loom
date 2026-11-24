@@ -24,7 +24,7 @@ The Shuttle is still not woken by a finishing Thread. The board already shows th
 
 ## The board
 
-The Threads board sits under the Shuttle on Today and replaces the list of live runs. It absorbs the "Needs you" list. An empty group takes no space.
+The Threads board leads Today and replaces the list of live runs; the Shuttle has its own page in the rail ([ADR 0019](../../adr/0019-shuttle-page-and-live-graph.md)). It absorbs the "Needs you" list. An empty group takes no space.
 
 Groups, in order: **Needs you** (asks, broken, blocked, review), **Running**, **Waiting to start** (proposed, queued). There is one row per Thread, grouped under its task; a task with no Thread yet has one row. Each row shows the Thread mark in its state colour, the task id and title, a state tag, one line of detail (the question, or turns, time, context size and last action) and its actions. The Shuttle header above shows the bobbin's context against the budget and whether the cache is warm. Mock-up in [the pictures](../pictures.html), which still draws a "slow" state that is not in the first version.
 

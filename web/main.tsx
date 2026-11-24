@@ -2,14 +2,23 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Project, Snapshot } from "../server/types";
 import { api, Ctx, day, enc, go, hashWith, isLive, openCount, useApp, useRoute, useScrollMemory, type AppCtx } from "./lib";
-import { Wordmark } from "./ui";
+import { SHUTTLE_PATH, Wordmark } from "./ui";
 import { Automations } from "./views/Automations";
 import { DocPage } from "./views/Doc";
 import { ProjectPage } from "./views/Project";
 import { RunDrawer, Settings } from "./views/RunDrawer";
 import { TaskPage } from "./views/TaskPage";
-import { Activity, Today } from "./views/Today";
+import { Activity, Shuttle, Today } from "./views/Today";
 import { Usage } from "./views/Usage";
+
+/** The rail's pages, each with an icon drawn like the marks: one 3.2-unit stroke on a 32-unit grid. */
+const PAGES = [
+  { route: "", label: "Today", icon: "M5 9h22v18H5zM5 15h22M11 4v6M21 4v6" },
+  { route: "shuttle", label: "Shuttle", icon: SHUTTLE_PATH },
+  { route: "activity", label: "Activity", icon: "M3 17h6l4-10 6 18 4-8h6" },
+  { route: "automations", label: "Automations", icon: "M6.5 14A10 10 0 0 1 24 8.5M24 3.5v5h-5M25.5 18A10 10 0 0 1 8 23.5M8 28.5v-5h5" },
+  { route: "usage", label: "Usage", icon: "M6 27V18M13 27V10M20 27V14M27 27V5" },
+];
 
 function Rail({ snap, current, onSettings }: { snap: Snapshot; current: string[]; onSettings: () => void }) {
   const { act } = useApp();
@@ -39,13 +48,13 @@ function Rail({ snap, current, onSettings }: { snap: Snapshot; current: string[]
   return (
     <nav className="rail">
       <a className="brand" href="#/" aria-label="Loom, Today"><Wordmark /></a>
-      <a href="#/" {...on(current.length === 0)}>Today</a>
-      <a href="#/activity" {...on(current[0] === "activity")}>
-        Activity
-        {live > 0 && <span className="pill" title="Runs in progress"><span className="dot live" />{live}</span>}
-      </a>
-      <a href="#/automations" {...on(current[0] === "automations")}>Automations</a>
-      <a href="#/usage" {...on(current[0] === "usage")}>Usage</a>
+      {PAGES.map(({ route, label, icon }) => (
+        <a key={label} href={`#/${route}`} {...on(route ? current[0] === route : current.length === 0)}>
+          <svg className="rail-icon" viewBox="0 0 32 32" aria-hidden="true"><path d={icon} /></svg>
+          {label}
+          {route === "activity" && live > 0 && <span className="pill" title="Runs in progress"><span className="dot live" />{live}</span>}
+        </a>
+      ))}
       <p className="label">Projects</p>
       {open.map(item)}
       {name === null ? (
@@ -120,6 +129,7 @@ function App() {
   const detail = b === "t" || b === "a";
   useScrollMemory(route.parts.slice(0, a === "p" && !detail ? 2 : 4).join("/"));
   const heading = !a ? "Today"
+    : a === "shuttle" ? "Shuttle"
     : a === "activity" ? "Activity"
     : a === "automations" ? "Automations"
     : a === "usage" ? "Usage"
@@ -137,6 +147,7 @@ function App() {
   const edit = route.query.has("edit");
   let view;
   if (!a) view = <Today />;
+  else if (a === "shuttle") view = <div className="page shuttle-page"><Shuttle /></div>;
   else if (a === "activity") view = <Activity />;
   else if (a === "automations") view = <Automations />;
   else if (a === "usage") view = <Usage />;
