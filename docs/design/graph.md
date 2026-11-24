@@ -238,12 +238,12 @@ Unchanged: the task and memory formats, derived Thread states, the size rules of
 
 Step 3's first part: `projectGraph(slug)` in `store.ts` returns the nodes with their cards and the edges, and `writeGraph` writes `GRAPH.md` whenever a project file changes and at start. The UI renders `[[…]]` as links and the task page lists what links to it. Until the later steps land:
 
-- **The root and its links come from `project.json`** (step 8): `T-000` is the project, each source is `<id>.md`, each repository `<name>.md`.
+- **A project is `tasks/T-000.md`** (step 8), migrated once from `project.json` on start. Links and repositories are artifacts with `origin: link` and `origin: repo`; a migrated link keeps its old id as its name. The store still offers a `Project` view (name, status, summary, sources, repos) built from them, so the dashboard's project pages read as before; the project page links to the task page of `T-000`, which lists every task with no parent as its subtask.
 - **A Thread is numbered by its task's `run` events** and its state is its run record's status; its report is the last `agent` comment after its start. No purpose yet (step 6).
 - **"wrote" edges come from a Thread's finish event** (step 5), which lists what it edited in the project. There is no "continues" edge yet: the next Thread's start does not record which Thread it continues.
 - **Sections are read from markdown only**; a link to a section of an HTML artifact resolves when the artifact exists (step 4 renders HTML).
 - **The brief prints the neighbourhood** (step 3, second part), capped at 60 lines; mentions come last, newest first, so the cap drops the oldest.
-- **Links inside code are not read**, so pages like this one can show the syntax; frontmatter and an HTML `<head>` are skipped, since they name the task already.
+- **Links inside code are not read**, so pages like this one can show the syntax: fenced blocks and inline code in markdown, `<pre>`, `<code>`, `<script>` and `<style>` in HTML. Frontmatter and an HTML `<head>` are skipped, since they name the task already.
 
 ## Open questions
 

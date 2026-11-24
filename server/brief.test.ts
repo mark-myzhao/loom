@@ -20,7 +20,7 @@ test("a Thread's brief is its task's neighbourhood: outlines, earlier Threads, m
 
   const tasks = store.listTasks(p.slug);
   const brief = taskPrompt({
-    project: p, task: tasks[1]!, worktree: true, ancestors: store.ancestorsOf(tasks, "T-002"), siblings: [],
+    project: p, task: tasks.find((t) => t.id === "T-002")!, worktree: true, ancestors: store.ancestorsOf(tasks, "T-002"), siblings: [],
   });
   expect(brief).toContain('artifacts/t-001-plan.md  "Plan"');
   expect(brief).toMatch(/    Goal  L10-13 /);
@@ -39,6 +39,6 @@ test("a document past about 8,000 tokens is marked Over length in GRAPH.md and t
   store.writeGraph(p.slug);
   const graph = readFileSync(join(store.projectDir(p.slug), "GRAPH.md"), "utf8");
   expect(graph).toMatch(/t-001-long\.md {2}document {2}"Long" {2}~8\.\dK tokens {2}Over length/);
-  const brief = taskPrompt({ project: p, task: store.listTasks(p.slug)[0]!, worktree: true, ancestors: [], siblings: [] });
+  const brief = taskPrompt({ project: p, task: store.readTask(p.slug, "T-001")!, worktree: true, ancestors: [], siblings: [] });
   expect(brief).toMatch(/artifacts\/t-001-long\.md {2}"Long" {2}~8\.\dK tokens {2}Over length/);
 });

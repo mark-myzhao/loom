@@ -40,14 +40,14 @@ export function ProjectPage({ project: p, tab }: { project: ProjectSnapshot; tab
       <header className="page-head">
         <div>
           <p className="label">
-            Project ·{" "}
+            <a href={taskHref(p.slug, "T-000")} title="The project is its root task: its timeline, checklist and Threads">T-000</a> ·{" "}
             <Select className={`inline-select st-${p.status}`} value={p.status} onChange={(status) => act(() => api("PATCH", base, { status }))} aria-label="Project status" options={PROJECT_STATUSES.map((s) => ({ value: s }))} />
           </p>
           <h1>{p.name}</h1>
         </div>
       </header>
 
-      {p.error && <p className="banner bad">This project’s metadata is unreadable: {p.error}. Fix <code>projects/{p.slug}/project.json</code> in an editor.</p>}
+      {p.error && <p className="banner bad">This project’s metadata is unreadable: {p.error}. Fix <code>projects/{p.slug}/tasks/T-000.md</code> in an editor.</p>}
 
       {editing !== null ? (
         <textarea
@@ -122,6 +122,8 @@ const ORIGIN: Record<string, { text: string; className: string }> = {
   generated: { text: "By Claude", className: " by-claude" },
   imported: { text: "Imported", className: " by-import" },
   written: { text: "By you", className: "" },
+  link: { text: "Link", className: " by-import" },
+  repo: { text: "Codebase", className: " by-import" },
 };
 
 export function ArtifactRows({ slug, items, inherited }: { slug: string; items: Artifact[]; inherited?: string }) {

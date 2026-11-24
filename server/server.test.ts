@@ -92,6 +92,7 @@ test("a note reaches a running Thread; only the owner's note wakes an ended one"
   const p = await call("POST", "/projects", { name: "Notes demo" });
   await call("POST", `/projects/${p.slug}/tasks`, { title: "Port it", body: "## Context\nSLOW\n" });
   const tasks = `/projects/${p.slug}/tasks/T-001`;
+  expect((await call("GET", `/projects/${p.slug}/tasks/T-000`)).children.map((t: any) => t.id)).toEqual(["T-001"]);
 
   expect((await call("POST", `${tasks}/delegate`, { repoPath: repo })).error).toBe("only the owner starts a Thread");
   const browser = await fetch(`${base}/owner`, { headers: { "Sec-Fetch-Site": "same-origin" } });

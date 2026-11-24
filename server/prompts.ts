@@ -25,7 +25,7 @@ const WRAP_UP =
 /** A Claude automation: the owner's saved instructions, run in a project directory or the data directory. */
 export function automationPrompt(cfg: Config, text: string, p?: Project): string {
   const where = p
-    ? `the data directory of the project "${p.name}" (${projectDir(p.slug)}): project.json, memory/, tasks/, artifacts/`
+    ? `the data directory of the project "${p.name}" (${projectDir(p.slug)}): tasks/ (T-000 is the project itself), memory/, artifacts/`
     : `the dashboard data directory (${DATA}), with one folder per project under projects/`;
   return `You are running an automation the owner saved in their personal dashboard. ${opening()} ${owner(cfg)} Nobody is watching this session live, so make reasonable decisions yourself.
 
@@ -42,7 +42,7 @@ Finish with a short plain-text summary for the owner: what you did, which files 
 export function ingestPrompt(cfg: Config, item: string, p?: Project): string {
   const where = p
     ? `The owner filed it under the project "${p.name}" (${projectDir(p.slug)}). Use that project.`
-    : `The owner did not pick a project. Read projects/*/project.json and each project's memory/MEMORY.md and decide where it belongs. If it clearly belongs to no existing project, create a new project: a new projects/<slug>/ with project.json, memory/ and tasks/ as described in the conventions. If it spans several projects, update each.`;
+    : `The owner did not pick a project. Read projects/*/tasks/T-000.md (each project's root task) and each project's memory/MEMORY.md and decide where it belongs. If it clearly belongs to no existing project, create a new project: a new projects/<slug>/ with tasks/T-000.md, memory/ and artifacts/ as described in the conventions. If it spans several projects, update each.`;
   // The item is fenced; make sure it cannot close the fence itself.
   const fenced = item.replace(/ITEM>>>/g, "ITEM>>​>");
   return `The owner dropped a new item into their personal dashboard. ${opening()} ${owner(cfg)}
@@ -58,11 +58,11 @@ ITEM>>>
 
 Do this:
 1. Fetch every link in the item and read it in full. Free text in the item is the owner's own note; treat it as true and as context for the links.
-2. Register each link in the project's project.json "sources" (skip urls already there), with a real title.
+2. Register each link as a link artifact (artifacts/<name>.md with origin "link" and the url as source; skip urls already registered), with a real title.
 3. Read the project's memory (MEMORY.md, then its entries) and tasks/.
 4. Create or update tasks for action items that belong to the owner. Keep each description short and readable; put the detail a task needs (research, technical notes, long excerpts) in a task artifact. Append a timeline comment to every existing task you change.
 5. Add or update memory entries only for what is durable and project-wide: what the project is for, decisions with their reasons, who owns what, where key resources live. A new project usually starts with three to six entries, each a one-sentence fact with a few lines of support at most: point to the source rather than copy from it.
-6. Update the project's "summary" and updatedAt.
+6. Update the Context and updated date of the project's tasks/T-000.md, the project itself.
 
 ${fetching(cfg)}
 
@@ -72,7 +72,7 @@ ${WRAP_UP} Start the summary with the project name(s) you filed this under.`;
 export function askPrompt(cfg: Config, p: Project, text: string): string {
   return `You are working inside one project of the owner's personal dashboard. ${opening()} ${owner(cfg)}
 
-Your working directory is this project's data directory (${projectDir(p.slug)}): project.json, memory/, tasks/, artifacts/. The file formats are defined in ${DATA}/CLAUDE.md; follow them exactly whenever you change a file. Read memory/MEMORY.md and the tasks before answering; open memory entries and artifacts as the question needs.
+Your working directory is this project's data directory (${projectDir(p.slug)}): tasks/ (T-000 is the project itself), memory/, artifacts/. The file formats are defined in ${DATA}/CLAUDE.md; follow them exactly whenever you change a file. Read memory/MEMORY.md and the tasks before answering; open memory entries and artifacts as the question needs.
 
 ${fetching(cfg)}
 

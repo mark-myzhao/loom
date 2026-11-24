@@ -531,9 +531,10 @@ function snapshot(): Snapshot {
     automations: store.listAutomations(),
     lastBackupPush: store.loadState().lastBackupPush,
     shuttle: getRun(store.loadState().shuttle ?? ""),
+    // The root task T-000 is the project itself, so it is the project here, not one of its tasks.
     projects: store.listProjectSlugs().map((slug) => ({
       ...store.readProject(slug),
-      tasks: store.listTasks(slug).map(summary),
+      tasks: store.listTasks(slug).filter((t) => t.id !== "T-000").map(summary),
     })),
     runs: listRuns(150),
     board: board(),
@@ -552,7 +553,8 @@ function taskDetail(slug: string, id: string): TaskDetail {
       context: store.extractSection(a.body, "Context"),
       artifacts: artifacts.filter((x) => x.task === a.id),
     })),
-    children: tasks.filter((t) => t.parent === id).map(summary),
+    // A task with no parent is part of its project's root task, T-000.
+    children: tasks.filter((t) => t.parent === id || (id === "T-000" && !t.parent && t.id !== id)).map(summary),
     artifacts: artifacts.filter((a) => a.task === id),
     runs: listRuns().filter((r) => r.project === slug && r.taskId === id),
     linkedFrom: store.projectGraph(slug).edges
