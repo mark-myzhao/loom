@@ -8,7 +8,7 @@ import { ArtifactRows, ArtifactsHead } from "./Project";
 
 const AUTHOR: Record<string, string> = { me: "You", claude: "Claude", agent: "Agent", shuttle: "Shuttle" };
 
-function Event({ ev }: { ev: TimelineEvent }) {
+function Event({ ev, slug }: { ev: TimelineEvent; slug: string }) {
   const { openRun } = useApp();
   // A trailing "run <id>" links to the transcript.
   const m = /^(.*?)(?:\s*·\s*)?run (\d{14}-[a-z0-9]{4})$/.exec(ev.detail);
@@ -26,7 +26,7 @@ function Event({ ev }: { ev: TimelineEvent }) {
   // Anything with a body is a card; the rest are one-line marks on the line.
   return (
     <li className={`event ev-${ev.type} by-${ev.by}${ev.body ? "" : " event-line"}`}>
-      {ev.body ? <article className="event-card">{head}<Markdown text={ev.body} className="event-body" /></article> : head}
+      {ev.body ? <article className="event-card">{head}<Markdown text={ev.body} slug={slug} className="event-body" /></article> : head}
     </li>
   );
 }
@@ -196,6 +196,15 @@ export function TaskPage({ project: p, id, edit }: { project: ProjectSnapshot; i
             <input className="add-line" value={sub} aria-label="Add a subtask" placeholder="Add a subtask, then Enter" onChange={(e) => setSub(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addSub()} />
           </section>
 
+          {data.linkedFrom.length > 0 && (
+            <section className="group">
+              <h3 className="label">Linked from</h3>
+              <ul className="linked-from">
+                {data.linkedFrom.map((l, i) => <li key={i}><Markdown text={`[[${l.from}]] · ${l.line}`} slug={p.slug} /></li>)}
+              </ul>
+            </section>
+          )}
+
           <section className="group">
             <ArtifactsHead slug={p.slug} taskId={id} count={data.artifacts.length + data.ancestors.reduce((n, a) => n + a.artifacts.length, 0)} />
             <ArtifactRows slug={p.slug} items={data.artifacts} />
@@ -206,7 +215,7 @@ export function TaskPage({ project: p, id, edit }: { project: ProjectSnapshot; i
           <section className="group">
             <h3 className="label">Timeline</h3>
             <ul className="timeline">
-              {data.timeline.map((ev, i) => <Event key={i} ev={ev} />)}
+              {data.timeline.map((ev, i) => <Event key={i} ev={ev} slug={p.slug} />)}
             </ul>
             <div className="compose">
               <textarea rows={2} value={comment} aria-label="Comment" placeholder="Comment…" onChange={(e) => setComment(e.target.value)} onKeyDown={onSubmitKey(() => send(false))} />

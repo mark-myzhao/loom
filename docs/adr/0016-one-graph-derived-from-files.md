@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-11-24
-- Implementation: Not built
+- Implementation: Partly built: links, the graph function and `GRAPH.md` (roadmap step 3)
 - Design: [graph.md](../design/graph.md)
 
 ## Context

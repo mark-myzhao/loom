@@ -73,7 +73,7 @@ function sse(req: Request, start: (send: (chunk: string) => void, close: () => v
 
 // ---------- watcher ----------
 
-const memoryTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const projectTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 function startWatcher() {
   watch(DATA, { recursive: true }, (_event, filename) => {
@@ -84,15 +84,17 @@ function startWatcher() {
     if (parts[0] === "runs" || parts[0] === ".git" || name.includes(".tmp-") || name === "server.log" || name === ".DS_Store") return;
     notify();
     scheduleBackup();
-    if (parts[0] === "projects" && parts[2] === "memory" && name !== "MEMORY.md" && store.isSlug(parts[1])) {
+    // The generated indexes follow any change to the project's files, and write only when they differ.
+    if (parts[0] === "projects" && name !== "MEMORY.md" && name !== "GRAPH.md" && store.isSlug(parts[1])) {
       const slug = parts[1]!;
-      clearTimeout(memoryTimers.get(slug));
-      memoryTimers.set(slug, setTimeout(() => {
-        memoryTimers.delete(slug);
+      clearTimeout(projectTimers.get(slug));
+      projectTimers.set(slug, setTimeout(() => {
+        projectTimers.delete(slug);
         try {
           store.rebuildMemoryIndex(slug);
+          store.writeGraph(slug);
         } catch (e) {
-          console.error(`memory index for ${slug}:`, (e as Error).message);
+          console.error(`indexes for ${slug}:`, (e as Error).message);
         }
       }, 300));
     }
@@ -468,6 +470,9 @@ function taskDetail(slug: string, id: string): TaskDetail {
     children: tasks.filter((t) => t.parent === id).map(summary),
     artifacts: artifacts.filter((a) => a.task === id),
     runs: listRuns().filter((r) => r.project === slug && r.taskId === id),
+    linkedFrom: store.projectGraph(slug).edges
+      .filter((e) => e.rel === "mentions" && (e.to === id || e.to.startsWith(`${id}#`) || e.to.startsWith(`${id}.`)))
+      .map((e) => ({ from: e.from, line: e.line ?? "" })),
   };
 }
 
@@ -644,6 +649,8 @@ async function api(req: Request, url: URL): Promise<Response> {
 
 store.initStorage();
 initRuns(notify);
+// After the run records, so a Thread that died with the last server shows as interrupted.
+for (const slug of store.listProjectSlugs()) store.writeGraph(slug);
 await initBackup(hasLiveRuns);
 setTimeout(scheduleTick, 5_000);
 setInterval(scheduleTick, 60_000);

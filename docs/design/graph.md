@@ -2,7 +2,7 @@
 
 ## Summary
 
-Decided in ADRs [0016](../adr/0016-one-graph-derived-from-files.md) to 0018; not built. Everything Loom holds is a node with attributes: the Shuttle and its past sessions, task (a project is the root task), Thread, artifact (a document, a link or a repository), section, memory entry. A task's timeline orders its edges. Several Threads may weave one task. Edges are derived from existing fields, the timeline and one link syntax, `[[…]]`. Loom generates a greppable `GRAPH.md` per project. A reader enters at one node, gets its neighbours as one-line cards and opens a body only by following an edge. The manifest, memory index and ledger become views of it. Drawn in [graph.svg](graph.svg). Part of the design in [the design index](README.md).
+Decided in ADRs [0016](../adr/0016-one-graph-derived-from-files.md) to 0018; links, the graph and `GRAPH.md` are built (see "What is built"). Everything Loom holds is a node with attributes: the Shuttle and its past sessions, task (a project is the root task), Thread, artifact (a document, a link or a repository), section, memory entry. A task's timeline orders its edges. Several Threads may weave one task. Edges are derived from existing fields, the timeline and one link syntax, `[[…]]`. Loom generates a greppable `GRAPH.md` per project. A reader enters at one node, gets its neighbours as one-line cards and opens a body only by following an edge. The manifest, memory index and ledger become views of it. Drawn in [graph.svg](graph.svg). Part of the design in [the design index](README.md).
 
 ## Why a graph
 
@@ -233,6 +233,16 @@ Where Loom differs on purpose: their edges are stored rows behind a tool that ev
 Roadmap: step 3 builds the links, the graph function and `GRAPH.md` (T-012), then the brief (T-006); steps 1 and 2 teach the Shuttle to link and keep its session list; steps 5 and 6 take the Thread changes; step 8 (T-011) makes a project a task and sources and repos artifact files. How to judge it: a Thread's peak context against T-009's 274K, and the number of whole-file reads in its transcript.
 
 Unchanged: the task and memory formats, derived Thread states, the size rules of T6, who may write what. No graph database, no node ids beyond the addresses files already have, no stored edge.
+
+## What is built
+
+Step 3's first part: `projectGraph(slug)` in `store.ts` returns the nodes with their cards and the edges, and `writeGraph` writes `GRAPH.md` whenever a project file changes and at start. The UI renders `[[…]]` as links and the task page lists what links to it. Until the later steps land:
+
+- **The root and its links come from `project.json`** (step 8): `T-000` is the project, each source is `<id>.md`, each repository `<name>.md`.
+- **A Thread is numbered by its task's `run` events** and its state is its run record's status; its report is the last `agent` comment after its start. No purpose yet (step 6).
+- **No "wrote" or "continues" edges** until timeline events are signed by Thread address (step 5).
+- **Sections are read from markdown only**; a link to a section of an HTML artifact resolves when the artifact exists (step 4 renders HTML).
+- **Links inside code are not read**, so pages like this one can show the syntax; frontmatter and an HTML `<head>` are skipped, since they name the task already.
 
 ## Open questions
 

@@ -435,6 +435,8 @@ a.row-title:hover { text-decoration: underline; text-decoration-color: var(--acc
 .delegate small { font-size: 12px; line-height: 1.5; color: var(--ink-2); }
 .task-side > button.link { justify-self: start; }
 
+.linked-from { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; font-size: 14px; }
+.linked-from .prose p { margin: 0; }
 /* The line runs behind the comment cards, which cover it. */
 .timeline { position: relative; list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 12px; }
 .timeline::before { content: ""; position: absolute; left: 13px; top: 0; bottom: 0; border-left: 1px solid var(--ink-3); }

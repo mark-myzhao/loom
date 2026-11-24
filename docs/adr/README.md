@@ -19,7 +19,7 @@ One file per decision, numbered in the order they were made. The design itself i
 | [0013](0013-broken-is-derived.md) | Broken is derived from the run, and blocked keeps its meaning | Accepted | Not built |
 | [0014](0014-first-version-scope.md) | Scope of the first version | Accepted; amended by 0017 | Decided |
 | [0015](0015-only-the-owner-starts-a-thread.md) | Only the owner starts a Thread | Accepted | Partly built |
-| [0016](0016-one-graph-derived-from-files.md) | One graph, derived from files | Accepted | Not built |
+| [0016](0016-one-graph-derived-from-files.md) | One graph, derived from files | Accepted | Partly built |
 | [0017](0017-several-threads-weave-a-task.md) | Several Threads may weave one task | Accepted | Not built |
 | [0018](0018-a-project-is-a-task.md) | A project is a task, and sources and repos are artifacts | Accepted | Not built |
 
