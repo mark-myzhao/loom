@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { GraphEdge, GraphNode, ProjectSnapshot, TaskStatus, TaskSummary } from "../../server/types";
 import { TASK_STATUSES } from "../../server/types";
 import { agentRun, api, buildTree, descendants, docHref, dueLabel, enc, go, isLive, STATUS_LABEL, taskHref, useApp, type Tree } from "../lib";
+import { Select } from "../controls";
 import { Empty, Ring } from "../ui";
 
 const W = 184, H = 46, COL = 36, ROW = 10, TREE = 16;
@@ -174,9 +175,10 @@ const KINDS: GraphNode["kind"][] = ["task", "thread", "document", "link", "repos
 /**
  * A spring layout (Fruchterman-Reingold): every pair pushes apart, each edge pulls its ends together,
  * and the step shrinks as it cools. Starts on a spiral so the same graph always lands the same way.
+ * Then labels are pushed apart until no two overlap; `widths` is each label's width.
  */
-function settle(n: number, edges: [number, number][]) {
-  const K = 70;
+function settle(widths: number[], edges: [number, number][]) {
+  const n = widths.length, K = 90;
   const pos = Array.from({ length: n }, (_, i) => ({ x: Math.cos(i * 2.4) * 12 * Math.sqrt(i + 1), y: Math.sin(i * 2.4) * 12 * Math.sqrt(i + 1) }));
   for (let step = 0, STEPS = 300; step < STEPS; step++) {
     const f = pos.map(() => ({ x: 0, y: 0 }));
@@ -195,6 +197,25 @@ function settle(n: number, edges: [number, number][]) {
       p.x += (fx / d) * Math.min(d, max);
       p.y += (fy / d) * Math.min(d, max);
     });
+  }
+  // A node and its label are a box from the dot to the label's end; move each overlapping pair apart
+  // along the axis that needs the smaller move.
+  for (let pass = 0, moved = true; pass < 200 && moved; pass++) {
+    moved = false;
+    for (let i = 0; i < n; i++)
+      for (let j = i + 1; j < n; j++) {
+        const a = pos[i]!, b = pos[j]!;
+        const ox = Math.min(a.x + widths[i]!, b.x + widths[j]!) - Math.max(a.x, b.x) + 20, oy = 22 - Math.abs(a.y - b.y);
+        if (ox <= 0 || oy <= 0) continue;
+        moved = true;
+        if (ox < oy) {
+          const d = (a.x < b.x ? -ox : ox) / 2;
+          a.x += d; b.x -= d;
+        } else {
+          const d = (a.y < b.y ? -oy : oy) / 2;
+          a.y += d; b.y -= d;
+        }
+      }
   }
   return pos;
 }
@@ -245,17 +266,19 @@ function LinkGraph({ slug, views }: { slug: string; views: React.ReactNode }) {
       const line = lines.get(key) ?? lines.set(key, { a, b, rels: new Set() }).get(key)!;
       line.rels.add(`${e.from} ${e.rel} ${e.to}`);
     }
-    return { nodes, lines: [...lines.values()], layout: settle(nodes.length, [...lines.values()].map((l) => [l.a, l.b])) };
+    const widths = nodes.map((n) => 14 + n.address.length * 6.2);
+    return { nodes, lines: [...lines.values()], widths, layout: settle(widths, [...lines.values()].map((l) => [l.a, l.b])) };
   }, [graph, task]);
 
-  /** Scale and centre the drawing to fill the canvas. */
+  /** Scale and centre the drawing, labels included, to fill the canvas. */
   const fit = (points: Point[]) => {
     const el = svg.current;
-    if (!el || !points.length) return;
-    const xs = points.map((p) => p.x), ys = points.map((p) => p.y);
-    const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
-    const k = Math.min(el.clientWidth / (x1 - x0 + 200), el.clientHeight / (y1 - y0 + 80), 2);
-    setView({ k, x: el.clientWidth / 2 - (k * (x0 + x1 + 120)) / 2, y: el.clientHeight / 2 - (k * (y0 + y1)) / 2 });
+    if (!el || !drawn || points.length !== drawn.widths.length) return;
+    const ys = points.map((p) => p.y);
+    const [x0, x1] = [Math.min(...points.map((p) => p.x)) - 10, Math.max(...points.map((p, i) => p.x + drawn.widths[i]!))];
+    const [y0, y1] = [Math.min(...ys) - 10, Math.max(...ys) + 10];
+    const k = Math.min((el.clientWidth - 40) / (x1 - x0), (el.clientHeight - 40) / (y1 - y0), 2);
+    setView({ k, x: el.clientWidth / 2 - (k * (x0 + x1)) / 2, y: el.clientHeight / 2 - (k * (y0 + y1)) / 2 });
   };
   // A file change redraws in place; only a new filter re-fits, so the owner's zoom and pan survive edits.
   const fitted = useRef<string | null>(null);
@@ -317,10 +340,8 @@ function LinkGraph({ slug, views }: { slug: string; views: React.ReactNode }) {
       <div className="graph-bar">
         {views}
         <span className="btn-row">
-          <select value={task} aria-label="Show the graph around a task" onChange={(e) => setTask(e.target.value)}>
-            <option value="">Whole project</option>
-            {tasks.map((t) => <option key={t.address} value={t.address}>{t.address} {/"(.*?)"/.exec(t.card)?.[1] ?? ""}</option>)}
-          </select>
+          <Select value={task} aria-label="Show the graph around a task" onChange={setTask}
+            options={[{ value: "", label: "Whole project" }, ...tasks.map((t) => ({ value: t.address, label: `${t.address} ${/"(.*?)"/.exec(t.card)?.[1] ?? ""}` }))]} />
           <button onClick={() => fit(pos)}>Fit</button>
         </span>
       </div>
