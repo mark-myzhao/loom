@@ -82,11 +82,11 @@ export function editable(open: () => void, title: string) {
 }
 
 /** The Shuttle's mark: the weft carried over, under and over three warp threads (docs/design/brand/marks.md). */
+export const SHUTTLE_PATH = "M5 4v7.5M5 20.5V28M12 4v24M19 4v7.5M19 20.5V28M2.5 16h6.5M15 16h14M24 11l5 5-5 5";
 export function ShuttleMark() {
   return (
     <svg className="mark" viewBox="0 0 32 32" aria-hidden="true">
-      <path d="M5 4v7.5M5 20.5V28M12 4v24M19 4v7.5M19 20.5V28" />
-      <path d="M2.5 16h6.5M15 16h14M24 11l5 5-5 5" />
+      <path d={SHUTTLE_PATH} />
     </svg>
   );
 }

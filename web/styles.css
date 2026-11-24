@@ -276,7 +276,8 @@ button.pill:hover:not(:disabled) { background: var(--accent); border-color: var(
 .rail .label { padding: 18px 8px 6px; }
 .rail-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rail .count { margin: 0; }
-.rail .mark { width: 16px; height: 16px; }
+.rail-icon { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
+.rail > a.on .rail-icon { stroke: var(--accent); }
 .rail-new { text-align: left; padding: 6px 8px !important; text-decoration: none !important; color: var(--ink-3) !important; }
 .rail-input { margin: 4px 0; }
 .rail footer { margin: auto 4px 0; padding: 14px 4px 0; border-top: 1px solid var(--rule); font-size: 12px; line-height: 1.6; color: var(--ink-2); }
