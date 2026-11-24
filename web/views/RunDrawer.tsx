@@ -270,7 +270,7 @@ export function Settings({ onClose }: { onClose: () => void }) {
         </label>
         <label>Gateway backends<ListInput value={c.connectors} onChange={(connectors) => set({ connectors })} /></label>
 
-        <h3 className="label">Coding agents</h3>
+        <h3 className="label">Threads</h3>
         <label>Model<input value={c.agent.model} onChange={(e) => agent({ model: e.target.value })} /></label>
         <label>Permission mode<input value={c.agent.permissionMode} onChange={(e) => agent({ permissionMode: e.target.value })} /></label>
         <label>Always-allowed tools<ListInput value={c.agent.allowedTools} onChange={(allowedTools) => agent({ allowedTools })} /></label>

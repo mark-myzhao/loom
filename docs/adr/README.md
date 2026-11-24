@@ -12,7 +12,7 @@ One file per decision, numbered in the order they were made. The design itself i
 | [0006](0006-board-derived-from-files.md) | The board is derived from files, and a finished Thread does not wake the Shuttle | Accepted; amended by 0013, 0015 and 0017 | Built |
 | [0007](0007-notes-reach-a-running-thread.md) | One note endpoint, addressed by task, reaches a running Thread | Accepted; amended by 0012 and 0017 | Built |
 | [0008](0008-shuttle-may-send-notes.md) | The Shuttle may send notes on its own judgement | Accepted; amended by 0012 | Built |
-| [0009](0009-five-words.md) | Five words and two marks | Accepted; amended by 0017 | Not built |
+| [0009](0009-five-words.md) | Five words and two marks | Accepted; amended by 0017 | Built |
 | [0010](0010-usage-from-session-totals.md) | Usage is recorded per session start, from the transcript's running totals | Accepted | Built |
 | [0011](0011-shuttle-permissions-allow-list.md) | The Shuttle's permissions are an allow-list | Accepted; amended by 0015 | Built |
 | [0012](0012-server-sets-note-author.md) | The server sets a note's author, and only the owner's note starts a session | Accepted | Built |

@@ -16,6 +16,7 @@ Nine steps build the Shuttle and Threads design, each useful alone and small eno
 | Step 4, first part: the size rules in the conventions and the Over length mark on artifacts | [threads/context.md](threads/context.md) T6 |
 | Step 5: notes, the owner token, Thread addresses as authors, what a Thread wrote, tracking on every finish | [threads/notes.md](threads/notes.md) |
 | Step 6: the `question` event, the Threads board with derived states, Start with a purpose, more than one Thread on a task | [threads/dispatch.md](threads/dispatch.md) |
+| Step 7: the Shuttle and Thread marks; "Thread" in the interface and prompts; the pictures redrawn without the budget swap or the slow state | [brand/marks.md](brand/marks.md), [glossary.md](glossary.md) |
 
 ## Build order
 

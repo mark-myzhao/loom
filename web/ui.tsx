@@ -1,7 +1,7 @@
 import DOMPurify from "dompurify";
 import { marked } from "marked";
 import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import type { Priority, RunMeta, TaskStatus, TaskSummary } from "../server/types";
+import type { Priority, RunMeta, TaskStatus, TaskSummary, ThreadState } from "../server/types";
 import {
   agentRun, ago, api, buildTree, descendants, docHref, dueLabel, enc, GROUPS, isLive, money, sortTasks, STATUS_LABEL, taskHref, useApp,
   type Tree,
@@ -79,6 +79,24 @@ export function editable(open: () => void, title: string) {
       open();
     },
   };
+}
+
+/** The Shuttle's mark: a boat shuttle mid-throw, the bar inside its bobbin (docs/design/brand/marks.md). */
+export function ShuttleMark() {
+  return (
+    <svg className="mark" viewBox="0 0 32 32" aria-hidden="true">
+      <g transform="rotate(-24 16 16)"><path d="M3 16C9 6 23 6 29 16 23 26 9 26 3 16Z" /><path d="M12 16h8" /></g>
+    </svg>
+  );
+}
+
+/** A Thread's mark, one strand over and under, coloured by its state. Broken splits it, so it reads without colour. */
+export function ThreadMark({ state }: { state: ThreadState }) {
+  return (
+    <svg className={`mark thread-${state}`} viewBox="0 0 32 32" aria-hidden="true">
+      <path d={state === "broken" ? "M3 20c4.5 0 4.5-8 9-8M21 20c4.5 0 4.5-8 9-8" : "M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"} />
+    </svg>
+  );
 }
 
 export function Empty({ children }: { children: ReactNode }) {
@@ -194,7 +212,7 @@ export function TaskRow({ slug, task, tree, showProject }: { slug: string; task:
       <a className="row-title" href={taskHref(slug, task.id)}>{task.title}</a>
       <span className="row-meta">
         {run && (isLive(run) || task.status === "doing" || task.status === "review" || task.status === "blocked") && (
-          <span className={`pill run-${run.status}${isLive(run) ? " live" : ""}`}>agent {isLive(run) ? "working" : run.status}</span>
+          <span className={`pill run-${run.status}${isLive(run) ? " live" : ""}`}>Thread {isLive(run) ? "working" : run.status}</span>
         )}
         {kids.length > 0 && <span title="Subtasks done">⤷ {kids.filter((k) => k.status === "done").length}/{kids.length}</span>}
         <Progress done={task.checked} total={task.total} title="Checklist" />

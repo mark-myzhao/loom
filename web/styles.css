@@ -220,6 +220,15 @@ button.pill:hover:not(:disabled) { background: var(--accent); border-color: var(
 .chip.st-blocked { background: var(--st-blocked); }
 .chip.st-done { background: var(--st-done); }
 .pill.run-done { color: var(--moss); }
+/* The marks: one stroke on a 32-unit grid, like the wordmark. A Thread's colour is its state. */
+.mark { width: 20px; height: 20px; flex: none; vertical-align: -3px; fill: none; stroke: var(--accent); stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
+.mark.thread-proposed, .mark.thread-queued { stroke: var(--ink-3); }
+.mark.thread-asks, .mark.thread-blocked { stroke: var(--amber); }
+.mark.thread-broken { stroke: var(--bad); }
+.mark.thread-review { stroke: var(--slate); }
+.mark.thread-running path { stroke-dasharray: 5 3; animation: weave 1.2s linear infinite; }
+@keyframes weave { to { stroke-dashoffset: -16; } }
+@media (prefers-reduced-motion: reduce) { .mark.thread-running path { animation: none; } }
 .pill.state-asks, .pill.state-broken { color: var(--bad); }
 .pill.state-running, .pill.state-queued { color: var(--accent); }
 .pill.state-blocked { color: var(--amber); }

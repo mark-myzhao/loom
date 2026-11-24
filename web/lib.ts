@@ -245,7 +245,7 @@ export function descendants(tree: Tree, id: string): TaskSummary[] {
 }
 
 export const openCount = (p: ProjectSnapshot) => p.tasks.filter((t) => t.status !== "done").length;
-/** The latest coding-agent run for a task, if any. */
+/** The latest Thread's run for a task, if any. */
 export const agentRun = (runs: RunMeta[], slug: string, id: string) =>
   runs.find((r) => r.kind === "task" && r.project === slug && r.taskId === id);
 
