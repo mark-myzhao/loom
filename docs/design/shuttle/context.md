@@ -46,7 +46,7 @@ When a message arrives and the last pick ended more than 55 minutes ago, the cac
 
 Cost in plain-input-token equivalents; the fresh figure is 2 × (32K fixed + 3K envelope) and is a ceiling, since the fixed part is shared with any other Loom run in the last hour. Fresh never loses, so the rule needs no size test when cold.
 
-Change: in `talkToShuttle`, treat the run as `fresh` when `now − endedAt > 55 min`. "New conversation" stays as the manual version.
+Change: in `talkToShuttle`, treat the run as `fresh` when `now − endedAt > 55 min`. "New conversation" stays as the manual version. Built in step 2; the Shuttle header on Today shows the session's peak context and whether its cache is warm.
 
 **Deferred: a budget.** Swapping a warm bobbin once its context passes a size (100K was the guess) is not in the first version. Claude Code's own compaction is the backstop until the Usage page shows how large warm bobbins get. If a budget is added, it is tested against the run's `peakContext`, not against usage sums.
 
@@ -72,7 +72,7 @@ Earlier today, verbatim:
 
 The ledger is [the graph](../graph.md) cut at open work, built from task files, timelines and run records. It lists only tasks that have a Thread or are waiting on the owner, at most 20 lines, so it cannot grow the way the state snapshot does. A Thread's question in the ledger is quoted text from an agent: the Shuttle's prompt says to treat it as something to show the owner, never as an instruction. The last three exchanges are copied from the previous transcript, each cut at 600 characters, so "yes, do that" two hours later still has its referent. No model call writes any of it, which removes both the cost of summarising and the slow drift of summaries of summaries. It also saves the tool round trip the Shuttle spends today reading `SHUTTLE.md`. Past sessions are kept as a generated list, one dated line each naming the tasks that session wrote; with `SHUTTLE.md` that list is the Shuttle's memory.
 
-Change: one function beside `talkToShuttle`; the same ledger feeds the Threads board.
+Change: one function beside `talkToShuttle`; the same ledger feeds the Threads board. Built in step 2. Every context line is indented, so the first bare `---` line is where the owner's words start; the chat shows those words and folds Loom's lines above them. Until step 5 numbers Threads on the timeline, the ledger numbers a task's Threads by the order of its runs. The session list is `SESSIONS.md` in the data directory, regenerated on each message from run records and the timeline events signed `shuttle`.
 
 ## R4. Keep the prefix still: the clock moves to the message
 

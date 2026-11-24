@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { RunMeta } from "../../server/types";
+import { CACHE_COLD_MS, type RunMeta } from "../../server/types";
+import { compact } from "../../server/usage";
 import { api, buildTree, enc, GROUPS, isLive, onSubmitKey, sortTasks, useApp } from "../lib";
 import { Empty, RunList, RunRow, TaskRow } from "../ui";
 import { Transcript, useRunLines } from "./RunDrawer";
@@ -11,6 +12,8 @@ function Shuttle() {
   const [fresh, setFresh] = useState(false);
   const run = fresh ? undefined : snap.shuttle;
   const live = !!run && isLive(run);
+  // The next message resumes a warm session and starts a fresh one when the cache has gone cold.
+  const warm = live || (!!run?.endedAt && Date.now() - Date.parse(run.endedAt) < CACHE_COLD_MS);
   const lines = useRunLines(run?.id, live);
   const feed = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -30,6 +33,9 @@ function Shuttle() {
         <span className="hint">routes your notes, questions and work to the right place, and reports back</span>
         {run && (
           <span className="btn-row end">
+            <span className="id" title="The session's largest context, and whether its prompt cache is still warm">
+              {compact(run.peakContext ?? 0)} context · {warm ? "warm" : "cold"}
+            </span>
             <button className="link" onClick={() => openRun(run.id)}>Details</button>
             <button className="link" onClick={() => setFresh(true)}>New conversation</button>
           </span>

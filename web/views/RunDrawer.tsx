@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { Config, RunMeta } from "../../server/types";
+import { ownerText, type Config, type RunMeta } from "../../server/types";
 import { api, enc, isLive, money, onSubmitKey, stamp, useApp } from "../lib";
 import { Markdown, RunPill } from "../ui";
 
@@ -116,13 +116,21 @@ export function Transcript({ lines, chat }: { lines: Line[]; chat?: boolean }) {
       {lines.map((l, i) => {
         switch (l.type) {
           case "dash_prompt":
-            if (chat) return <div key={i} className="owner-msg"><Markdown text={String(l.text ?? "")} /></div>;
-            return <details key={i} className="prompt"><summary className="label">Prompt</summary><pre>{l.text}</pre></details>;
+          case "dash_user": {
+            if (!chat && l.type === "dash_prompt") return <details key={i} className="prompt"><summary className="label">Prompt</summary><pre>{l.text}</pre></details>;
+            // In a chat the owner's words are the bubble; what Loom sent with them folds above.
+            const text = String(l.text ?? "");
+            const own = chat ? ownerText(text) : text;
+            return (
+              <div key={i} className="owner-msg">
+                {own !== text && <details className="prompt"><summary className="label">From Loom</summary><pre>{text.slice(0, -own.length - 5)}</pre></details>}
+                <Markdown text={own} />
+              </div>
+            );
+          }
           case "dash_output":
             // A command's output arrives line by line; it is shown as one block where it starts.
             return lines[i - 1]?.type === "dash_output" ? null : <pre key={i} className="output">{output}</pre>;
-          case "dash_user":
-            return <div key={i} className="owner-msg"><Markdown text={String(l.text ?? "")} /></div>;
           case "system":
             return l.subtype === "init" ? <p key={i} className="sysline">session started{l.model ? ` · ${l.model}` : ""}{l.cwd ? ` · ${l.cwd}` : ""}</p> : null;
           case "assistant":

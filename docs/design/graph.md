@@ -165,7 +165,7 @@ T-006 | mentions | loom:docs/design/threads/context.md#T1 | "Print the outline a
 - **Sections are not listed here.** A document's outline is computed when a brief or a card needs it.
 - **Every address on the page can be read, and nothing else is on it.** Run and session ids stay out: no reader opens a transcript. A Thread's address reads through its task's timeline, where its reports are.
 - **No live figures.** Turns and context of a running Thread stay on the board, so the file changes when work changes state and not on every model call.
-- **Past Shuttle sessions are listed in one generated file beside `SHUTTLE.md`**, one line each, newest first, capped at 50 lines. They belong to no project.
+- **Past Shuttle sessions are listed in one generated file beside `SHUTTLE.md`**, `SESSIONS.md`, one line each, newest first, capped at 50 lines. They belong to no project.
 
 Size today: the `loom` project has 10 tasks, 3 documents and no memory entries, about 30 lines. At one line each, a project with 300 nodes is still a file no one loads whole.
 
