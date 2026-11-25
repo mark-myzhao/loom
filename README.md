@@ -8,7 +8,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-ee7446" alt="MIT license"></a>
 </p>
 
-![Loom's Today view: a box to drop notes into, open tasks and active projects](docs/today.png)
+![Loom's Today view: the board of work waiting on you, ready and waiting on another task, then open tasks](docs/today.png)
 
 A local, single-user project notebook kept up to date by headless Claude Code sessions.
 Drop in meeting notes or links; Claude files them under the right project, keeps a small
