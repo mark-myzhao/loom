@@ -63,7 +63,11 @@ export function scheduleBackup() {
   clearTimeout(timer);
   timer = setTimeout(() => {
     if (busy()) return scheduleBackup();
-    snapshot().catch((e) => console.error("backup:", (e as Error).message));
+    snapshot().catch((e) => {
+      console.error("backup:", (e as Error).message);
+      // Another git process (an editor, a pull) holds the index for a moment: try again after the next quiet period.
+      if ((e as Error).message.includes("index.lock")) scheduleBackup();
+    });
   }, QUIET_MS);
 }
 
