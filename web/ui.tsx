@@ -246,7 +246,7 @@ export function TaskGroups({ slug, tasks }: { slug: string; tasks: TaskSummary[]
 export function RunRow({ run, projectName }: { run: RunMeta; projectName?: string }) {
   const { openRun } = useApp();
   return (
-    <button className="row run-row" onClick={() => openRun(run.id)}>
+    <button className="row run-row" data-track="run" onClick={() => openRun(run.id)}>
       <RunPill run={run} />
       <span className="tag">{run.kind}</span>
       <span className="row-title">{run.title}</span>

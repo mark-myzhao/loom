@@ -204,6 +204,7 @@ export const DEFAULT_CONFIG: Config = {
     allowedTools: ["Read", "Write", "Edit", "Glob", "Grep"],
     useWorktree: true,
   },
+  telemetry: true,
 };
 
 const configPath = () => join(DATA, "config.json");
@@ -261,6 +262,7 @@ export function saveState(patch: Partial<AppState>): AppState {
 const GITIGNORE = `# Loom: run history, runtime state and trash stay out of snapshots
 runs/
 state.json
+telemetry/
 .trash/
 .*.tmp-*
 .DS_Store

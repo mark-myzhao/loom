@@ -203,6 +203,8 @@ export interface Config {
     allowedTools: string[];
     useWorktree: boolean;
   };
+  /** Log views, clicks, API writes and runs to telemetry/ in the data directory. On unless false. */
+  telemetry?: boolean;
 }
 
 /** Idle this long, the one-hour prompt cache is gone: a fresh Shuttle session costs less than a resume. */

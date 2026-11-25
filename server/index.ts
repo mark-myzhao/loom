@@ -8,6 +8,7 @@ import { artifactPrompt, askPrompt, automationPrompt, ingestPrompt, SHUTTLE_ROUT
 import { findLiveRun, getRun, hasLiveRuns, initRuns, listRuns, noteText, readTranscript, sendMessage, sendNote, startRun, stopRun, subscribe, type RunInit } from "./runs";
 import * as store from "./store";
 import { DATA, HttpError } from "./store";
+import { readTelemetry, track } from "./telemetry";
 import { compact, usageRows } from "./usage";
 import { BOARD_GROUPS, CACHE_COLD_MS, isClosed, ownerText, type Automation, type BoardRow, type Config, type RunMeta, type RunSpec, type Snapshot, type Task, type TaskDetail, type TaskSummary } from "./types";
 
@@ -160,11 +161,16 @@ const isTracked = (m: RunMeta) => !m.spec.shell && m.kind !== "shuttle";
 
 /** Every start and resume. Overlapping runs share one baseline, so their changes cannot be pinned on a specific run. */
 function runStarted(m: RunMeta) {
+  track({ src: "server", ev: "run.start", run: m.id, kind: m.kind, project: m.project, taskId: m.taskId });
   if (isTracked(m) && tracked++ === 0) baseline = snapshotTasks();
 }
 
 /** Every finish, resumes included: logs what changed in the tasks, and a Thread's finish with what it wrote. */
 function runFinished(m: RunMeta, lines: Record<string, any>[]) {
+  track({
+    src: "server", ev: "run.end", run: m.id, kind: m.kind, project: m.project, taskId: m.taskId,
+    status: m.status, turns: m.turns, costUsd: m.costUsd, peakContext: m.peakContext,
+  });
   if (!isTracked(m)) return;
   const by = author(m);
   const alone = --tracked === 0;
@@ -586,6 +592,14 @@ async function api(req: Request, url: URL): Promise<Response> {
     });
 
   if (is("GET", "usage")) return json(usageRows(listRuns()));
+  if (is("GET", "telemetry")) return json(readTelemetry());
+  // The dashboard's views and clicks, batched. The server's clock decides the day.
+  if (is("POST", "telemetry")) {
+    const events: Record<string, any>[] = (await readBody(req)).events;
+    if (!Array.isArray(events)) bad("events must be a list");
+    track(...events.filter((e) => e && (e.ev === "view" || e.ev === "click")).map(({ t: _, ...e }) => ({ ...e, src: "web" })));
+    return json({ ok: true });
+  }
   if (is("GET", "owner"))
     return req.headers.get("sec-fetch-site") === "same-origin" ? json({ token: OWNER_TOKEN }) : bad("the owner's token goes only to the dashboard page", 403);
 
@@ -736,13 +750,21 @@ const server = Bun.serve({
     if (!url.pathname.startsWith("/api/")) return new Response("Not found", { status: 404 });
     const refused = gate(req);
     if (refused) return refused;
+    const start = performance.now();
+    let res: Response;
     try {
-      return await api(req, url);
+      res = await api(req, url);
     } catch (e) {
-      if (e instanceof HttpError) return json({ error: e.message }, e.status);
-      console.error(`${req.method} ${url.pathname}:`, e);
-      return json({ error: PROD ? "internal error" : String((e as Error)?.stack ?? e) }, 500);
+      if (!(e instanceof HttpError)) console.error(`${req.method} ${url.pathname}:`, e);
+      res = e instanceof HttpError ? json({ error: e.message }, e.status)
+        : json({ error: PROD ? "internal error" : String((e as Error)?.stack ?? e) }, 500);
     }
+    if (req.method !== "GET" && url.pathname !== "/api/telemetry")
+      track({
+        src: "server", ev: "api", method: req.method, path: url.pathname, status: res.status,
+        ms: Math.round(performance.now() - start), actor: isOwner(req) ? "owner" : "agent", len: Number(req.headers.get("content-length") ?? 0),
+      });
+    return res;
   },
 });
 

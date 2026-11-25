@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { pageOf } from "../server/usage";
 import { isClosed, type Priority, type ProjectSnapshot, type RunMeta, type Snapshot, type TaskStatus, type TaskSummary } from "../server/types";
 
 // ---------- api ----------
@@ -19,6 +20,44 @@ export async function api<T = unknown>(method: string, path: string, body?: unkn
 }
 
 export const enc = encodeURIComponent;
+
+// ---------- telemetry ----------
+
+/**
+ * Logs page views and clicks to the server in batches (docs/design/usage/telemetry.md). A link is named by
+ * the kind of page it opens and a button by its label, never by data it shows: such buttons carry `data-track`.
+ */
+export function startTelemetry() {
+  const tab = Math.random().toString(36).slice(2, 10);
+  let queue: object[] = [];
+  const path = () => location.hash.split("?")[0] || "#/";
+  let route = path();
+  let since = Date.now();
+  queue.push({ ev: "view", tab, route });
+  window.addEventListener("hashchange", () => {
+    if (path() === route) return; // Only the query changed: a drawer opened or closed.
+    queue.push({ ev: "view", tab, route: path(), from: route, ms: Date.now() - since });
+    route = path();
+    since = Date.now();
+  });
+  document.addEventListener("click", (e) => {
+    const el = (e.target as Element).closest?.("button, a, [role=button]");
+    if (!el) return;
+    const href = el.getAttribute("href");
+    const label = (el as HTMLElement).dataset.track
+      ?? (href?.startsWith("#") ? `link ${pageOf(href)}` : el.getAttribute("aria-label") ?? el.getAttribute("title") ?? el.textContent);
+    queue.push({ ev: "click", tab, route, label: (label ?? "").trim().replace(/\s+/g, " ").slice(0, 40) || el.tagName.toLowerCase() });
+  }, true);
+  const flush = (beacon = false) => {
+    if (!queue.length) return;
+    const body = JSON.stringify({ events: queue });
+    queue = [];
+    if (beacon) navigator.sendBeacon("/api/telemetry", new Blob([body], { type: "application/json" }));
+    else fetch("/api/telemetry", { method: "POST", headers: { "Content-Type": "application/json" }, body }).catch(() => {});
+  };
+  setInterval(flush, 5000);
+  window.addEventListener("pagehide", () => flush(true));
+}
 
 // ---------- app context ----------
 

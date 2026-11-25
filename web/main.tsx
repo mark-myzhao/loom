@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Project, Snapshot } from "../server/types";
-import { api, Ctx, day, enc, go, hashWith, isLive, openCount, useApp, useRoute, useScrollMemory, type AppCtx } from "./lib";
+import { api, Ctx, day, enc, go, hashWith, isLive, openCount, startTelemetry, useApp, useRoute, useScrollMemory, type AppCtx } from "./lib";
 import { SHUTTLE_PATH, Wordmark } from "./ui";
 import { Automations } from "./views/Automations";
 import { DocPage } from "./views/Doc";
@@ -176,4 +176,5 @@ function App() {
   );
 }
 
+startTelemetry();
 createRoot(document.getElementById("root")!).render(<App />);

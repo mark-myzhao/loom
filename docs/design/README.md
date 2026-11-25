@@ -22,6 +22,7 @@ Designs live here, one subject per file. Decisions live in [`../adr`](../adr/REA
 | | [threads/states.md](threads/states.md) | Task status; blocked assigned with a comment or derived; waiting on a human or a task; Thread state; the board as a view |
 | | [threads/notes.md](threads/notes.md) | Notes to a running Thread; the owner's controls over work in flight |
 | Usage | [usage/tracking.md](usage/tracking.md) | How token usage is recorded, the Usage page, the retro report |
+| | [usage/telemetry.md](usage/telemetry.md) | Owner and agent actions logged locally: views, clicks, API writes, runs; the telemetry report |
 | Brand | [brand/marks.md](brand/marks.md) | The Shuttle and Thread marks, with SVG source |
 | Research | [research/superagent-lessons.md](research/superagent-lessons.md) | The DeepSeek super-agent study this design builds on |
 

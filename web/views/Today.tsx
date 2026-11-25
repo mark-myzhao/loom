@@ -100,7 +100,7 @@ function ThreadRow({ row }: { row: BoardRow }) {
         <span className={`pill state-${row.state}`}>{row.state}</span>
         <a className="row-title" href={taskHref(row.project, row.taskId)}>{row.taskId} {row.title}</a>
         <span className="row-meta">
-          {row.runId && <button className="link" onClick={() => openRun(row.runId!)}>{row.address}</button>}
+          {row.runId && <button className="link" data-track="thread" onClick={() => openRun(row.runId!)}>{row.address}</button>}
           {(row.group === "Waiting on task" ? [] : ACTIONS[row.state] ?? []).map((a) => (
             <button key={a} className="link" disabled={a === "Start" && !repo} title={a === "Start" && !repo ? "Register a codebase on the project first" : undefined}
               onClick={() => (WITH_TEXT.includes(a) ? setPending(a) : go(a))}>{a}</button>

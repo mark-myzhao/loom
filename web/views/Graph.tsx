@@ -100,7 +100,7 @@ export function Graph({ project: p }: { project: ProjectSnapshot }) {
     };
     return (
       <div key={t.id} className={`gnode st-${t.status}${run && isLive(run) ? " agent" : ""}${dim(t.id)}`} style={style}>
-        <button className="gnode-main" onClick={() => go(taskHref(p.slug, t.id))} onMouseEnter={show} onMouseLeave={() => setFocus(null)} onFocus={show} onBlur={() => setFocus(null)}>
+        <button className="gnode-main" data-track="graph node" onClick={() => go(taskHref(p.slug, t.id))} onMouseEnter={show} onMouseLeave={() => setFocus(null)} onFocus={show} onBlur={() => setFocus(null)}>
           <span className="id">{t.id}</span>
           <span className="gnode-title">{t.title}</span>
         </button>

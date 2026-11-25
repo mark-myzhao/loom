@@ -18,6 +18,7 @@ Nine steps build the Shuttle and Threads design, each useful alone and small eno
 | Step 6: the `question` event, the Threads board with derived states, Start with a purpose, more than one Thread on a task | [threads/dispatch.md](threads/dispatch.md) |
 | Step 7: the Shuttle and Thread marks; "Thread" in the interface and prompts; the pictures redrawn without the budget swap or the slow state | [brand/marks.md](brand/marks.md), [glossary.md](glossary.md) |
 | Step 8: a project is `T-000`, sources and repos are artifact files, a one-time migration from `project.json` | [graph.md](graph.md), "A project is a task" |
+| Telemetry: views, clicks, API writes by actor and runs in `telemetry/`, out of the snapshots; the Activity section of the Usage page, `bun run telemetry` | [usage/telemetry.md](usage/telemetry.md) |
 | Task status: five stored statuses, `doing` migrated to `in-progress`, blocked assigned with a comment or derived, `after`, the board's four groups, Block and Unblock | [threads/states.md](threads/states.md) |
 
 ## Build order

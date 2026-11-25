@@ -77,7 +77,7 @@ export function Automations() {
         return (
           <div key={a.id} className="row">
             <span className="tag">{a.kind}</span>
-            <button className="link row-title" title={a.run} onClick={() => setEditing(a)}>{a.name}</button>
+            <button className="link row-title" data-track="automation" title={a.run} onClick={() => setEditing(a)}>{a.name}</button>
             <span className="row-meta">
               {a.project && <span className="tag">{project?.name ?? a.project}</span>}
               <span>{!a.time ? "on demand" : a.enabled ? `daily at ${a.time}` : `paused (${a.time})`}</span>

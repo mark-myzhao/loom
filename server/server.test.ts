@@ -142,3 +142,16 @@ test("a note reaches a running Thread; only the owner's note wakes an ended one"
   await until(run.id, "done");
   expect(readFileSync(taskFile, "utf8")).toContain("status: in-progress");
 }, 30_000);
+
+test("telemetry logs writes with who made them, runs, and the dashboard's views, outside the snapshots", async () => {
+  await call("POST", "/telemetry", { events: [{ ev: "view", tab: "t1", route: "#/usage" }, { ev: "api", path: "/forged" }] });
+  await Bun.sleep(100);
+  const log: any[] = await call("GET", "/telemetry");
+  expect(log.filter((e) => e.src === "web")).toMatchObject([{ ev: "view", route: "#/usage" }]);
+  expect(log.find((e) => e.path === "/forged")).toBeUndefined();
+  expect(log).toContainEqual(expect.objectContaining({ ev: "api", method: "POST", path: "/api/projects/notes-demo/tasks/T-001/note", actor: "owner", status: 200 }));
+  expect(log).toContainEqual(expect.objectContaining({ ev: "api", path: "/api/projects/notes-demo/tasks/T-001/note", actor: "agent" }));
+  expect(log).toContainEqual(expect.objectContaining({ ev: "run.end", kind: "task", taskId: "T-001", status: "done" }));
+  expect(log.some((e) => JSON.stringify(e).includes("skip Windows"))).toBe(false);
+  expect(readFileSync(join(data, ".gitignore"), "utf8")).toContain("telemetry/");
+});
