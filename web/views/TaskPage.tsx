@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ProjectSnapshot, RunMeta, Task, TaskDetail, TimelineEvent } from "../../server/types";
-import { PRIORITIES, TASK_STATUSES } from "../../server/types";
+import { isClosed, PRIORITIES, TASK_STATUSES } from "../../server/types";
 import { ago, api, buildTree, day, descendants, enc, go, hashWith, isLive, onSubmitKey, stamp, STATUS_LABEL, taskHref, useApp, useData } from "../lib";
 import { DateInput, Select } from "../controls";
 import { editable, Empty, Markdown, Progress, RunRow, StatusChip, TaskRow } from "../ui";
@@ -189,7 +189,7 @@ export function TaskPage({ project: p, id, edit }: { project: ProjectSnapshot; i
           <section className="group">
             <h3 className="label">
               Subtasks
-              {kids.length > 0 && <Progress done={kids.filter((k) => k.status === "done").length} total={kids.length} title="Done, at every level" />}
+              {kids.length > 0 && <Progress done={kids.filter((k) => isClosed(k.status)).length} total={kids.length} title="Done or cancelled, at every level" />}
             </h3>
             {data.children.map((c) => <TaskRow key={c.id} slug={p.slug} task={c} tree={tree} />)}
             <input className="add-line" value={sub} aria-label="Add a subtask" placeholder="Add a subtask, then Enter" onChange={(e) => setSub(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addSub()} />
@@ -220,7 +220,7 @@ export function TaskPage({ project: p, id, edit }: { project: ProjectSnapshot; i
               <textarea rows={2} value={comment} aria-label="Note" placeholder="Note for this task's Threads…" onChange={(e) => setComment(e.target.value)} onKeyDown={onSubmitKey(() => send(false))} />
               <span className="btn-row">
                 <button disabled={!comment.trim()} onClick={() => send(false)}>Send note</button>
-                {task.status !== "done" && <button onClick={() => send(true)}>{comment.trim() ? "Comment & mark done" : "Mark done"}</button>}
+                {!isClosed(task.status) && <button onClick={() => send(true)}>{comment.trim() ? "Comment & mark done" : "Mark done"}</button>}
               </span>
             </div>
           </section>

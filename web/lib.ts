@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { Priority, ProjectSnapshot, RunMeta, Snapshot, TaskStatus, TaskSummary } from "../server/types";
+import { isClosed, type Priority, type ProjectSnapshot, type RunMeta, type Snapshot, type TaskStatus, type TaskSummary } from "../server/types";
 
 // ---------- api ----------
 
@@ -147,7 +147,7 @@ export const docHref = (slug: string, name: string) => `#/p/${enc(slug)}/a/${enc
 // ---------- formatting ----------
 
 export const STATUS_LABEL: Record<TaskStatus, string> = {
-  todo: "Todo", "in-progress": "In progress", review: "To review", blocked: "Blocked", done: "Done",
+  todo: "Todo", "in-progress": "In progress", review: "To review", blocked: "Blocked", done: "Done", cancelled: "Cancelled",
 };
 export const GROUPS: { status: TaskStatus; label: string }[] = [
   { status: "review", label: "To review" },
@@ -155,6 +155,7 @@ export const GROUPS: { status: TaskStatus; label: string }[] = [
   { status: "in-progress", label: "In progress" },
   { status: "todo", label: "Up next" },
   { status: "done", label: "Done" },
+  { status: "cancelled", label: "Cancelled" },
 ];
 const PRIO: Record<Priority, number> = { p0: 0, p1: 1, p2: 2, p3: 3 };
 const idNum = (id: string) => Number(id.slice(2)) || 0;
@@ -244,7 +245,7 @@ export function descendants(tree: Tree, id: string): TaskSummary[] {
   return out;
 }
 
-export const openCount = (p: ProjectSnapshot) => p.tasks.filter((t) => t.status !== "done").length;
+export const openCount = (p: ProjectSnapshot) => p.tasks.filter((t) => !isClosed(t.status)).length;
 /** The latest Thread's run for a task, if any. */
 export const agentRun = (runs: RunMeta[], slug: string, id: string) =>
   runs.find((r) => r.kind === "task" && r.project === slug && r.taskId === id);

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BOARD_GROUPS, CACHE_COLD_MS, type BoardRow, type RunMeta } from "../../server/types";
+import { BOARD_GROUPS, CACHE_COLD_MS, isClosed, type BoardRow, type RunMeta } from "../../server/types";
 import { compact } from "../../server/usage";
 import { api, buildTree, enc, GROUPS, isLive, onSubmitKey, sortTasks, taskHref, useApp } from "../lib";
 import { Empty, RunList, ShuttleMark, TaskRow, ThreadMark } from "../ui";
@@ -127,7 +127,7 @@ export function Today() {
   const active = snap.projects.filter((p) => p.status === "active");
   const open = useMemo(
     () =>
-      GROUPS.filter((g) => g.status !== "done").flatMap((g) =>
+      GROUPS.filter((g) => !isClosed(g.status)).flatMap((g) =>
         active.flatMap((p) => {
           const tree = buildTree(p.tasks);
           return sortTasks(p.tasks.filter((t) => t.status === g.status)).map((task) => ({ p, task, tree }));
@@ -181,7 +181,7 @@ export function Today() {
                   <h4>{p.name}</h4>
                   <p className="clamp">{p.error ? p.error : p.summary || "No summary yet."}</p>
                   <p className="card-meta">
-                    <span>{p.tasks.filter((t) => t.status !== "done").length} open</span>
+                    <span>{p.tasks.filter((t) => !isClosed(t.status)).length} open</span>
                     {n("review") > 0 && <span className="c-slate">{n("review")} to review</span>}
                     {n("blocked") > 0 && <span className="c-bad">{n("blocked")} blocked</span>}
                   </p>

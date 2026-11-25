@@ -2,7 +2,7 @@
 
 ## Summary
 
-Decided in [ADR 0020](../../adr/0020-task-status-and-derived-blocked.md); built (see "As built"). A task has one status: **todo → in-progress / blocked → review → done**. All five are stored. **Blocked** is assigned with a comment, by the owner or a Thread, and a task also reads as blocked, with nothing written, while a question is unanswered, its Thread has failed, or a task it comes after is open. A blocked task waits on a **human** (the owner or anyone else) or on a **task**. A Thread has its own state, and the board is a view over the three. Part of the design in [the design index](../README.md).
+Decided in [ADR 0020](../../adr/0020-task-status-and-derived-blocked.md); built (see "As built"). A task has one status: **todo → in-progress / blocked → review → done**, or **cancelled** from any of them ([ADR 0021](../../adr/0021-cancelled-task-status.md)). All six are stored; done and cancelled are closed. **Blocked** is assigned with a comment, by the owner or a Thread, and a task also reads as blocked, with nothing written, while a question is unanswered, its Thread has failed, or a task it comes after is open. A blocked task waits on a **human** (the owner or anyone else) or on a **task**. A Thread has its own state, and the board is a view over the three. Part of the design in [the design index](../README.md).
 
 ## The problem
 
@@ -12,7 +12,7 @@ The board's seven states mix three things: how far the task is, what holds it, a
 
 | Thing | Values | Where it lives |
 | --- | --- | --- |
-| Task status | todo, in-progress, blocked, review, done | stored in the task file; blocked is also derived |
+| Task status | todo, in-progress, blocked, review, done, cancelled | stored in the task file; blocked is also derived |
 | Waiting on, for a blocked task | human, task | derived from why it is blocked |
 | Thread state | queued, running, asks, ended, failed | derived from the run and the timeline |
 
@@ -29,6 +29,7 @@ Derived values are computed on every read ([ADR 0006](../../adr/0006-board-deriv
 | blocked | it cannot move until something outside it does | Unblock, or the cause clearing, back to todo or in-progress |
 | review | the work is reported | Accept, to done; Send back, to in-progress |
 | done | accepted | Reopen, to todo |
+| cancelled | will not be done; a comment says why. Closed like done: never blocked, holds no task, off the board | Reopen, to todo |
 
 `doing` is renamed `in-progress`.
 
@@ -94,7 +95,7 @@ What no system above does: say with every block whether it waits on a human or o
 
 | Place | Change |
 | --- | --- |
-| `types.ts` | `TASK_STATUSES`: todo, in-progress, blocked, review, done; `THREAD_STATES`: queued, running, asks, ended, failed; a task gains `after` |
+| `types.ts` | `TASK_STATUSES`: todo, in-progress, blocked, review, done, cancelled (`isClosed`: done or cancelled); `THREAD_STATES`: queued, running, asks, ended, failed; a task gains `after` |
 | `store.ts` | parse `after`; derive blocked and what it waits on; the "after" edge and the status on the card; setting `blocked` requires a comment; the `doing` rename |
 | `index.ts` `board()` | the four groups above, from task status and Thread state; questions read per task, not only per Thread |
 | `prompts.ts` | ask when a note from the owner settles it; otherwise set `blocked` with a comment; `after` for a task |

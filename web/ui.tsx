@@ -1,7 +1,7 @@
 import DOMPurify from "dompurify";
 import { marked } from "marked";
 import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import type { BoardRow, Priority, RunMeta, TaskStatus, TaskSummary } from "../server/types";
+import { isClosed, type BoardRow, type Priority, type RunMeta, type TaskStatus, type TaskSummary } from "../server/types";
 import {
   agentRun, ago, api, buildTree, descendants, docHref, dueLabel, enc, GROUPS, isLive, money, sortTasks, STATUS_LABEL, taskHref, useApp,
   type Tree,
@@ -25,7 +25,7 @@ export function Wordmark() {
 
 // ---------- status ----------
 
-/** Status by shape as well as colour: empty, half, three-quarters, dashed, checked. */
+/** Status by shape as well as colour: empty, half, three-quarters, dashed, checked, crossed out. */
 export function Ring({ status, size = 16 }: { status: TaskStatus; size?: number }) {
   const c = `var(--st-${status})`;
   return (
@@ -40,6 +40,7 @@ export function Ring({ status, size = 16 }: { status: TaskStatus; size?: number 
           <circle cx="8" cy="8" r="6.25" fill="none" stroke={c} strokeWidth="1.5" strokeDasharray={status === "blocked" ? "2.6 2.3" : undefined} />
           {status === "in-progress" && <path d="M8 4a4 4 0 0 1 0 8z" fill={c} />}
           {status === "review" && <path d="M8 8V4a4 4 0 1 1-4 4z" fill={c} />}
+          {status === "cancelled" && <path d="M5.5 5.5l5 5m0-5l-5 5" stroke={c} strokeWidth="1.5" strokeLinecap="round" />}
         </>
       )}
     </svg>
@@ -190,12 +191,12 @@ export function TaskRow({ slug, task, tree, showProject }: { slug: string; task:
   const { snap, act } = useApp();
   const run = agentRun(snap.runs, slug, task.id);
   const kids = descendants(tree, task.id);
-  const due = task.due ? dueLabel(task.due, task.status === "done") : undefined;
-  const toggle = () =>
-    act(() => api("PATCH", `/projects/${enc(slug)}/tasks/${task.id}`, { status: task.status === "done" ? "todo" : "done" }));
+  const closed = isClosed(task.status);
+  const due = task.due ? dueLabel(task.due, closed) : undefined;
+  const toggle = () => act(() => api("PATCH", `/projects/${enc(slug)}/tasks/${task.id}`, { status: closed ? "todo" : "done" }));
   return (
-    <div className={`row task-row${task.status === "done" ? " is-done" : ""}`}>
-      <button className="ring-btn" onClick={toggle} title={task.status === "done" ? "Reopen" : "Mark done"} aria-label={`${task.status === "done" ? "Reopen" : "Mark done"}: ${task.title}`}>
+    <div className={`row task-row${closed ? " is-done" : ""}`}>
+      <button className="ring-btn" onClick={toggle} title={closed ? "Reopen" : "Mark done"} aria-label={`${closed ? "Reopen" : "Mark done"}: ${task.title}`}>
         <Ring status={task.status} />
       </button>
       <Prio p={task.priority} />
@@ -204,7 +205,7 @@ export function TaskRow({ slug, task, tree, showProject }: { slug: string; task:
         {run && (isLive(run) || task.status === "in-progress" || task.status === "review" || task.status === "blocked") && (
           <span className={`pill run-${run.status}${isLive(run) ? " live" : ""}`}>Thread {isLive(run) ? "working" : run.status}</span>
         )}
-        {kids.length > 0 && <span title="Subtasks done">⤷ {kids.filter((k) => k.status === "done").length}/{kids.length}</span>}
+        {kids.length > 0 && <span title="Subtasks done or cancelled">⤷ {kids.filter((k) => isClosed(k.status)).length}/{kids.length}</span>}
         <Progress done={task.checked} total={task.total} title="Checklist" />
         {due && <span className={due.overdue ? "overdue" : ""}>{due.text}</span>}
         {task.parent && <a href={taskHref(slug, task.parent)} title="Parent task">↑ {task.parent}</a>}
@@ -216,21 +217,21 @@ export function TaskRow({ slug, task, tree, showProject }: { slug: string; task:
   );
 }
 
-/** The five groups, Done collapsed at first. */
+/** The six groups, Done and Cancelled collapsed at first. */
 export function TaskGroups({ slug, tasks }: { slug: string; tasks: TaskSummary[] }) {
-  const [showDone, setShowDone] = useState(false);
+  const [shown, setShown] = useState<Set<TaskStatus>>(new Set());
   const tree = useMemo(() => buildTree(tasks), [tasks]);
   return (
     <>
       {GROUPS.map(({ status, label }) => {
         const group = sortTasks(tasks.filter((t) => t.status === status));
         if (!group.length) return null;
-        const collapsed = status === "done" && !showDone;
+        const collapsed = isClosed(status) && !shown.has(status);
         return (
           <section key={status} className="group">
             <h3 className="label">
-              {status === "done" ? (
-                <button className="link" aria-expanded={!collapsed} onClick={() => setShowDone(!showDone)}>{collapsed ? "▸" : "▾"} {label}</button>
+              {isClosed(status) ? (
+                <button className="link" aria-expanded={!collapsed} onClick={() => setShown(new Set(collapsed ? [...shown, status] : [...shown].filter((s) => s !== status)))}>{collapsed ? "▸" : "▾"} {label}</button>
               ) : label}
               <span className="count">{group.length}</span>
             </h3>

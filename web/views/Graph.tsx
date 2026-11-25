@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { GraphEdge, GraphNode, ProjectSnapshot, TaskStatus, TaskSummary } from "../../server/types";
-import { TASK_STATUSES } from "../../server/types";
+import { isClosed, TASK_STATUSES } from "../../server/types";
 import { agentRun, api, buildTree, descendants, docHref, dueLabel, enc, go, isLive, STATUS_LABEL, taskHref, useApp, type Tree } from "../lib";
 import { Select } from "../controls";
 import { Empty, Ring } from "../ui";
@@ -61,7 +61,7 @@ export function Graph({ project: p }: { project: ProjectSnapshot }) {
 
   // "Hide done" keeps a completed ancestor that still has open work beneath it.
   const visible = useMemo(() => {
-    const keep = new Set(p.tasks.filter((t) => !hideDone || t.status !== "done" || descendants(tree, t.id).some((d) => d.status !== "done")).map((t) => t.id));
+    const keep = new Set(p.tasks.filter((t) => !hideDone || !isClosed(t.status) || descendants(tree, t.id).some((d) => !isClosed(d.status))).map((t) => t.id));
     return (t: TaskSummary) => keep.has(t.id);
   }, [p.tasks, hideDone, tree]);
 
@@ -159,7 +159,7 @@ export function Graph({ project: p }: { project: ProjectSnapshot }) {
           <h4>{focused.title}</h4>
           <p className="facts">
             {focused.priority.toUpperCase()}
-            {focused.due && ` · due ${dueLabel(focused.due, focused.status === "done").text}`}
+            {focused.due && ` · due ${dueLabel(focused.due, isClosed(focused.status)).text}`}
             {focused.total > 0 && ` · ${focused.checked}/${focused.total} checked`}
             {focused.repo && ` · ${focused.repo}`}
           </p>

@@ -27,6 +27,7 @@
   --st-review: var(--slate);
   --st-blocked: var(--bad);
   --st-done: var(--moss);
+  --st-cancelled: var(--ink-3);
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -219,6 +220,7 @@ button.pill:hover:not(:disabled) { background: var(--accent); border-color: var(
 .chip.st-review { background: var(--st-review); }
 .chip.st-blocked { background: var(--st-blocked); }
 .chip.st-done { background: var(--st-done); }
+.chip.st-cancelled { background: var(--st-cancelled); }
 .pill.run-done { color: var(--moss); }
 /* The marks: one stroke on a 32-unit grid, like the wordmark. A Thread's colour is its state. */
 .mark { width: 20px; height: 20px; flex: none; vertical-align: -3px; fill: none; stroke: var(--accent); stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
@@ -519,7 +521,9 @@ a.row-title:hover { text-decoration: underline; text-decoration-color: var(--acc
 .gnode.st-review { border-left-color: var(--st-review); }
 .gnode.st-done { border-left-color: var(--st-done); }
 .gnode.st-blocked { border: 1px dashed var(--st-blocked); border-left: 3px solid var(--st-blocked); }
-.gnode.st-done .gnode-title { text-decoration: line-through; color: var(--ink-3); }
+.gnode.st-cancelled { border-left-color: var(--st-cancelled); }
+.gnode.st-done .gnode-title,
+.gnode.st-cancelled .gnode-title { text-decoration: line-through; color: var(--ink-3); }
 .gnode.agent { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent); }
 .gnode:hover { border-top-color: var(--ink); border-right-color: var(--ink); border-bottom-color: var(--ink); }
 .dim { opacity: 0.3; }

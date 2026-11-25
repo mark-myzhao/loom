@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Artifact, ArtifactDetail, MemoryEntry, ProjectSnapshot, RunMeta, Source, Task } from "../../server/types";
-import { PROJECT_STATUSES } from "../../server/types";
+import { isClosed, PROJECT_STATUSES } from "../../server/types";
 import { ago, api, docHref, enc, go, onSubmitKey, taskHref, useApp, useData, useRoute } from "../lib";
 import { Select } from "../controls";
 import { editable, Empty, KindBadge, Markdown, RunList, TaskGroups } from "../ui";
@@ -30,7 +30,7 @@ export function ProjectPage({ project: p, tab }: { project: ProjectSnapshot; tab
     setEditing(null);
   };
   const counts: Partial<Record<Tab, number>> = {
-    tasks: p.tasks.filter((t) => t.status !== "done").length,
+    tasks: p.tasks.filter((t) => !isClosed(t.status)).length,
     context: p.sources.length + p.repos.length,
     activity: runs.length,
   };

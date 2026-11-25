@@ -108,15 +108,16 @@ The checkout team needs to see p95 latency during rollout. The parent task holds
 - `id` is `T-` plus a number padded to at least three digits, one higher than the highest
   in the project. The filename is the id.
 - `status`: `todo`, `in-progress`, `blocked`, `review` (work is ready for the owner to look
-  at), `done`. Mark a task done only on clear evidence, and say what the evidence is in a
-  timeline comment. Setting `blocked` always comes with a timeline comment saying who or
-  what the task waits on; the latest comment is the reason shown.
+  at), `done`, `cancelled` (will not be done). Mark a task done only on clear evidence, and
+  say what the evidence is in a timeline comment; a cancelled task's comment says why.
+  Setting `blocked` always comes with a timeline comment saying who or what the task waits
+  on; the latest comment is the reason shown.
 - `after`: task addresses this task waits on, comma-separated: `T-005` in this project,
   `other-slug/T-004` in another. Use it, not `blocked`, when the task waits on a task.
 - A task also reads as blocked, with nothing written, while a `question` is unanswered,
   while it is `in-progress` and its Threads ended without a report, or while a task in
-  `after` or a subtask is not done. `GRAPH.md` shows each task's status as read, so a card
-  that reads `todo` is work that can start.
+  `after` or a subtask is still open (not done or cancelled). `GRAPH.md` shows each task's
+  status as read, so a card that reads `todo` is work that can start.
 - `priority`: `p0` (urgent) to `p3`; `p2` is the default.
 - Optional: `due` (date), `parent` (the id of another task in the same project), `after`, `source`
   (the url the task came from), `repo` (the name of a repository artifact, without `.md`), `run`

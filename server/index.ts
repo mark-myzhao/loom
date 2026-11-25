@@ -9,7 +9,7 @@ import { findLiveRun, getRun, hasLiveRuns, initRuns, listRuns, noteText, readTra
 import * as store from "./store";
 import { DATA, HttpError } from "./store";
 import { compact, usageRows } from "./usage";
-import { BOARD_GROUPS, CACHE_COLD_MS, ownerText, type Automation, type BoardRow, type Config, type RunMeta, type RunSpec, type Snapshot, type Task, type TaskDetail, type TaskSummary } from "./types";
+import { BOARD_GROUPS, CACHE_COLD_MS, isClosed, ownerText, type Automation, type BoardRow, type Config, type RunMeta, type RunSpec, type Snapshot, type Task, type TaskDetail, type TaskSummary } from "./types";
 
 const PORT = Number(process.env.PORT) || 4400;
 const PROD = process.env.NODE_ENV === "production";
@@ -353,7 +353,7 @@ function board(): BoardRow[] {
   const rows: BoardRow[] = [];
   const all = store.listProjectSlugs().flatMap((slug) => {
     const tasks = store.listTasks(slug);
-    return tasks.filter((t) => t.id !== "T-000" && t.status !== "done").map((t) => ({ slug, t, tasks }));
+    return tasks.filter((t) => t.id !== "T-000" && !isClosed(t.status)).map((t) => ({ slug, t, tasks }));
   });
   all.sort((a, b) => a.t.priority.localeCompare(b.t.priority) || (a.t.due ?? "9999").localeCompare(b.t.due ?? "9999"));
   for (const { slug, t, tasks } of all) {

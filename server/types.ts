@@ -1,11 +1,13 @@
 // Shared record types. The browser imports this file for types only.
 
 export type ProjectStatus = "active" | "paused" | "done";
-export type TaskStatus = "todo" | "in-progress" | "blocked" | "review" | "done";
+export type TaskStatus = "todo" | "in-progress" | "blocked" | "review" | "done" | "cancelled";
 export type Priority = "p0" | "p1" | "p2" | "p3";
 export type SourceKind = "gdoc" | "slack" | "github" | "url" | "note";
 
-export const TASK_STATUSES: TaskStatus[] = ["todo", "in-progress", "blocked", "review", "done"];
+export const TASK_STATUSES: TaskStatus[] = ["todo", "in-progress", "blocked", "review", "done", "cancelled"];
+/** Done or cancelled: no longer open, holds no other task, off the board. */
+export const isClosed = (s: TaskStatus) => s === "done" || s === "cancelled";
 export const PRIORITIES: Priority[] = ["p0", "p1", "p2", "p3"];
 export const PROJECT_STATUSES: ProjectStatus[] = ["active", "paused", "done"];
 export const SOURCE_KINDS: SourceKind[] = ["gdoc", "slack", "github", "url", "note"];

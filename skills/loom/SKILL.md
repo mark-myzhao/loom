@@ -28,8 +28,8 @@ Read `<dataDir>/CLAUDE.md` first. It defines every file format; follow it exactl
 - Memory: `projects/<slug>/memory/MEMORY.md` is the index; open the entries it lists.
 - Documents: `projects/<slug>/artifacts/`.
 
-A task's status is `todo`, `in-progress`, `blocked`, `review` or `done`; `after` lists the
-tasks it waits on. `projects/<slug>/GRAPH.md` gives each task's status as read, with the
+A task's status is `todo`, `in-progress`, `blocked`, `review`, `done` or `cancelled`;
+`after` lists the tasks it waits on. `projects/<slug>/GRAPH.md` gives each task's status as read, with the
 blocks Loom derives ("waiting on human" or "waiting on task").
 
 For "what should I work on", lead with what waits on the owner (blocked, waiting on human,

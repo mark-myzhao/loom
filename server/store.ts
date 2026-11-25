@@ -7,7 +7,7 @@ import {
 } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
 import {
-  memoryOver, PRIORITIES, PROJECT_STATUSES, SOURCE_KINDS, TASK_STATUSES,
+  isClosed, memoryOver, PRIORITIES, PROJECT_STATUSES, SOURCE_KINDS, TASK_STATUSES,
   type AppState, type Artifact, type ArtifactDetail, type Automation, type Config, type MemoryEntry,
   type GraphEdge, type GraphNode, type Priority, type Project, type ProjectStatus, type Repo, type RunMeta, type Section, type Source,
   type SourceKind, type Task, type TaskStatus, type TimelineEvent,
@@ -303,7 +303,7 @@ export function sourceKind(url: string): SourceKind {
 // A project is the root task of its directory, T-000; its links and repositories are artifact files
 // whose bodies live at the URL or path in `source` (ADR 0018). `Project` is the view built from them.
 const ROOT = "T-000";
-const PROJECT_STATUS: Record<TaskStatus, ProjectStatus> = { "in-progress": "active", review: "active", blocked: "active", todo: "paused", done: "done" };
+const PROJECT_STATUS: Record<TaskStatus, ProjectStatus> = { "in-progress": "active", review: "active", blocked: "active", todo: "paused", done: "done", cancelled: "done" };
 const ROOT_STATUS: Record<ProjectStatus, TaskStatus> = { active: "in-progress", paused: "todo", done: "done" };
 
 export function readProject(slug: string): Project {
@@ -643,7 +643,7 @@ export interface Block {
  * task. Human comes first. Derived on every read, so it is never stored and cannot go stale.
  */
 export function blockOf(slug: string, t: Task, tasks: Task[], log: TimelineEvent[], threads: ReturnType<typeof threadsOf>): Block | undefined {
-  if (t.status === "done") return undefined;
+  if (isClosed(t.status)) return undefined;
   const line = (s = "") => s.replace(/^#.*$/gm, "").trim().split("\n")[0]!.trim().slice(0, 200);
   if (t.status === "blocked") return { on: "human", state: "blocked", detail: line(log.findLast((e) => e.type === "comment")?.body) };
   // The owner's note to the task, or to the Thread that asked, written after it answers a question.
@@ -666,7 +666,7 @@ export function blockOf(slug: string, t: Task, tasks: Task[], log: TimelineEvent
     const [s, id] = a.includes("/") ? a.split("/") : [slug, a];
     // An address that resolves to nothing does not hold.
     const other = s === slug ? tasks.find((x) => x.id === id) : isSlug(s) && isTaskId(id) ? readTask(s, id) : undefined;
-    if (other && other.status !== "done") return { on: "task", state: "blocked", detail: `${a} (${other.status})` };
+    if (other && !isClosed(other.status)) return { on: "task", state: "blocked", detail: `${a} (${other.status})` };
   }
   return undefined;
 }
