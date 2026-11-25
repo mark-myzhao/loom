@@ -236,9 +236,9 @@ ${i.instructions?.trim() ? `\n## Extra instructions from the owner\n\n${i.instru
 
 ## When you stop
 
-If you cannot go on without a decision only the owner can make, ask one question instead of guessing: append \`<!-- event: <current ISO time> | ${address} | question -->\` to the task's timeline with the question on the next line, leave the task's status as it is, and stop. The owner's note answers it and resumes you. Otherwise:
+If you cannot go on without a decision a note from the owner can settle, ask one question instead of guessing: append \`<!-- event: <current ISO time> | ${address} | question -->\` to the task's timeline with the question on the next line, leave the task's status as it is, and stop. The owner's note answers it and resumes you. Otherwise:
 
-1. In the task file: tick the "Things to do" and "Exit criteria" items you completed (\`- [x]\`), set frontmatter status to "review" if the work is ready for the owner to look at or "blocked" if you could not finish, and set updated to ${today()}. Leave the rest of the body as it is.
+1. In the task file: tick the "Things to do" and "Exit criteria" items you completed (\`- [x]\`), and set updated to ${today()}. Set frontmatter status to "review" if the work is ready for the owner to look at, or if you stopped short for any other reason than those below (say what is left). If it waits on another task, add that task's address to \`after\` (comma-separated, \`T-005\` or \`other-project/T-004\`) and leave the status. If something a note from the owner cannot settle holds it (a person, an outside system), set status to "blocked" and start your report with who or what it waits on. Leave the rest of the body as it is.
 2. Append your report to the task's timeline, ${taskLogFile(p.slug, task.id)} (create it if missing), as one entry in exactly this form:
 
 <!-- event: <current ISO time> | ${address} | comment -->

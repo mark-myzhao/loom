@@ -28,8 +28,12 @@ Read `<dataDir>/CLAUDE.md` first. It defines every file format; follow it exactl
 - Memory: `projects/<slug>/memory/MEMORY.md` is the index; open the entries it lists.
 - Documents: `projects/<slug>/artifacts/`.
 
-For "what should I work on", list tasks whose status is not `done`, lead with `review` and
-`blocked`, then order by priority and due date.
+A task's status is `todo`, `in-progress`, `blocked`, `review` or `done`; `after` lists the
+tasks it waits on. `projects/<slug>/GRAPH.md` gives each task's status as read, with the
+blocks Loom derives ("waiting on human" or "waiting on task").
+
+For "what should I work on", lead with what waits on the owner (blocked, waiting on human,
+and `review`), then `todo` tasks that are not blocked, each by priority and due date.
 
 ## Change: edit the files
 
@@ -37,7 +41,7 @@ Edit the files as the conventions describe; the server notices. You are not a ru
 Loom started, so record your own timeline events: when you create a task or change its
 status, priority, due date, title, repo or parent, append the matching `created`,
 `status` or `field` event to its `.log.md`, authored `claude`, plus a `comment` saying why
-if it is not obvious. Never edit `MEMORY.md`, `config.json`, `automations.json`, `state.json` or `runs/`.
+if it is not obvious. Setting `blocked` always needs a comment saying who or what it waits on. Never edit `MEMORY.md`, `config.json`, `automations.json`, `state.json` or `runs/`.
 
 ## Act: call the API for anything that needs a supervised run
 

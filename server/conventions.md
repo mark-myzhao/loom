@@ -66,8 +66,8 @@ quote. Omit fields that are empty.
 A project is the root task of its directory, `tasks/T-000.md`, written like any task: its
 title is the project's name, its `## Context` says where the project stands in two or three
 sentences, its exit criteria say when the project is finished, and it has a timeline. A
-task with no `parent` is part of it. Its status is `doing` (active), `todo` (paused or not
-started) or `done`.
+task with no `parent` is part of it. Its status is `in-progress` (active), `todo` (paused or
+not started) or `done`.
 
 The project's links and codebases are artifacts with no body of their own (see Artifacts):
 a link (`origin: link`, the URL in `source`) for each doc, thread or page the project draws
@@ -78,8 +78,8 @@ To create a project, make `projects/<slug>/` with `tasks/T-000.md`, `memory/` an
 ## Tasks
 
 A task is something the owner has to do. Create tasks only for work that belongs to the
-owner. If the owner is waiting on someone else, the task is `blocked` and its context names
-the person and the dependency.
+owner. If the owner is waiting on someone else, the task is `blocked` and a timeline comment
+names the person and the dependency.
 
 `tasks/T-007.md`:
 
@@ -88,7 +88,7 @@ the person and the dependency.
 id: T-007
 parent: T-003
 title: Add a p95 latency panel
-status: doing
+status: in-progress
 priority: p2
 repo: checkout
 created: 2026-01-05
@@ -107,11 +107,18 @@ The checkout team needs to see p95 latency during rollout. The parent task holds
 
 - `id` is `T-` plus a number padded to at least three digits, one higher than the highest
   in the project. The filename is the id.
-- `status`: `todo`, `doing`, `review` (work is ready for the owner to look at), `blocked`,
-  `done`. Mark a task done only on clear evidence, and say what the evidence is in a
-  timeline comment.
+- `status`: `todo`, `in-progress`, `blocked`, `review` (work is ready for the owner to look
+  at), `done`. Mark a task done only on clear evidence, and say what the evidence is in a
+  timeline comment. Setting `blocked` always comes with a timeline comment saying who or
+  what the task waits on; the latest comment is the reason shown.
+- `after`: task addresses this task waits on, comma-separated: `T-005` in this project,
+  `other-slug/T-004` in another. Use it, not `blocked`, when the task waits on a task.
+- A task also reads as blocked, with nothing written, while a `question` is unanswered,
+  while it is `in-progress` and its Threads ended without a report, or while a task in
+  `after` or a subtask is not done. `GRAPH.md` shows each task's status as read, so a card
+  that reads `todo` is work that can start.
 - `priority`: `p0` (urgent) to `p3`; `p2` is the default.
-- Optional: `due` (date), `parent` (the id of another task in the same project), `source`
+- Optional: `due` (date), `parent` (the id of another task in the same project), `after`, `source`
   (the url the task came from), `repo` (the name of a repository artifact, without `.md`), `run`
   (set by the app).
 - Set `updated` to today whenever you change the task.
@@ -135,7 +142,7 @@ Never make a task its own ancestor.
 optionally followed by a markdown body that runs until the next marker:
 
 ```markdown
-<!-- event: 2026-01-06T09:10:00.000Z | me | status | todo -> doing -->
+<!-- event: 2026-01-06T09:10:00.000Z | me | status | todo -> in-progress -->
 
 <!-- event: 2026-01-06T11:42:00.000Z | claude | comment -->
 The weekly notes say the panel shipped on Monday; ticked the first item.
