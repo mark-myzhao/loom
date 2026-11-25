@@ -23,6 +23,7 @@ One file per decision, numbered in the order they were made. The design itself i
 | [0017](0017-several-threads-weave-a-task.md) | Several Threads may weave one task | Accepted | Partly built |
 | [0018](0018-a-project-is-a-task.md) | A project is a task, and sources and repos are artifacts | Accepted | Partly built |
 | [0019](0019-shuttle-page-and-live-graph.md) | The Shuttle has its own page, a new mark, and the dashboard draws the graph | Accepted | Built |
+| [0020](0020-task-status-and-derived-blocked.md) | Five task statuses, and blocked is assigned with a comment or derived | Proposed | Not built |
 
 ## Adding one
 

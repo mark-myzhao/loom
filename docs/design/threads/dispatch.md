@@ -32,6 +32,8 @@ The detail line needs figures while a Thread runs. Today a run's turns update on
 
 ## A Thread's state is derived, never stored
 
+[Task states](states.md) proposes replacing this table with three things kept apart: the task's status (todo, in-progress, blocked, review, done), what a blocked task waits on (a human or a task), and the Thread's own state ([ADR 0020](../../adr/0020-task-status-and-derived-blocked.md), not yet accepted).
+
 The first row that matches is the state shown:
 
 | Shown as | Derived from | The owner can |

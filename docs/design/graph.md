@@ -248,6 +248,6 @@ Step 3's first part: `projectGraph(slug)` in `store.ts` returns the nodes with t
 ## Open questions
 
 1. **Do two Threads on one task collide?** The timeline is append-only and each coding Thread has its own worktree, so the task file's checklist is the one shared thing they both edit.
-2. **Does one task need to wait on another by rule?** A mention says "waits on [[T-005]]" and the board does not act on it. A typed `after` field would let the board hold a Start button; nothing asks for that yet.
+2. **Does one task need to wait on another by rule?** A mention says "waits on [[T-005]]" and the board does not act on it. A typed `after` field would let the board hold a Start button; [Task states](threads/states.md) proposes it.
 3. **Should a card show when a linked section changed after the link was written?** It would tell a Thread its pointer may be stale. It needs the link's date, which only timeline entries carry.
 4. ~~Should the dashboard draw the live graph?~~ Yes ([ADR 0019](../adr/0019-shuttle-page-and-live-graph.md)): the project's Graph tab draws it.

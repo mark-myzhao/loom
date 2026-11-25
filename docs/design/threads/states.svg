@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 400" width="1000" height="400" role="img" aria-labelledby="t d">
+<title id="t">Task status: todo, in-progress, blocked, review, done</title>
+<desc id="d">Create leads to todo. The owner's Start makes it in-progress. A Thread's report makes it review; Send back returns it to in-progress and Accept makes it done. A todo or in-progress task reads as blocked while it waits on a human or a task, and returns to todo or in-progress when that clears. Blocked is stored when it is assigned with a comment, and derived otherwise. The same facts are in states.md.</desc>
+<style>
+  svg { --paper:#f3efe4; --card:#fbf9f3; --ink:#1d1b16; --ink2:#5d584c; --amber:#a86a10; }
+  @media (prefers-color-scheme: dark) { svg { --paper:#15140f; --card:#1d1b15; --ink:#ebe5d5; --ink2:#aaa392; --amber:#d9a441; } }
+  text { font: 11.5px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: var(--ink); }
+  .h1 { font: 22px Georgia, "Times New Roman", serif; }
+  .sub { font-size: 13px; fill: var(--ink2); }
+  .s { fill: var(--card); stroke: var(--ink2); stroke-width: 1.6; }
+  .derived { stroke: var(--amber); stroke-dasharray: 5 4; }
+  .name { font: 15px Georgia, "Times New Roman", serif; text-anchor: middle; }
+  .dv { font-size: 10.5px; font-style: italic; fill: var(--ink2); text-anchor: middle; }
+  .e { fill: none; stroke: var(--ink2); stroke-width: 1.4; }
+  .d { stroke: var(--amber); stroke-dasharray: 5 4; }
+  .el { font-size: 11px; fill: var(--ink2); }
+  #a path { fill: var(--ink2); } #b path { fill: var(--amber); }
+</style>
+<defs>
+  <marker id="a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8Z"/></marker>
+  <marker id="b" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L8 4L0 8Z"/></marker>
+</defs>
+<rect fill="var(--paper)" width="1000" height="400"/>
+<text class="h1" x="24" y="40">Task status</text>
+<text class="sub" x="24" y="62">Solid: stored in the task file. Dashed: blocked is stored when assigned, and also derived on every read.</text>
+
+<rect class="s" x="100" y="120" width="140" height="56" rx="8"/><text class="name" x="170" y="144">todo</text><text class="dv" x="170" y="163">not started</text>
+<rect class="s" x="370" y="120" width="140" height="56" rx="8"/><text class="name" x="440" y="144">in-progress</text><text class="dv" x="440" y="163">a Thread, or by hand</text>
+<rect class="s" x="640" y="120" width="140" height="56" rx="8"/><text class="name" x="710" y="144">review</text><text class="dv" x="710" y="163">the work is reported</text>
+<rect class="s" x="860" y="120" width="120" height="56" rx="8"/><text class="name" x="920" y="144">done</text><text class="dv" x="920" y="163">accepted</text>
+<rect class="s derived" x="225" y="270" width="160" height="56" rx="8"/><text class="name" x="305" y="294">blocked</text><text class="dv" x="305" y="313">waiting on a human or a task</text>
+
+<circle cx="56" cy="148" r="5" fill="var(--ink2)"/>
+<path class="e" d="M61 148H98" marker-end="url(#a)"/><text class="el" x="58" y="136">create</text>
+<path class="e" d="M240 148H368" marker-end="url(#a)"/><text class="el" x="304" y="138" text-anchor="middle">Start · owner only</text>
+<path class="e" d="M510 135H638" marker-end="url(#a)"/><text class="el" x="574" y="125" text-anchor="middle">the Thread reports</text>
+<path class="e" d="M640 162H512" marker-end="url(#a)"/><text class="el" x="576" y="181" text-anchor="middle">Send back</text>
+<path class="e" d="M780 148H858" marker-end="url(#a)"/><text class="el" x="819" y="138" text-anchor="middle">Accept</text>
+<path class="e d" d="M200 179L272 267" marker-start="url(#b)" marker-end="url(#b)"/>
+<path class="e d" d="M410 179L338 267" marker-start="url(#b)" marker-end="url(#b)"/>
+
+<text class="el" x="420" y="276">Assigned, with a comment, by the owner or a Thread; Unblock clears it.</text>
+<text class="el" x="420" y="293">Derived, on a human: an unanswered question, a failed Thread.</text>
+<text class="el" x="420" y="310">Derived, on a task: an open task in after; it clears by itself.</text>
+<text class="el" x="420" y="327">A derived block writes nothing: the stored status stays as it was.</text>
+
+<text class="el" x="24" y="374">Not drawn: Reopen (done → todo) · Drop.</text>
+</svg>
