@@ -2,7 +2,7 @@
 
 ## Summary
 
-Proposed in [ADR 0020](../../adr/0020-task-status-and-derived-blocked.md); not built. A task has one status: **todo → in-progress / blocked → review → done**. All five are stored. **Blocked** is assigned with a comment, by the owner or a Thread, and a task also reads as blocked, with nothing written, while a question is unanswered, its Thread has failed, or a task it comes after is open. A blocked task waits on a **human** (the owner or anyone else) or on a **task**. A Thread has its own state, and the board is a view over the three. Part of the design in [the design index](../README.md).
+Decided in [ADR 0020](../../adr/0020-task-status-and-derived-blocked.md); built (see "As built"). A task has one status: **todo → in-progress / blocked → review → done**. All five are stored. **Blocked** is assigned with a comment, by the owner or a Thread, and a task also reads as blocked, with nothing written, while a question is unanswered, its Thread has failed, or a task it comes after is open. A blocked task waits on a **human** (the owner or anyone else) or on a **task**. A Thread has its own state, and the board is a view over the three. Part of the design in [the design index](../README.md).
 
 ## The problem
 
@@ -104,3 +104,19 @@ What no system above does: say with every block whether it waits on a human or o
 ## Open questions
 
 1. **Start when unblocked?** The owner could approve a task that is still blocked on a task, and the server would queue it once that clears. It is how Symphony runs, and it amends ADR 0015; not in this proposal.
+
+## As built
+
+`blockOf` and `threadsOf` in `store.ts` derive a block for the board, `GRAPH.md` and the Shuttle's ledger alike; `board()` in `index.ts` groups the rows. Choices made where this page is silent:
+
+- **The order of the checks** is assigned, then question, then Threads ended, then `after` and subtasks; the first that holds is the one shown. A `done` task is never blocked. A `review` task can be held only by a question: reported work waits on the owner, not on other tasks.
+- **A question is answered** by an owner's note written after it in the timeline, to the task or to the Thread that asked; order in the file, not the timestamp, decides.
+- **A report** is a comment signed by a Thread (or `agent`) after the latest Thread started. A Thread that ended with a report but left the task `in-progress` is not blocked and stays off the board, like work by hand. The Thread prompt asks for `review` when it stops short.
+- **The assigned reason** is the latest timeline comment, the same rule the migration uses. `PATCH` and task creation take a `comment`, written to the timeline; it is required when the status becomes `blocked` (a 400 otherwise). A Thread editing the file directly is asked to start its report with the reason; the server cannot refuse a file edit.
+- **A Thread blocked the task** when the latest status event to `blocked` is signed by a Thread address. Unblock is `POST …/tasks/<id>/unblock` with optional text: for such a task it sets `in-progress` and sends the owner's note (the text, or "Continue from where you stopped"); otherwise it sets `in-progress` or `todo` and writes the text as a comment.
+- **Board rows.** A live Thread always has its own Working row (Steer, Stop, Block), even when its task is also waiting on a human, so it can still be stopped. A task waiting on a task with a live Thread stays under Working. `T-000` is never on the board. Rows are sorted by priority and due date in every group, so a task's Threads sit together. Answer, Continue and Unblock notes go to the task, not one Thread; only Steer names its Thread.
+- **Block** on a working task sets `blocked` with the comment and leaves the Thread running; Stop is separate.
+- **`after`** is stored as a comma-separated frontmatter value and read as a list. Each address must look like `T-nnn` or `slug/T-nnn`; whether it resolves is not checked on write. Its edge is marked `missing` in `GRAPH.md` when it resolves to nothing, and grepping a task's address returns the `after` edges pointing at it, which is how a card shows what it holds up. A change to `after` is not logged as a `field` event.
+- **The `GRAPH.md` card** reads `blocked` for a derived block and adds `waiting on human: "…"` or `waiting on task: "…"`. A Thread's card keeps its run status.
+- **The task page** asks for the comment in a prompt when the status is set to Blocked, and has an After field. Task rows show `after T-005` links.
+- **Migration** runs at startup with the `project.json` one: a task whose frontmatter `status` is `doing` is rewritten to `in-progress`; its timeline keeps the old events.

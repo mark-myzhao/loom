@@ -49,9 +49,9 @@ The name: on a loom, the shuttle is what carries the weft thread back and forth 
 
 ### Where it goes next
 
-1. **The Shuttle proposes, the workbench disposes.** The eight ideas below become Shuttle behaviour rather than separate widgets: "Needs you" is the top of every Shuttle reply; an agent's question is relayed by the Shuttle and the owner's answer resumes the worker (`POST /api/runs/<id>/message`); a run that ends without a report is called out, and the task set to `blocked`.
+1. **The Shuttle proposes, the workbench disposes.** The eight ideas below become Shuttle behaviour rather than separate widgets: "Waiting on human" is the top of every Shuttle reply; an agent's question is relayed by the Shuttle and the owner's answer resumes the worker (`POST /api/runs/<id>/message`); a run that ends without a report is called out, and the task set to `blocked`.
 2. **Events, not only messages.** DeepSeek's router is fed by chat, GitHub and CI. Loom's equivalent: automations, finished runs, and later GitHub or Slack watches post events to the Shuttle. Code filters first (only the owner's repos, only failing checks); the model judges what is left; events are batched into one turn.
-3. **Acting in advance, quietly.** A morning automation asks the Shuttle to look over the day: draft research for new tasks, check stale `doing` tasks. It speaks only when the result is worth the owner's time; otherwise the feed stays empty.
+3. **Acting in advance, quietly.** A morning automation asks the Shuttle to look over the day: draft research for new tasks, check stale `in-progress` tasks. It speaks only when the result is worth the owner's time; otherwise the feed stays empty.
 4. **A watchdog that is the router.** When the Shuttle relays a finished or long-running run it is already the right place to judge progress versus loops: turns and cost per run are on the record. It can stop a run that is spinning, under a SHUTTLE.md rule.
 5. **More feeds.** One feed per role (a research desk, a code desk) or per project, each a Shuttle with its own notebook, sharing the same workers and files. The design keeps this cheap: a feed is one run id in `state.json` plus one system prompt.
 6. **Measure attention.** The figure that matters is owner time per finished task. Loom can count owner messages, answers and reviews per task and show the trend; that is the number every change above should move.
@@ -64,7 +64,7 @@ The name: on a loom, the shuttle is what carries the weft thread back and forth 
 
 ## Smaller ideas, by value
 
-### 1. Lead Today with "Needs you"
+### 1. Lead Today with "Waiting on human"
 
 Their panel lists first what waits for a person, and a healthy state takes no space. Loom's Today (`web/views/Today.tsx`) shows live runs and then all open tasks; failed or interrupted runs appear only in Activity. A top section would hold tasks in `review` and `blocked` plus failed and interrupted runs, each labelled by what it needs from the owner.
 
@@ -74,7 +74,7 @@ Their worker puts a single concrete question in a dedicated report field, so it 
 
 ### 3. Honest task state
 
-Their ticket derives its stage from stored facts, not from the session. In Loom, `delegate` in `server/index.ts` sets the task to `doing`, and the completion hook only appends a timeline event. If the agent dies before editing the task file, the task stays `doing` with nothing running. The hook should set `blocked` when the run ends failed, stopped or interrupted and the task is still `doing`.
+Their ticket derives its stage from stored facts, not from the session. In Loom, `delegate` in `server/index.ts` sets the task to `in-progress`, and the completion hook only appends a timeline event. If the agent dies before editing the task file, the task stays `in-progress` with nothing running. The hook should set `blocked` when the run ends failed, stopped or interrupted and the task is still `in-progress`.
 
 ### 4. Stop by impact, not effort
 
@@ -94,7 +94,7 @@ Their Router accumulates events during one inference round and handles them toge
 
 ### 8. A cheap watchdog
 
-Loom already records turns and cost per run. A run past a turn or time threshold could appear under "Needs you" with a Stop button. A model-judged watchdog session is more than a single-user tool needs.
+Loom already records turns and cost per run. A run past a turn or time threshold could appear under "Waiting on human" with a Stop button. A model-judged watchdog session is more than a single-user tool needs.
 
 ### No code needed
 

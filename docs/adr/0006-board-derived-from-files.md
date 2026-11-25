@@ -1,6 +1,6 @@
 # 0006. The board is derived from files, and a finished Thread does not wake the Shuttle
 
-- Status: Accepted; amended by 0013, 0015 and 0017
+- Status: Accepted; amended by 0013, 0015, 0017 and 0020
 - Date: 2026-11-23
 - Implementation: Built
 - Design: [threads/dispatch.md](../design/threads/dispatch.md)

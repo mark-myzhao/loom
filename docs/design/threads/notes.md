@@ -49,8 +49,8 @@ The owner has decided the Shuttle may send notes on its own judgement, within th
 | --- | --- | --- |
 | Steer | The Thread reads the owner's message after its current step and carries on with it. | A note from the owner. |
 | Answer | The question clears and the Thread goes on. | A note with the answer to the Thread that asked; the note is what clears its question. |
-| Send back | A reviewed task returns to its Thread with a comment. | Status back to `doing`, then a note. |
-| Stop | The Thread halts now; the task shows broken with "stopped by you". | Existing stop. **A person's stop holds**: no agent's note and no automation restarts it. Only the owner does, with Continue or a note of their own. |
+| Send back | A reviewed task returns to its Thread with a comment. | Status back to `in-progress`, then a note. |
+| Stop | The Thread halts now; the task shows blocked, waiting on human, with "stopped". | Existing stop. **A person's stop holds**: no agent's note and no automation restarts it. Only the owner does, with Continue or a note of their own. |
 | Drop | The task and its Thread end. | Stop if live; the task goes to the trash, as deletes do today. The worktree is left for the owner to remove. |
 | Tells the Shuttle instead | "Stop T-012", "tell T-013 to skip Windows" do the same things. | The Shuttle calls the same endpoints. The board and the conversation are two hands on one set of controls. |
 

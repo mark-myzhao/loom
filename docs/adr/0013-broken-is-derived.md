@@ -1,6 +1,6 @@
 # 0013. Broken is derived from the run, and blocked keeps its meaning
 
-- Status: Accepted
+- Status: Accepted; amended by 0020
 - Date: 2026-11-23
 - Implementation: Built
 - Design: [threads/dispatch.md](../design/threads/dispatch.md)

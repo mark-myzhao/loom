@@ -53,7 +53,7 @@ Each node has stored attributes, read from a file or a record, and derived ones,
 | --- | --- | --- |
 | Shuttle | standing instructions (`SHUTTLE.md`) | the current session's context size and whether its cache is warm; open work; its past sessions |
 | Shuttle session | started, ended (run record) | the owner's first message; what it wrote; cost |
-| Task | id, title, status, priority, due, parent, repo, created, updated; Context, Things to do, Exit criteria (`T-nnn.md`); its timeline (`T-nnn.log.md`) | checklist progress; its Threads and their states; needs you; linked from |
+| Task | id, title, status, priority, due, parent, after, repo, created, updated; Context, Things to do, Exit criteria (`T-nnn.md`); its timeline (`T-nnn.log.md`) | checklist progress; its Threads and their states; blocked and what it waits on, a human or a task ([states](threads/states.md)); linked from |
 | … root task (project) | as any task (`tasks/T-000.md`); the slug (its directory) | open subtasks; Threads running; its memory entries |
 | Thread | task, purpose, kind (coding or document), worktree and branch, who started it, started, ended (run record and the timeline's `run` events) | address; state; turns, peak context, cost; cache warm until; its report; its open question; which Thread it continues |
 | Artifact, any kind | name, title, origin, task, source, created (frontmatter or `<meta>`) | kind; written by; linked from |
@@ -74,6 +74,7 @@ Each node has stored attributes, read from a file or a record, and derived ones,
 | Edge | From → to | Derived from |
 | --- | --- | --- |
 | part of | task → task | `parent`; with none, `T-000` of its directory |
+| after | task → task, in this project or another | `after`; the task waits until that one is done ([states](threads/states.md)) |
 | in | task → repository | `repo`, naming the repository artifact |
 | known to | memory entry → root task | the directory it is in |
 | documents | artifact → task | `task` in the artifact's metadata; with none, `T-000` |
@@ -87,7 +88,7 @@ Each node has stored attributes, read from a file or a record, and derived ones,
 - **Artifacts connect to each other** by "mentions" (a design page linking a review, a report linking a pull request) and by "copy of". No separate mechanism: a link in a document is an edge like any other.
 - **One link syntax.** Memory entries already link each other as `[[entry-name]]`. The same brackets now take any address above, in any file. The target's shape says what it is: `T-` and digits is a task, with `.n` a Thread; a name with an extension is an artifact; `name:` and a path is a file in a repository; anything else is a memory entry. A bare task id in prose (`T-005`) counts without brackets, since its shape is unambiguous.
 - **A section is matched by the start of its heading**, so `#T1` finds "T1. The brief carries a manifest" and survives the heading being reworded after the number.
-- **Mentions are untyped.** The sentence around the link says what the relation is ("waits on [[T-005]]"), and the edge carries that line cut at 100 characters. A typed edge is a field someone has to keep right.
+- **Mentions are untyped.** The sentence around the link says what the relation is, and the edge carries that line cut at 100 characters. A typed edge is a field someone has to keep right, so only `after`, which holds a task back by rule, is one ([ADR 0020](../adr/0020-task-status-and-derived-blocked.md)).
 - **An edge adds context, never authority.** A Thread that follows a link to another task may read it and may not change it.
 - **Every edge is read both ways.** The backward direction is the part no single file can give.
 - **A link that resolves to nothing** is listed as `missing` and fixed when the file is next touched.
@@ -99,7 +100,7 @@ A project was a second kind of thing with its own file, status words and page. I
 | Was, in `project.json` | Becomes |
 | --- | --- |
 | `name` | `title` of `tasks/T-000.md` |
-| `status`: `active`, `paused`, `done` | `status`: `doing`, `todo`, `done` |
+| `status`: `active`, `paused`, `done` | `status`: `in-progress`, `todo`, `done` |
 | `summary` | `## Context`, at most about 120 words |
 | `createdAt`, `updatedAt` | `created`, `updated` |
 | each of `repos` | an artifact with `origin: repo`, named for the repo (`loom.md`) |
@@ -140,8 +141,8 @@ T-006
 
 ```
 ## Nodes
-T-003  doing  p2  "Build the Shuttle and Threads design"  no Thread
-T-006  doing  p2  "Manifest and memory index in the Thread brief"  2 Threads: 1 ended, 1 running
+T-003  blocked  p2  "Build the Shuttle and Threads design"  no Thread  waiting on task: "T-006 (in-progress)"
+T-006  in-progress  p2  "Manifest and memory index in the Thread brief"  2 Threads: 1 ended, 1 running
 T-006.1  "build the manifest"  ended  41 turns  report "Outlines print; 3 tests added"
 T-006.2  "finish and open the pull request"  running
 t-003-design-review.md  document  "Design review of the Shuttle and Threads design"  ~1.3K tokens
@@ -175,7 +176,7 @@ The brief is the task's neighbourhood, one hop out. It replaces the lists T1 and
 
 ```
 ## T-006 and what it touches
-Parents      T-003 doing "Build the Shuttle and Threads design"   (Context inline below)
+Parents      T-003 in-progress "Build the Shuttle and Threads design"   (Context inline below)
 Siblings     T-004 done · T-005 review · T-007 todo · …
 Threads      T-006.1 "build the manifest" ended, report: "Outlines print; 3 tests added"   (you are T-006.2, continuing it)
 Documents    loom:docs/design/threads/context.md  "What a Thread reads"  ~2.4K   linked from T-006

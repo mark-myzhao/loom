@@ -86,7 +86,7 @@
 <path class="head" d="M450 275h290"/>
 <text class="kind" x="462" y="267">Task</text>
 <text class="addr" x="728" y="267" text-anchor="end">T-003</text>
-<text class="st" x="462" y="293">title · status doing · priority p2</text>
+<text class="st" x="462" y="293">title · status in-progress · priority p2</text>
 <rect class="card" x="450" y="352" width="290" height="268" rx="8"/>
 <path class="head" d="M450 378h290"/>
 <text class="kind" x="462" y="370">Task</text>
@@ -95,7 +95,7 @@
 <text class="st" x="462" y="413">parent T-003 · repo loom</text>
 <text class="st" x="462" y="430">Context · Things to do · Exit criteria</text>
 <path class="dash" d="M462 438h266"/>
-<text class="dv" x="462" y="455">checklist 2 of 5 · needs you  no</text>
+<text class="dv" x="462" y="455">checklist 2 of 5 · blocked  no</text>
 <text class="dv" x="462" y="472">Threads 2: one ended, one running</text>
 <text class="dv" x="462" y="489">timeline, every edge here in order:</text>
 <rect class="sec" x="460" y="500" width="270" height="18" rx="4"/>

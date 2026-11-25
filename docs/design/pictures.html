@@ -212,7 +212,7 @@
 </figure>
 
 <h2>The Threads board</h2>
-<p>A mock-up of the Shuttle page and the board on Today. The Shuttle has its own page in the rail, with its context size and whether its cache is warm; the board has one row per Thread, grouped by what they need and by task, and an empty group takes no space.</p>
+<p>A mock-up of the Shuttle page and the board on Today. The Shuttle has its own page in the rail, with its context size and whether its cache is warm; the board groups tasks by who they wait on (Waiting on human, Working, Ready, Waiting on task), with one row per working Thread, and an empty group takes no space.</p>
 <div class="mock" aria-label="Mock-up of the Today view">
   <div class="mock-head">
     <svg width="20" height="20" viewBox="0 0 32 32" class="mark"><path d="M5 4v7.5M5 20.5V28M12 4v24M19 4v7.5M19 20.5V28"/><path d="M2.5 16h6.5M15 16h14M24 11l5 5-5 5"/></svg>
@@ -224,7 +224,7 @@
     <p><b>Shuttle:</b> Wrote T-013 and T-014 under T-010; they wait below for your Start. T-011.1 is asking you one thing.</p>
   </div>
 
-  <div class="grp">Needs you · 2</div>
+  <div class="grp">Waiting on human · 2</div>
   <div class="row">
     <svg width="20" height="20" viewBox="0 0 32 32" class="mark" style="stroke:var(--amber)"><path d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>
     <div class="t"><b>T-011.1</b> Rename the ingest route <span class="tag warn">asks</span><div>"Keep the old /ingest route as an alias for one release?"</div></div>
@@ -236,28 +236,28 @@
     <div class="a"><span class="btn p">Accept</span><span class="btn">Send back</span></div>
   </div>
 
-  <div class="grp">Running · 2</div>
+  <div class="grp">Working · 2</div>
   <div class="row">
     <svg width="20" height="20" viewBox="0 0 32 32" class="mark"><path class="running" d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>
     <div class="t"><b>T-012.1</b> Restore test for backups <span class="tag hot">running</span><div>"write the restore test" · 12 turns · 64K context</div></div>
-    <div class="a"><span class="btn">Steer</span><span class="btn">Stop</span></div>
+    <div class="a"><span class="btn">Steer</span><span class="btn">Stop</span><span class="btn">Block</span></div>
   </div>
   <div class="row">
     <svg width="20" height="20" viewBox="0 0 32 32" class="mark"><path class="running" d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>
     <div class="t"><b>T-012.2</b> Restore test for backups <span class="tag hot">running</span><div>"review T-012.1's test as it lands" · 3 turns · 38K context</div></div>
-    <div class="a"><span class="btn">Steer</span><span class="btn">Stop</span></div>
+    <div class="a"><span class="btn">Steer</span><span class="btn">Stop</span><span class="btn">Block</span></div>
   </div>
 
-  <div class="grp">Waiting to start · 2</div>
+  <div class="grp">Ready · 2</div>
   <div class="row">
     <svg width="20" height="20" viewBox="0 0 32 32" class="mark" style="stroke:var(--ink-2)"><path d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>
-    <div class="t"><b>T-013</b> Backup retention policy <span class="tag" style="color:var(--ink-2)">proposed</span><div>The Shuttle wrote this; it waits for your Start.</div></div>
-    <div class="a"><span class="btn p">Start</span><span class="btn">Drop</span></div>
+    <div class="t"><b>T-013</b> Backup retention policy <span class="tag" style="color:var(--ink-2)">todo</span><div>The Shuttle wrote this; it waits for your Start.</div></div>
+    <div class="a"><span class="btn p">Start</span><span class="btn">Block</span></div>
   </div>
   <div class="row">
     <svg width="20" height="20" viewBox="0 0 32 32" class="mark" style="stroke:var(--ink-2)"><path d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>
-    <div class="t"><b>T-014</b> Write the backup runbook <span class="tag" style="color:var(--ink-2)">proposed</span><div>The Shuttle wrote this; it waits for your Start.</div></div>
-    <div class="a"><span class="btn p">Start</span><span class="btn">Drop</span></div>
+    <div class="t"><b>T-014</b> Write the backup runbook <span class="tag" style="color:var(--ink-2)">todo</span><div>The Shuttle wrote this; it waits for your Start.</div></div>
+    <div class="a"><span class="btn p">Start</span><span class="btn">Block</span></div>
   </div>
 </div>
 
@@ -287,14 +287,14 @@
 
 <figure>
   <div class="states">
-    <div><svg class="mark" width="24" height="24" viewBox="0 0 32 32" style="stroke:var(--ink-2)"><path d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>proposed, queued</div>
+    <div><svg class="mark" width="24" height="24" viewBox="0 0 32 32" style="stroke:var(--ink-2)"><path d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>todo, queued</div>
     <div><svg class="mark" width="24" height="24" viewBox="0 0 32 32"><path class="running" d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>running</div>
-    <div><svg class="mark" width="24" height="24" viewBox="0 0 32 32" style="stroke:var(--amber)"><path d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>asks, blocked</div>
-    <div><svg class="mark" width="24" height="24" viewBox="0 0 32 32" style="stroke:var(--bad)"><path d="M3 20c4.5 0 4.5-8 9-8M21 20c4.5 0 4.5-8 9-8"/></svg>broken</div>
+    <div><svg class="mark" width="24" height="24" viewBox="0 0 32 32" style="stroke:var(--amber)"><path d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>asks, blocked, ended</div>
+    <div><svg class="mark" width="24" height="24" viewBox="0 0 32 32" style="stroke:var(--bad)"><path d="M3 20c4.5 0 4.5-8 9-8M21 20c4.5 0 4.5-8 9-8"/></svg>failed</div>
     <div><svg class="mark" width="24" height="24" viewBox="0 0 32 32" style="stroke:var(--slate)"><path d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>review</div>
     <div><svg class="mark" width="24" height="24" viewBox="0 0 32 32" style="stroke:var(--moss)"><path d="M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"/></svg>done</div>
   </div>
-  <figcaption>Thread states use the palette's existing status colours. Running is the only one that moves; broken is the only one whose shape changes, so it reads without colour.</figcaption>
+  <figcaption>Thread states use the palette's existing status colours. Running is the only one that moves; failed is the only one whose shape changes, so it reads without colour.</figcaption>
 </figure>
 
 

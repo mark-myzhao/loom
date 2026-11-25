@@ -59,7 +59,7 @@ Loom: 2026-11-23T21:40:11Z
 Standing instructions (SHUTTLE.md):
   …at most 40 lines…
 Open work:
-  T-003 doing   loom  Thread running, 12 turns
+  T-003 in-progress loom  Thread running, 12 turns
   T-011 blocked loom  Thread asks: "Keep the old /ingest route as an alias?"
   T-009 review  loom  report on the timeline
 Earlier today, verbatim:

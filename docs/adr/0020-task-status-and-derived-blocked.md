@@ -1,8 +1,8 @@
 # 0020. Five task statuses, and blocked is assigned with a comment or derived
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-11-24
-- Implementation: Not built
+- Implementation: Built
 - Design: [threads/states.md](../design/threads/states.md)
 
 ## Context

@@ -25,7 +25,7 @@ Five words carry the design. Each names something the owner sees or a cost they 
 | Envelope | The lines Loom adds around the owner's message: time, changes, and at the start of a bobbin the hand-over. | Written by code, read by the Shuttle. |
 | Note | Up to 100 words sent to a task's Thread, from the owner or from an agent, in practice the Shuttle. | Recorded on the timeline; reaches a running Thread at its next step. |
 | Ledger | The list of open work, computed from the files. | Feeds both the envelope and the board. |
-| Needs you | Threads that are asking, broken or ready for review. | The first group on the board. |
+| Waiting on human | Tasks blocked on a person (assigned with a comment, an unanswered question, or Threads that ended without a report) and tasks to review. | The first group on the board ([states](threads/states.md)). |
 | Artifact | Anything the work reads or produces, one file each: a document, a link or a repository. | What a "source" and a registered repo were. See [The graph](graph.md). |
 | Memory, Timeline | As defined in the data conventions. | A task's timeline is its edges in order, and says which Threads worked on it and what they wrote. |
 
