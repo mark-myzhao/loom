@@ -9,28 +9,17 @@ import {
 
 // ---------- identity ----------
 
-/** Three nested, round-ended L strokes. */
-export function Mark({ size = 28 }: { size?: number }) {
-  return (
-    <svg className="mark" width={size} height={size} viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M5 4v24h23" />
-      <path d="M12 4v17h16" />
-      <path d="M19 4v10h9" />
-    </svg>
-  );
-}
-/** The mark, completed by "oom" in monoline strokes. */
+/** The wordmark as docs/logo.svg draws it: three nested L strokes and "oom" on one 32-unit grid, one height. */
 export function Wordmark() {
   return (
-    <span className="wordmark" aria-label="Loom">
-      <Mark size={26} />
-      {/* Same 4..28 vertical extent as the L strokes, so every character is one height. */}
-      <svg width="74.75" height="26" viewBox="0 0 92 32" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg className="wordmark" width="100.75" height="26" viewBox="0 0 124 32" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" role="img" aria-label="Loom">
+      <path d="M5 4v24h23M12 4v17h16M19 4v10h9" />
+      <g transform="translate(32)">
         <circle cx="14" cy="16" r="12" />
         <circle cx="44" cy="16" r="12" />
         <path d="M64 28V4m0 6.5a6.5 6.5 0 0 1 13 0V28m0-17.5a6.5 6.5 0 0 1 13 0V28" />
-      </svg>
-    </span>
+      </g>
+    </svg>
   );
 }
 
