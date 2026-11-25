@@ -282,8 +282,7 @@ button.pill:hover:not(:disabled) { background: var(--accent); border-color: var(
 .rail-input { margin: 4px 0; }
 .rail footer { margin: auto 4px 0; padding: 14px 4px 0; border-top: 1px solid var(--rule); font-size: 12px; line-height: 1.6; color: var(--ink-2); }
 .rail footer button { margin-top: 8px; }
-.wordmark { display: inline-flex; align-items: center; gap: 3px; color: var(--accent); }
-.wordmark svg { display: block; }
+.wordmark { display: block; color: var(--accent); }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); flex: none; }
 .dot.st-active { background: var(--moss); }
 .dot.st-paused { background: var(--amber); }
