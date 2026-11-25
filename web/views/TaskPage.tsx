@@ -228,7 +228,11 @@ export function TaskPage({ project: p, id, edit }: { project: ProjectSnapshot; i
 
         <aside className="task-side">
           <label>Status
-            <Select value={task.status} onChange={(status) => patch({ status })} options={TASK_STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] }))} />
+            <Select value={task.status} onChange={(status) => {
+              // Blocking needs a comment saying who or what it waits on; Cancel leaves the status as it is.
+              const comment = status === "blocked" ? prompt("Blocked on whom or what?") : "";
+              if (comment !== null) patch({ status, comment });
+            }} options={TASK_STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] }))} />
           </label>
           <label>Priority
             <Select value={task.priority} onChange={(priority) => patch({ priority })} options={PRIORITIES.map((s) => ({ value: s, label: s.toUpperCase() }))} />
@@ -238,6 +242,10 @@ export function TaskPage({ project: p, id, edit }: { project: ProjectSnapshot; i
           </label>
           <label>Parent
             <Select value={task.parent ?? ""} onChange={(parent) => patch({ parent })} options={[{ value: "", label: "None" }, ...p.tasks.filter((t) => t.id !== id && !below.has(t.id)).map((t) => ({ value: t.id, label: `${t.id} ${t.title.slice(0, 40)}` }))]} />
+          </label>
+          <label>After
+            <input key={task.after?.join(", ")} defaultValue={task.after?.join(", ") ?? ""} placeholder="T-005, other-project/T-004"
+              onBlur={(e) => e.target.value.trim() !== (task.after?.join(", ") ?? "") && patch({ after: e.target.value })} />
           </label>
           <label>Codebase
             <Select value={task.repo ?? ""} onChange={(repo) => patch({ repo })} options={[{ value: "", label: "None" }, ...(task.repo && !p.repos.some((r) => r.name === task.repo) ? [{ value: task.repo }] : []), ...p.repos.map((r) => ({ value: r.name }))]} />

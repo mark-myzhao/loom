@@ -1,11 +1,11 @@
 // Shared record types. The browser imports this file for types only.
 
 export type ProjectStatus = "active" | "paused" | "done";
-export type TaskStatus = "todo" | "doing" | "review" | "blocked" | "done";
+export type TaskStatus = "todo" | "in-progress" | "blocked" | "review" | "done";
 export type Priority = "p0" | "p1" | "p2" | "p3";
 export type SourceKind = "gdoc" | "slack" | "github" | "url" | "note";
 
-export const TASK_STATUSES: TaskStatus[] = ["todo", "doing", "review", "blocked", "done"];
+export const TASK_STATUSES: TaskStatus[] = ["todo", "in-progress", "blocked", "review", "done"];
 export const PRIORITIES: Priority[] = ["p0", "p1", "p2", "p3"];
 export const PROJECT_STATUSES: ProjectStatus[] = ["active", "paused", "done"];
 export const SOURCE_KINDS: SourceKind[] = ["gdoc", "slack", "github", "url", "note"];
@@ -45,6 +45,8 @@ export interface Task {
   updated?: string;
   due?: string;
   parent?: string;
+  /** Task addresses (`T-005`, `other-slug/T-004`) it waits on until they are done. */
+  after?: string[];
   source?: string;
   repo?: string;
   run?: string;
@@ -224,17 +226,22 @@ export interface AppState {
   shuttle?: string;
 }
 
-/** A Thread's state, never stored: the first that matches, in this order. */
-export const THREAD_STATES = ["asks", "running", "queued", "broken", "blocked", "review", "proposed"] as const;
+/** A Thread's state, never stored: derived from its run and the timeline (states.md). */
+export const THREAD_STATES = ["queued", "running", "asks", "ended", "failed"] as const;
 export type ThreadState = (typeof THREAD_STATES)[number];
 
-/** One row of the Threads board: a Thread, or a task waiting on the owner with none. */
+/** The Threads board's groups, in order: a view over task status and Thread state. */
+export const BOARD_GROUPS = ["Waiting on human", "Working", "Ready", "Waiting on task"] as const;
+
+/** One row of the Threads board: a live Thread, or a task in one of the other groups. */
 export interface BoardRow {
   project: string;
   taskId: string;
   title: string;
-  state: ThreadState;
-  /** The question, the run's figures, the latest report line or the task's context. */
+  group: (typeof BOARD_GROUPS)[number];
+  /** What the row shows: the task's status, or the state of its Thread. */
+  state: TaskStatus | ThreadState;
+  /** The question, the block, the run's figures, the latest report line or the task's context. */
   detail: string;
   address?: string;
   runId?: string;

@@ -116,7 +116,7 @@ test("a note reaches a running Thread; only the owner's note wakes an ended one"
   const log = readFileSync(join(data, "projects", p.slug, "tasks", "T-001.log.md"), "utf8");
   expect(log).toContain("| me | note -->\nskip Windows");
   expect(log).toContain("| agent | note -->\nFYI the API moved");
-  expect(log).toMatch(/\| T-001\.1 \| status \| doing -> review/);
+  expect(log).toMatch(/\| T-001\.1 \| status \| in-progress -> review/);
   expect(log).toMatch(/\| T-001\.1 \| run \| done · run /);
   expect(existsSync(join(data, "projects", p.slug, "GRAPH.md"))).toBe(true);
 
@@ -127,4 +127,18 @@ test("a note reaches a running Thread; only the owner's note wakes an ended one"
   await call("POST", `${tasks}/note`, { text: "Yes, keep it", thread: "T-001.1" }, token);
   await until(run.id, "done");
   expect((await call("GET", "/state")).board.find((r: any) => r.project === p.slug && r.taskId === "T-001")).toMatchObject({ address: "T-001.1", state: "review" });
+
+  // Blocked needs a comment; Unblock returns a task with no Thread to todo.
+  expect((await call("POST", `/projects/${p.slug}/tasks`, { title: "Wait", status: "blocked" })).error).toContain("needs a comment");
+  const wait = await call("POST", `/projects/${p.slug}/tasks`, { title: "Wait", status: "blocked", comment: "Dana approves the API" });
+  expect((await call("GET", "/state")).board.find((r: any) => r.taskId === wait.id && r.project === p.slug))
+    .toMatchObject({ group: "Waiting on human", state: "blocked", detail: "Dana approves the API" });
+  expect((await call("POST", `/projects/${p.slug}/tasks/${wait.id}/unblock`, {}, token)).status).toBe("todo");
+
+  // On a task its Thread blocked, Unblock is Continue: in-progress, and the owner's note resumes the Thread.
+  writeFileSync(taskFile, readFileSync(taskFile, "utf8").replace(/^status: .*$/m, "status: blocked"));
+  appendFileSync(join(data, "projects", p.slug, "tasks", "T-001.log.md"), `\n<!-- event: ${new Date().toISOString()} | T-001.1 | status | review -> blocked -->\n`);
+  expect((await call("POST", `${tasks}/unblock`, { text: "Dana said yes" }, token)).run.id).toBe(run.id);
+  await until(run.id, "done");
+  expect(readFileSync(taskFile, "utf8")).toContain("status: in-progress");
 }, 30_000);

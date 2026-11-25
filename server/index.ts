@@ -9,7 +9,7 @@ import { findLiveRun, getRun, hasLiveRuns, initRuns, listRuns, noteText, readTra
 import * as store from "./store";
 import { DATA, HttpError } from "./store";
 import { compact, usageRows } from "./usage";
-import { CACHE_COLD_MS, ownerText, THREAD_STATES, type Automation, type BoardRow, type ThreadState, type Config, type RunMeta, type RunSpec, type Snapshot, type Task, type TaskDetail, type TaskSummary } from "./types";
+import { BOARD_GROUPS, CACHE_COLD_MS, ownerText, type Automation, type BoardRow, type Config, type RunMeta, type RunSpec, type Snapshot, type Task, type TaskDetail, type TaskSummary } from "./types";
 
 const PORT = Number(process.env.PORT) || 4400;
 const PROD = process.env.NODE_ENV === "production";
@@ -147,14 +147,9 @@ function recordChanges(before: Baseline, by: string, runId?: string): Baseline {
 let tracked = 0;
 let baseline: Baseline | undefined;
 
-/** A task's Threads, numbered by the order their runs started on its timeline. */
-function threadsOf(slug: string, taskId: string): { address: string; run: RunMeta }[] {
-  const starts = store.readTimeline(slug, taskId).filter((e) => e.type === "run" && e.detail.startsWith("started"));
-  return starts.flatMap((e, i) => {
-    const run = getRun(/run (\S+)$/.exec(e.detail)?.[1] ?? "");
-    return run ? [{ address: `${taskId}.${i + 1}`, run }] : [];
-  });
-}
+/** A task's Threads that still have a run record. */
+const threadsOf = (slug: string, taskId: string, log?: ReturnType<typeof store.readTimeline>) =>
+  store.threadsOf(slug, taskId, log).flatMap((t) => (t.run ? [{ ...t, run: t.run }] : []));
 
 /** A Thread signs with its address; every other session that edits data files signs as claude. */
 const author = (m: RunMeta) =>
@@ -325,7 +320,7 @@ function delegate(slug: string, taskId: string, body: { repoPath?: unknown; inst
   const purpose = instructions ? firstLine(instructions, 200) : undefined;
   const run = startRun({ kind: "task", title: `${taskId}: ${task.title}`, project: slug, taskId, ...(purpose ? { purpose } : {}) }, spec, prompt);
   const repo = p.repos.find((r) => r.path === repoPath);
-  const patched = store.patchTask(slug, taskId, { status: "doing", run: run.id, ...(repo ? { repo: repo.name } : {}) }, "me");
+  const patched = store.patchTask(slug, taskId, { status: "in-progress", run: run.id, ...(repo ? { repo: repo.name } : {}) }, "me");
   store.appendEvent(slug, taskId, { by: "me", type: "run", detail: `started in ${repo?.name ?? repoPath} · run ${run.id}` });
   // The owner's own change is already logged; keep it out of the run's diff.
   baseline?.tasks.set(`${slug}/${taskId}`, {
@@ -365,47 +360,51 @@ const indent = (text: string) => text.split("\n").map((l) => `  ${l}`);
 const cut = (text: string, n: number) => (text.length > n ? `${text.slice(0, n)}…` : text);
 
 /**
- * The Threads board: a row per Thread that needs the owner or is at work, and one for a task waiting
- * on the owner with no Thread. A Thread's state is the first that matches in THREAD_STATES; only the
- * latest Thread of a task takes the task's own state. Derived on every call, never stored.
+ * Unblock: back to in-progress if the task has had a Thread, else todo. On a task a Thread blocked,
+ * Unblock is Continue: the owner's note carries on the work (threads/states.md).
+ */
+function unblock(slug: string, taskId: string, text: unknown, owner: boolean) {
+  if (store.readTask(slug, taskId)?.status !== "blocked") bad("the task is not blocked", 409);
+  const by = store.readTimeline(slug, taskId).findLast((e) => e.type === "status" && /-> blocked\b/.test(e.detail))?.by ?? "";
+  const words = typeof text === "string" ? text.trim() : "";
+  const hadThread = threadsOf(slug, taskId).length > 0;
+  if (!/^T-\d+\.\d+$/.test(by)) return store.patchTask(slug, taskId, { status: hadThread ? "in-progress" : "todo", comment: words }, "me");
+  store.patchTask(slug, taskId, { status: "in-progress" }, "me");
+  return note(slug, taskId, { text: words || "Continue from where you stopped; check the directory and git history first." }, owner);
+}
+
+/**
+ * The Threads board, a view over task status and Thread state in four groups (threads/states.md):
+ * waiting on human (blocked on a human, and review), working (a live Thread, one row each), ready
+ * (todo, not blocked) and waiting on task. By priority, then due date. Derived on every call.
  */
 function board(): BoardRow[] {
   const rows: BoardRow[] = [];
-  for (const slug of store.listProjectSlugs()) {
-    for (const t of store.listTasks(slug)) {
-      if (t.status === "done") continue;
-      const log = store.readTimeline(slug, t.id);
-      const lastWord = firstLine(log.findLast((e) => e.type === "comment")?.body.replace(/^#.*$/gm, "") ?? "", 160);
-      const row = { project: slug, taskId: t.id, title: t.title };
-      const threads = threadsOf(slug, t.id);
-      threads.forEach(({ address, run }, i) => {
-        const question = log.findLast((e) => e.type === "question" && e.by === address);
-        // The owner's note to the task, or to this Thread, answers its question.
-        const answered = question && log.some((e) => e.type === "note" && e.by === "me" && e.time > question.time && (!e.detail || e.detail === address));
-        const latest = i === threads.length - 1;
-        const ended = run.status === "failed" || run.status === "stopped" || run.status === "interrupted";
-        const state: ThreadState | undefined =
-          question && !answered ? "asks"
-          : run.status === "running" || run.status === "queued" ? run.status
-          : !latest ? undefined
-          : t.status === "doing" && ended ? "broken"
-          : t.status === "blocked" || t.status === "review" ? t.status
-          : undefined;
-        if (!state) return;
-        const detail = state === "asks" ? firstLine(question!.body, 200)
-          : state === "running" ? `${run.turns} turns · ${compact(run.peakContext ?? 0)} context`
-          : state === "queued" ? "waiting for a free slot"
-          : state === "broken" ? `${run.status}${run.error ? `: ${firstLine(run.error, 120)}` : ""}`
-          : lastWord;
-        rows.push({ ...row, state, detail, address, runId: run.id });
-      });
-      if (threads.length) continue;
-      const proposed = t.status === "todo" && log.some((e) => e.type === "created" && e.by === "shuttle");
-      const state = t.status === "blocked" || t.status === "review" ? t.status : proposed ? "proposed" : undefined;
-      if (state) rows.push({ ...row, state, detail: state === "proposed" ? firstLine(t.excerpt, 160) : lastWord });
+  const all = store.listProjectSlugs().flatMap((slug) => {
+    const tasks = store.listTasks(slug);
+    return tasks.filter((t) => t.id !== "T-000" && t.status !== "done").map((t) => ({ slug, t, tasks }));
+  });
+  all.sort((a, b) => a.t.priority.localeCompare(b.t.priority) || (a.t.due ?? "9999").localeCompare(b.t.due ?? "9999"));
+  for (const { slug, t, tasks } of all) {
+    const log = store.readTimeline(slug, t.id);
+    const threads = threadsOf(slug, t.id, log);
+    const block = store.blockOf(slug, t, tasks, log, threads);
+    const last = threads.at(-1);
+    const row = { project: slug, taskId: t.id, title: t.title, ...(last ? { address: last.address, runId: last.run.id } : {}) };
+    const working = threads.filter(({ run }) => run.status === "running" || run.status === "queued");
+    for (const { address, run } of working) {
+      const detail = run.status === "running" ? `${run.turns} turns · ${compact(run.peakContext ?? 0)} context` : "waiting for a free slot";
+      rows.push({ ...row, group: "Working", state: run.status as "running" | "queued", detail, address, runId: run.id });
     }
+    if (block?.on === "human") rows.push({ ...row, group: "Waiting on human", state: block.state, detail: block.detail });
+    else if (t.status === "review") {
+      const report = firstLine(log.findLast((e) => e.type === "comment")?.body.replace(/^#.*$/gm, "") ?? "", 160);
+      rows.push({ ...row, group: "Waiting on human", state: "review", detail: report });
+    } else if (working.length) continue;
+    else if (block) rows.push({ ...row, group: "Waiting on task", state: "blocked", detail: block.detail });
+    else if (t.status === "todo") rows.push({ ...row, group: "Ready", state: "todo", detail: firstLine(t.excerpt, 160) });
   }
-  return rows.sort((a, b) => THREAD_STATES.indexOf(a.state) - THREAD_STATES.indexOf(b.state));
+  return rows.sort((a, b) => BOARD_GROUPS.indexOf(a.group) - BOARD_GROUPS.indexOf(b.group));
 }
 
 /** Open work for the Shuttle: the board, one line per task, those needing the owner first, capped. */
@@ -707,6 +706,7 @@ async function api(req: Request, url: URL): Promise<Response> {
         return json(store.toggleChecklist(slug, id, b.index, b.checked));
       }
       if (P("POST", "tasks", null, "note")) return json(note(slug, id, await readBody(req), isOwner(req)));
+      if (P("POST", "tasks", null, "unblock")) return json(unblock(slug, id, (await readBody(req)).text, isOwner(req)));
       if (P("POST", "tasks", null, "delegate")) {
         if (!isOwner(req)) bad("only the owner starts a Thread", 403);
         return json(delegate(slug, id, await readBody(req)));

@@ -298,6 +298,7 @@ export function initStorage() {
   if (!existsSync(configPath())) writeJson(configPath(), DEFAULT_CONFIG);
   for (const slug of listProjectSlugs()) {
     migrateProject(slug);
+    migrateDoing(slug);
     rebuildMemoryIndex(slug);
   }
 }
@@ -324,8 +325,8 @@ export function sourceKind(url: string): SourceKind {
 // A project is the root task of its directory, T-000; its links and repositories are artifact files
 // whose bodies live at the URL or path in `source` (ADR 0018). `Project` is the view built from them.
 const ROOT = "T-000";
-const PROJECT_STATUS: Record<TaskStatus, ProjectStatus> = { doing: "active", review: "active", blocked: "active", todo: "paused", done: "done" };
-const ROOT_STATUS: Record<ProjectStatus, TaskStatus> = { active: "doing", paused: "todo", done: "done" };
+const PROJECT_STATUS: Record<TaskStatus, ProjectStatus> = { "in-progress": "active", review: "active", blocked: "active", todo: "paused", done: "done" };
+const ROOT_STATUS: Record<ProjectStatus, TaskStatus> = { active: "in-progress", paused: "todo", done: "done" };
 
 export function readProject(slug: string): Project {
   const root = readTask(slug, ROOT);
@@ -366,7 +367,7 @@ function migrateProject(slug: string) {
   const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
   const day = (iso: unknown) => str(iso).slice(0, 10) || today();
   for (const d of ["tasks", "memory", "artifacts"]) mkdirSync(join(projectDir(slug), d), { recursive: true });
-  const status = ROOT_STATUS[raw.status as ProjectStatus] ?? "doing";
+  const status = ROOT_STATUS[raw.status as ProjectStatus] ?? "in-progress";
   writeAtomic(taskFile(slug, ROOT), rootTask(str(raw.name) || slug, status, day(raw.createdAt), day(raw.updatedAt), str(raw.summary)));
   appendEvent(slug, ROOT, { by: "me", type: "created", detail: "from project.json" });
   for (const s of Array.isArray(raw.sources) ? raw.sources : []) {
@@ -382,6 +383,14 @@ function migrateProject(slug: string) {
   trash(file, slug);
 }
 
+/** One-time: the stored status `doing` is renamed `in-progress` (ADR 0020). The timeline keeps its history. */
+function migrateDoing(slug: string) {
+  for (const id of listTaskIds(slug)) {
+    const text = readText(taskFile(slug, id)) ?? "";
+    if (parseFrontmatter(text).data.status === "doing") writeAtomic(taskFile(slug, id), text.replace(/^status:\s*["']?doing["']?\s*$/m, "status: in-progress"));
+  }
+}
+
 export function createProject(name: string): Project {
   const clean = name.trim().replace(/\s+/g, " ");
   if (!clean) bad("a project needs a name");
@@ -389,7 +398,7 @@ export function createProject(name: string): Project {
   let slug = base;
   for (let n = 2; existsSync(join(projectsDir(), slug)); n++) slug = `${base}-${n}`;
   for (const d of ["tasks", "memory", "artifacts"]) mkdirSync(join(projectsDir(), slug, d), { recursive: true });
-  writeAtomic(taskFile(slug, ROOT), rootTask(clean, "doing", today(), today(), ""));
+  writeAtomic(taskFile(slug, ROOT), rootTask(clean, "in-progress", today(), today(), ""));
   appendEvent(slug, ROOT, { by: "me", type: "created" });
   rebuildMemoryIndex(slug);
   return readProject(slug);
@@ -469,7 +478,7 @@ export function removeRepo(slug: string, name: string): Project {
 
 // ---------- tasks ----------
 
-const TASK_KEYS = ["id", "parent", "title", "status", "priority", "due", "source", "repo", "run", "created", "updated"];
+const TASK_KEYS = ["id", "parent", "title", "status", "priority", "due", "after", "source", "repo", "run", "created", "updated"];
 export const TASK_TEMPLATE = "## Context\n\n## Things to do\n\n## Exit criteria\n";
 const CHECK_RE = /^(\s*(?:[-*+]|\d+[.)])\s+\[)([ xX])(\])/gm;
 
@@ -512,6 +521,7 @@ function parseTask(id: string, text: string): Task & { extra: Record<string, str
     updated: data.updated || undefined,
     due: data.due || undefined,
     parent: isTaskId(data.parent) ? data.parent : undefined,
+    after: data.after ? data.after.split(",").map((a) => a.trim()).filter(Boolean) : undefined,
     source: data.source || undefined,
     repo: data.repo || undefined,
     run: data.run || undefined,
@@ -526,6 +536,7 @@ function serializeTask(t: Task & { extra?: Record<string, string> }): string {
   const fm: Record<string, string | undefined> = {};
   for (const k of TASK_KEYS) fm[k] = (t as any)[k];
   fm.id = t.id;
+  fm.after = t.after?.join(", ");
   return formatFrontmatter({ ...fm, ...(t.extra ?? {}) }, t.body);
 }
 
@@ -630,11 +641,65 @@ export function readTimeline(slug: string, id: string): TimelineEvent[] {
   return events;
 }
 
+// ---------- derived status ----------
+
+/** A task's Threads, numbered by the order their runs started on its timeline; `run` is missing when its record is gone. */
+export function threadsOf(slug: string, id: string, log = readTimeline(slug, id)): { address: string; time: string; run?: RunMeta }[] {
+  return log.filter((e) => e.type === "run" && e.detail.startsWith("started")).map((start, i) => ({
+    address: `${id}.${i + 1}`,
+    time: start.time,
+    run: readJson<RunMeta>(join(runsDir(), `${/run (\S+)$/.exec(start.detail)?.[1]}.json`)),
+  }));
+}
+
+export interface Block {
+  on: "human" | "task";
+  /** Shown for the task: `blocked`, or the Thread state that holds it. */
+  state: "blocked" | "asks" | "failed" | "ended";
+  detail: string;
+}
+
+/**
+ * Why a task reads as blocked, or nothing (threads/states.md). Assigned, an unanswered question, or
+ * Threads that ended without a report wait on a human; an open `after` task or subtask waits on that
+ * task. Human comes first. Derived on every read, so it is never stored and cannot go stale.
+ */
+export function blockOf(slug: string, t: Task, tasks: Task[], log: TimelineEvent[], threads: ReturnType<typeof threadsOf>): Block | undefined {
+  if (t.status === "done") return undefined;
+  const line = (s = "") => s.replace(/^#.*$/gm, "").trim().split("\n")[0]!.trim().slice(0, 200);
+  if (t.status === "blocked") return { on: "human", state: "blocked", detail: line(log.findLast((e) => e.type === "comment")?.body) };
+  // The owner's note to the task, or to the Thread that asked, written after it answers a question.
+  const at = log.findLastIndex((e) => e.type === "question");
+  const q = log[at];
+  if (q && !log.slice(at).some((e) => e.type === "note" && e.by === "me" && (!e.detail || e.detail === q.by)))
+    return { on: "human", state: "asks", detail: line(q.body) };
+  // Reported work waits on the owner's review, not on other tasks.
+  if (t.status === "review") return undefined;
+  const last = threads.at(-1);
+  if (t.status === "in-progress" && last && threads.every((th) => th.run?.status !== "queued" && th.run?.status !== "running")) {
+    const s = last.run?.status;
+    if (s === "failed" || s === "stopped" || s === "interrupted")
+      return { on: "human", state: "failed", detail: `${s}${last.run!.error ? `: ${line(last.run!.error)}` : ""}` };
+    // A report is a comment signed by a Thread (or by "agent", before Threads were numbered) after the latest one started.
+    if (!log.some((e) => e.type === "comment" && /^(T-\d+\.\d+|agent)$/.test(e.by) && e.time > last.time))
+      return { on: "human", state: "ended", detail: "ended without a report" };
+  }
+  for (const a of [...(t.after ?? []), ...tasks.filter((c) => c.parent === t.id).map((c) => c.id)]) {
+    const [s, id] = a.includes("/") ? a.split("/") : [slug, a];
+    // An address that resolves to nothing does not hold.
+    const other = s === slug ? tasks.find((x) => x.id === id) : isSlug(s) && isTaskId(id) ? readTask(s, id) : undefined;
+    if (other && other.status !== "done") return { on: "task", state: "blocked", detail: `${a} (${other.status})` };
+  }
+  return undefined;
+}
+
 // ---------- task writes ----------
 
 export interface TaskInput {
   title?: unknown; status?: unknown; priority?: unknown; due?: unknown; parent?: unknown;
-  repo?: unknown; source?: unknown; body?: unknown; run?: unknown;
+  repo?: unknown; source?: unknown; body?: unknown; run?: unknown; after?: unknown;
+  /** Written to the timeline; required when the status becomes `blocked`, to say who or what it waits on. */
+  comment?: unknown;
 }
 
 function cleanTaskInput(slug: string, id: string | undefined, input: TaskInput): Partial<Task> {
@@ -648,6 +713,8 @@ function cleanTaskInput(slug: string, id: string | undefined, input: TaskInput):
   if (input.status !== undefined) {
     if (!TASK_STATUSES.includes(input.status as TaskStatus)) bad(`status must be one of ${TASK_STATUSES.join(", ")}`);
     out.status = input.status as TaskStatus;
+    if (out.status === "blocked" && !(typeof input.comment === "string" && input.comment.trim()))
+      bad("a blocked task needs a comment saying who or what it waits on");
   }
   if (input.priority !== undefined) {
     if (!PRIORITIES.includes(input.priority as Priority)) bad("priority must be p0 to p3");
@@ -660,6 +727,10 @@ function cleanTaskInput(slug: string, id: string | undefined, input: TaskInput):
   }
   if (input.parent !== undefined) {
     out.parent = input.parent === null || input.parent === "" ? "" : checkParent(slug, id, input.parent);
+  }
+  if (input.after !== undefined) {
+    out.after = optStr(input.after, "after").split(",").map((a) => a.trim()).filter(Boolean);
+    if (out.after.some((a) => !/^([a-z0-9][a-z0-9-]*\/)?T-\d+$/.test(a))) bad("after must be task addresses, as T-005 or other-project/T-004");
   }
   if (input.repo !== undefined) out.repo = optStr(input.repo, "repo");
   if (input.source !== undefined) out.source = optStr(input.source, "source");
@@ -690,6 +761,7 @@ export function createTask(slug: string, input: TaskInput, by = "me"): Task {
       priority: clean.priority ?? parent?.priority ?? "p2",
       due: clean.due || undefined,
       parent: clean.parent || undefined,
+      after: clean.after,
       source: clean.source || undefined,
       repo: clean.repo || parent?.repo || undefined,
       created: day,
@@ -713,13 +785,14 @@ export function createTask(slug: string, input: TaskInput, by = "me"): Task {
       closeSync(fd);
     }
     appendEvent(slug, id, { by, type: "created" });
+    if (typeof input.comment === "string" && input.comment.trim()) appendEvent(slug, id, { by, type: "comment", body: input.comment });
     return readTask(slug, id)!;
   }
 }
 
 export const TRACKED_FIELDS = ["priority", "due", "title", "repo", "parent"] as const;
 
-/** Applies a patch and, when `by` is given, logs status and field changes on the timeline. */
+/** Applies a patch and, when `by` is given, logs status and field changes on the timeline. A comment is always written. */
 export function patchTask(slug: string, id: string, input: TaskInput, by?: string): Task {
   const cur = readTaskRaw(slug, id) ?? bad("no such task", 404);
   const clean = cleanTaskInput(slug, id, input);
@@ -735,6 +808,7 @@ export function patchTask(slug: string, id: string, input: TaskInput, by?: strin
         appendEvent(slug, id, { by, type: "field", detail: `${f}: ${cur[f] || "none"} -> ${next[f] || "none"}` });
     }
   }
+  if (typeof input.comment === "string" && input.comment.trim()) appendEvent(slug, id, { by: by ?? "me", type: "comment", body: input.comment });
   return readTask(slug, id)!;
 }
 
@@ -1029,28 +1103,35 @@ export function projectGraph(slug: string): { nodes: GraphNode[]; edges: GraphEd
   const edges: GraphEdge[] = [];
   const texts: { from: string; text: string; time?: string }[] = [];
 
-  for (const t of listTasks(slug)) {
+  const tasks = listTasks(slug);
+  for (const t of tasks) {
     const log = readTimeline(slug, t.id);
-    const starts = log.filter((e) => e.type === "run" && e.detail.startsWith("started"));
-    const threads = starts.map((start, i) => {
-      const run = readJson<RunMeta>(join(runsDir(), `${/run (\S+)$/.exec(start.detail)?.[1]}.json`));
+    const runs = threadsOf(slug, t.id, log);
+    const threads = runs.map(({ address, time, run }, i) => {
       const state = run?.status ?? "unknown";
-      const until = starts[i + 1]?.time ?? "~";
-      const address = `${t.id}.${i + 1}`;
+      const until = runs[i + 1]?.time ?? "~";
       // A report is signed by the Thread; older ones, signed "agent", belong to the Thread that was running.
-      const report = log.filter((e) => e.type === "comment" && (e.by === address || (e.by === "agent" && e.time >= start.time && e.time < until))).pop();
+      const report = log.filter((e) => e.type === "comment" && (e.by === address || (e.by === "agent" && e.time >= time && e.time < until))).pop();
       const line = report?.body.split("\n").find((l) => l.trim() && !l.startsWith("#"))?.trim().slice(0, 100).replace(/"/g, "'");
       const turns = run && state !== "running" && state !== "queued" ? `  ${run.turns} turns` : "";
       const purpose = run?.purpose ? `  "${run.purpose.slice(0, 100).replace(/"/g, "'")}"` : "";
-      return { address, time: start.time, state, card: `${address}${purpose}  ${state}${turns}${line ? `  report "${line}"` : ""}` };
+      return { address, time, state, card: `${address}${purpose}  ${state}${turns}${line ? `  report "${line}"` : ""}` };
     });
     const counts = new Map<string, number>();
     for (const th of threads) counts.set(th.state, (counts.get(th.state) ?? 0) + 1);
     const summary = threads.length
       ? `${threads.length} Thread${threads.length > 1 ? "s" : ""}: ${[...counts].map(([s, n]) => `${n} ${s}`).join(", ")}`
       : "no Thread";
-    nodes.push({ address: t.id, kind: "task", card: `${t.id}  ${t.status}  ${t.priority}  "${t.title}"  ${summary}` });
+    // The status as read, derived blocks included, so a card that reads `todo` is work an agent can take.
+    const block = blockOf(slug, t, tasks, log, runs);
+    const waits = block ? `  waiting on ${block.on}: "${block.detail.replace(/"/g, "'")}"` : "";
+    nodes.push({ address: t.id, kind: "task", card: `${t.id}  ${block ? "blocked" : t.status}  ${t.priority}  "${t.title}"  ${summary}${waits}` });
     if (t.id !== ROOT) edges.push({ from: t.id, rel: "part of", to: t.parent ?? ROOT });
+    for (const a of t.after ?? []) {
+      const [s, id] = a.includes("/") ? a.split("/") : [slug, a];
+      const found = existsSync(join(projectsDir(), s!, "tasks", `${id}.md`));
+      edges.push({ from: t.id, rel: "after", to: a, ...(found ? {} : { missing: true }) });
+    }
     if (t.repo) edges.push({ from: t.id, rel: "in", to: `${t.repo}.md` });
     for (const th of threads) {
       nodes.push({ address: th.address, kind: "thread", card: th.card });

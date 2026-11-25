@@ -54,3 +54,30 @@ test("a project.json becomes the root task T-000, with its sources and repos as 
   expect(nodes.find((n) => n.address === "k3x9ab.md")?.kind).toBe("link");
   expect(edges).toContainEqual({ from: "owner-reviews", rel: "read from", to: "k3x9ab.md" });
 });
+
+test("a task reads as blocked while it waits on a human or a task, and nothing is written", () => {
+  const { slug } = store.createProject("States demo");
+  const read = (id: string) => {
+    const tasks = store.listTasks(slug);
+    const log = store.readTimeline(slug, id);
+    return store.blockOf(slug, tasks.find((t) => t.id === id)!, tasks, log, store.threadsOf(slug, id, log));
+  };
+  store.createTask(slug, { title: "Approve" });
+  store.createTask(slug, { title: "Ship", after: "T-001, gone/T-009" });
+  expect(() => store.patchTask(slug, "T-001", { status: "blocked" }, "me")).toThrow("needs a comment");
+  store.patchTask(slug, "T-001", { status: "blocked", comment: "Dana has to approve the API" }, "me");
+  expect(read("T-001")).toEqual({ on: "human", state: "blocked", detail: "Dana has to approve the API" });
+  expect(read("T-002")).toEqual({ on: "task", state: "blocked", detail: "T-001 (blocked)" });
+
+  // The address that resolves to nothing does not hold; done clears the rest by itself.
+  store.patchTask(slug, "T-001", { status: "done" }, "me");
+  expect(read("T-002")).toBeUndefined();
+  expect(readFileSync(store.taskFile(slug, "T-002"), "utf8")).toContain("after: T-001, gone/T-009");
+
+  store.appendEvent(slug, "T-002", { by: "T-002.1", type: "question", body: "Which region?" });
+  expect(read("T-002")).toMatchObject({ on: "human", state: "asks", detail: "Which region?" });
+  store.appendEvent(slug, "T-002", { by: "me", type: "note", body: "eu-west" });
+  expect(read("T-002")).toBeUndefined();
+  store.writeGraph(slug);
+  expect(readFileSync(join(store.projectDir(slug), "GRAPH.md"), "utf8")).toContain("T-002 | after | gone/T-009 | missing");
+});

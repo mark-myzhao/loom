@@ -147,12 +147,12 @@ export const docHref = (slug: string, name: string) => `#/p/${enc(slug)}/a/${enc
 // ---------- formatting ----------
 
 export const STATUS_LABEL: Record<TaskStatus, string> = {
-  todo: "Todo", doing: "In progress", review: "To review", blocked: "Blocked", done: "Done",
+  todo: "Todo", "in-progress": "In progress", review: "To review", blocked: "Blocked", done: "Done",
 };
 export const GROUPS: { status: TaskStatus; label: string }[] = [
   { status: "review", label: "To review" },
   { status: "blocked", label: "Blocked" },
-  { status: "doing", label: "In progress" },
+  { status: "in-progress", label: "In progress" },
   { status: "todo", label: "Up next" },
   { status: "done", label: "Done" },
 ];

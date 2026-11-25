@@ -1,7 +1,7 @@
 import DOMPurify from "dompurify";
 import { marked } from "marked";
 import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import type { Priority, RunMeta, TaskStatus, TaskSummary, ThreadState } from "../server/types";
+import type { BoardRow, Priority, RunMeta, TaskStatus, TaskSummary } from "../server/types";
 import {
   agentRun, ago, api, buildTree, descendants, docHref, dueLabel, enc, GROUPS, isLive, money, sortTasks, STATUS_LABEL, taskHref, useApp,
   type Tree,
@@ -38,7 +38,7 @@ export function Ring({ status, size = 16 }: { status: TaskStatus; size?: number 
       ) : (
         <>
           <circle cx="8" cy="8" r="6.25" fill="none" stroke={c} strokeWidth="1.5" strokeDasharray={status === "blocked" ? "2.6 2.3" : undefined} />
-          {status === "doing" && <path d="M8 4a4 4 0 0 1 0 8z" fill={c} />}
+          {status === "in-progress" && <path d="M8 4a4 4 0 0 1 0 8z" fill={c} />}
           {status === "review" && <path d="M8 8V4a4 4 0 1 1-4 4z" fill={c} />}
         </>
       )}
@@ -80,11 +80,11 @@ export function ShuttleMark() {
   );
 }
 
-/** A Thread's mark, one strand over and under, coloured by its state. Broken splits it, so it reads without colour. */
-export function ThreadMark({ state }: { state: ThreadState }) {
+/** A Thread's mark, one strand over and under, coloured by its state. Failed splits it, so it reads without colour. */
+export function ThreadMark({ state }: { state: BoardRow["state"] }) {
   return (
     <svg className={`mark thread-${state}`} viewBox="0 0 32 32" aria-hidden="true">
-      <path d={state === "broken" ? "M3 20c4.5 0 4.5-8 9-8M21 20c4.5 0 4.5-8 9-8" : "M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"} />
+      <path d={state === "failed" ? "M3 20c4.5 0 4.5-8 9-8M21 20c4.5 0 4.5-8 9-8" : "M3 20c4.5 0 4.5-8 9-8s4.5 8 9 8 4.5-8 9-8"} />
     </svg>
   );
 }
@@ -201,13 +201,14 @@ export function TaskRow({ slug, task, tree, showProject }: { slug: string; task:
       <Prio p={task.priority} />
       <a className="row-title" href={taskHref(slug, task.id)}>{task.title}</a>
       <span className="row-meta">
-        {run && (isLive(run) || task.status === "doing" || task.status === "review" || task.status === "blocked") && (
+        {run && (isLive(run) || task.status === "in-progress" || task.status === "review" || task.status === "blocked") && (
           <span className={`pill run-${run.status}${isLive(run) ? " live" : ""}`}>Thread {isLive(run) ? "working" : run.status}</span>
         )}
         {kids.length > 0 && <span title="Subtasks done">⤷ {kids.filter((k) => k.status === "done").length}/{kids.length}</span>}
         <Progress done={task.checked} total={task.total} title="Checklist" />
         {due && <span className={due.overdue ? "overdue" : ""}>{due.text}</span>}
         {task.parent && <a href={taskHref(slug, task.parent)} title="Parent task">↑ {task.parent}</a>}
+        {task.after?.map((a) => <a key={a} href={taskHref(a.includes("/") ? a.split("/")[0]! : slug, a.split("/").pop()!)} title="Waits on this task until it is done">after {a}</a>)}
         {showProject && <a href={`#/p/${enc(slug)}`} className="tag">{showProject}</a>}
         <span className="id">{task.id}</span>
       </span>

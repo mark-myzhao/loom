@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CACHE_COLD_MS, type BoardRow, type RunMeta, type ThreadState } from "../../server/types";
+import { BOARD_GROUPS, CACHE_COLD_MS, type BoardRow, type RunMeta } from "../../server/types";
 import { compact } from "../../server/usage";
 import { api, buildTree, enc, GROUPS, isLive, onSubmitKey, sortTasks, taskHref, useApp } from "../lib";
 import { Empty, RunList, ShuttleMark, TaskRow, ThreadMark } from "../ui";
@@ -52,20 +52,20 @@ export function Shuttle() {
   );
 }
 
-const BOARD_GROUPS: { label: string; states: ThreadState[] }[] = [
-  { label: "Needs you", states: ["asks", "broken", "blocked", "review"] },
-  { label: "Running", states: ["running"] },
-  { label: "Waiting to start", states: ["proposed", "queued"] },
-];
-
-/** What the owner can do in each state. An action named in WITH_TEXT first asks for its text. */
-const ACTIONS: Record<ThreadState, string[]> = {
-  asks: ["Answer"], running: ["Steer", "Stop"], queued: ["Cancel"], broken: ["Continue", "Drop"],
-  blocked: ["Note"], review: ["Accept", "Send back"], proposed: ["Start", "Drop"],
+/** What the owner can do in each state; a task waiting on another task has none. An action named in WITH_TEXT first asks for its text. */
+const ACTIONS: Partial<Record<BoardRow["state"], string[]>> = {
+  asks: ["Answer"], failed: ["Continue", "Drop"], ended: ["Continue", "Drop"], blocked: ["Unblock"], review: ["Accept", "Send back"],
+  running: ["Steer", "Stop", "Block"], queued: ["Steer", "Stop", "Block"], todo: ["Start", "Block"],
 };
-const WITH_TEXT = ["Answer", "Steer", "Note", "Send back", "Start"];
+const WITH_TEXT = ["Answer", "Steer", "Send back", "Start", "Block", "Unblock"];
+const PLACEHOLDER: Record<string, string> = {
+  Start: "The Thread's purpose, in one line (optional)",
+  Block: "Who or what it waits on",
+  Unblock: "A note to carry on the work (optional)",
+};
+const READY_ROWS = 8;
 
-/** One Thread, or a task waiting on the owner, with its state and what can be done about it. */
+/** One live Thread, or a task, with its state and what can be done about it. */
 function ThreadRow({ row }: { row: BoardRow }) {
   const { snap, act, openRun } = useApp();
   const [pending, setPending] = useState<string | null>(null);
@@ -73,14 +73,18 @@ function ThreadRow({ row }: { row: BoardRow }) {
   const task = `/projects/${enc(row.project)}/tasks/${row.taskId}`;
   const p = snap.projects.find((x) => x.slug === row.project);
   const repo = p?.repos.find((r) => r.name === p.tasks.find((t) => t.id === row.taskId)?.repo) ?? p?.repos[0];
-  const note = (body: string) => api("POST", `${task}/note`, { text: body, ...(row.address ? { thread: row.address } : {}) });
+  // Only Steer names its Thread; other notes go to the task, which answers a question and resumes the latest Thread.
+  const note = (body: string, thread?: string) => api("POST", `${task}/note`, { text: body, ...(thread ? { thread } : {}) });
   const run = async (action: string, body: string) => {
     if (action === "Start") return api("POST", `${task}/delegate`, { repoPath: repo!.path, instructions: body });
-    if (action === "Stop" || action === "Cancel") return api("POST", `/runs/${row.runId}/stop`);
+    if (action === "Stop") return api("POST", `/runs/${row.runId}/stop`);
+    if (action === "Steer") return note(body, row.address);
     if (action === "Continue") return note("Continue from where you stopped; check the directory and git history first.");
     if (action === "Accept") return api("PATCH", task, { status: "done" });
     if (action === "Drop") return confirm(`Drop ${row.taskId}? The task moves to the trash.`) && api("DELETE", task);
-    if (action === "Send back") await api("PATCH", task, { status: "doing" });
+    if (action === "Block") return api("PATCH", task, { status: "blocked", comment: body });
+    if (action === "Unblock") return api("POST", `${task}/unblock`, { text: body });
+    if (action === "Send back") await api("PATCH", task, { status: "in-progress" });
     return note(body);
   };
   const go = async (action: string, body = "") => {
@@ -97,7 +101,7 @@ function ThreadRow({ row }: { row: BoardRow }) {
         <a className="row-title" href={taskHref(row.project, row.taskId)}>{row.taskId} {row.title}</a>
         <span className="row-meta">
           {row.runId && <button className="link" onClick={() => openRun(row.runId!)}>{row.address}</button>}
-          {ACTIONS[row.state].map((a) => (
+          {(row.group === "Waiting on task" ? [] : ACTIONS[row.state] ?? []).map((a) => (
             <button key={a} className="link" disabled={a === "Start" && !repo} title={a === "Start" && !repo ? "Register a codebase on the project first" : undefined}
               onClick={() => (WITH_TEXT.includes(a) ? setPending(a) : go(a))}>{a}</button>
           ))}
@@ -106,11 +110,11 @@ function ThreadRow({ row }: { row: BoardRow }) {
       {row.detail && <p className="thread-detail">{row.detail}</p>}
       {pending && (
         <div className="compose">
-          <textarea autoFocus rows={2} value={text} aria-label={pending} placeholder={pending === "Start" ? "The Thread's purpose, in one line (optional)" : "Your note to the Thread…"}
+          <textarea autoFocus rows={2} value={text} aria-label={pending} placeholder={PLACEHOLDER[pending] ?? "Your note to the Thread…"}
             onChange={(e) => setText(e.target.value)} onKeyDown={onSubmitKey(() => go(pending, text))} />
           <span className="btn-row">
             <button onClick={() => setPending(null)}>Cancel</button>
-            <button className="primary" disabled={pending !== "Start" && !text.trim()} onClick={() => go(pending, text)}>{pending}</button>
+            <button className="primary" disabled={pending !== "Start" && pending !== "Unblock" && !text.trim()} onClick={() => go(pending, text)}>{pending}</button>
           </span>
         </div>
       )}
@@ -140,13 +144,15 @@ export function Today() {
         </div>
       </header>
 
-      {BOARD_GROUPS.map(({ label, states }) => {
-        // Grouped by task, so a task's Threads sit together.
-        const rows = snap.board.filter((r) => states.includes(r.state)).sort((a, b) => `${a.project}/${a.taskId}`.localeCompare(`${b.project}/${b.taskId}`));
+      {BOARD_GROUPS.map((label) => {
+        // The server sorts by priority and due date, so a task's Threads sit together.
+        const rows = snap.board.filter((r) => r.group === label);
+        const shown = label === "Ready" ? rows.slice(0, READY_ROWS) : rows;
         return rows.length > 0 && (
           <section key={label} className="group">
             <h3 className="label">{label} <span className="count">{rows.length}</span></h3>
-            {rows.map((r) => <ThreadRow key={`${r.project}/${r.taskId}/${r.address ?? ""}`} row={r} />)}
+            {shown.map((r) => <ThreadRow key={`${r.project}/${r.taskId}/${r.group}/${r.address ?? ""}`} row={r} />)}
+            {rows.length > shown.length && <p className="muted">and {rows.length - shown.length} more in the open tasks below</p>}
           </section>
         );
       })}

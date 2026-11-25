@@ -23,7 +23,7 @@
   --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
   --st-todo: var(--ink-3);
-  --st-doing: var(--accent);
+  --st-in-progress: var(--accent);
   --st-review: var(--slate);
   --st-blocked: var(--bad);
   --st-done: var(--moss);
@@ -215,23 +215,23 @@ button.pill:hover:not(:disabled) { background: var(--accent); border-color: var(
   font: 500 11px/1.9 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap;
   border-radius: 999px; padding: 0 10px; color: var(--paper); background: var(--ink-2);
 }
-.chip.st-doing { background: var(--st-doing); }
+.chip.st-in-progress { background: var(--st-in-progress); }
 .chip.st-review { background: var(--st-review); }
 .chip.st-blocked { background: var(--st-blocked); }
 .chip.st-done { background: var(--st-done); }
 .pill.run-done { color: var(--moss); }
 /* The marks: one stroke on a 32-unit grid, like the wordmark. A Thread's colour is its state. */
 .mark { width: 20px; height: 20px; flex: none; vertical-align: -3px; fill: none; stroke: var(--accent); stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
-.mark.thread-proposed, .mark.thread-queued { stroke: var(--ink-3); }
-.mark.thread-asks, .mark.thread-blocked { stroke: var(--amber); }
-.mark.thread-broken { stroke: var(--bad); }
+.mark.thread-todo, .mark.thread-queued { stroke: var(--ink-3); }
+.mark.thread-asks, .mark.thread-blocked, .mark.thread-ended { stroke: var(--amber); }
+.mark.thread-failed { stroke: var(--bad); }
 .mark.thread-review { stroke: var(--slate); }
 .mark.thread-running path { stroke-dasharray: 5 3; animation: weave 1.2s linear infinite; }
 @keyframes weave { to { stroke-dashoffset: -16; } }
 @media (prefers-reduced-motion: reduce) { .mark.thread-running path { animation: none; } }
-.pill.state-asks, .pill.state-broken { color: var(--bad); }
+.pill.state-asks, .pill.state-failed { color: var(--bad); }
 .pill.state-running, .pill.state-queued { color: var(--accent); }
-.pill.state-blocked { color: var(--amber); }
+.pill.state-blocked, .pill.state-ended { color: var(--amber); }
 .pill.state-review { color: var(--slate); }
 .thread-detail { margin: -4px 0 6px 16px; font-size: 13px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pill.run-failed { color: var(--bad); }
@@ -515,7 +515,7 @@ a.row-title:hover { text-decoration: underline; text-decoration-color: var(--acc
   border: 1px solid var(--rule); border-left: 3px solid var(--st-todo); border-radius: 4px;
   transition: opacity 0.12s, border-color 0.12s;
 }
-.gnode.st-doing { border-left-color: var(--st-doing); }
+.gnode.st-in-progress { border-left-color: var(--st-in-progress); }
 .gnode.st-review { border-left-color: var(--st-review); }
 .gnode.st-done { border-left-color: var(--st-done); }
 .gnode.st-blocked { border: 1px dashed var(--st-blocked); border-left: 3px solid var(--st-blocked); }
