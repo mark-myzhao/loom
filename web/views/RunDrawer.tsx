@@ -265,10 +265,6 @@ export function Settings({ onClose }: { onClose: () => void }) {
         <label>How to fetch sources <small>Included in every source-reading prompt.</small>
           <textarea rows={7} value={c.reader.fetchInstructions} onChange={(e) => reader({ fetchInstructions: e.target.value })} />
         </label>
-        <label>Connector gateway <small>MCP server whose backends must be enabled once before use. Empty skips that step.</small>
-          <input value={c.connectorGateway} onChange={(e) => set({ connectorGateway: e.target.value })} />
-        </label>
-        <label>Gateway backends<ListInput value={c.connectors} onChange={(connectors) => set({ connectors })} /></label>
 
         <h3 className="label">Threads</h3>
         <label>Model<input value={c.agent.model} onChange={(e) => agent({ model: e.target.value })} /></label>

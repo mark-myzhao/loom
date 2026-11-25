@@ -127,7 +127,7 @@ export interface Automation {
   enabled: boolean;
 }
 
-export type RunKind = "automation" | "ingest" | "ask" | "artifact" | "task" | "setup" | "shuttle";
+export type RunKind = "automation" | "ingest" | "ask" | "artifact" | "task" | "shuttle";
 export type RunStatus = "queued" | "running" | "done" | "failed" | "stopped" | "interrupted";
 
 export interface RunSpec {
@@ -186,10 +186,6 @@ export interface Config {
   ownerName: string;
   claudeBin: string;
   maxConcurrentRuns: number;
-  /** Backends the setup run enables on the gateway. Empty skips the step. */
-  connectors: string[];
-  /** MCP server that fronts the connectors and needs the enable step. Empty skips it. */
-  connectorGateway: string;
   /** Sessions that read sources and edit the data files: drops, questions, documents, Claude automations. */
   reader: {
     model: string;
@@ -221,7 +217,6 @@ export interface AppState {
   automationRan?: Record<string, string>;
   /** Local date of the last successful push of the data repository to its remote. */
   lastBackupPush?: string;
-  connectors?: string;
   /** The run that holds the current Shuttle conversation. */
   shuttle?: string;
 }

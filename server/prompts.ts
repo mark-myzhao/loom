@@ -250,16 +250,6 @@ What you did; the branch name and the absolute path of the working directory; ho
 End your final message with the same report.`;
 }
 
-export const gatewayTools = (cfg: Config) => ({
-  list: `mcp__${cfg.connectorGateway}__list_backends`,
-  enable: `mcp__${cfg.connectorGateway}__enable_backend`,
-});
-
-export function setupPrompt(cfg: Config): string {
-  const { list, enable } = gatewayTools(cfg);
-  return `Call the tool ${list} (load it with ToolSearch "select:${list},${enable}" if needed). For each of these backends that is listed but not enabled, call ${enable} with that backend name: ${cfg.connectors.join(", ")}. Do nothing else: no other tools, no retries, no checking that the tools appeared (they only appear in later sessions). Reply with one line per backend: "enabled", "already enabled", or "not found".`;
-}
-
 /**
  * The Loom API routes the Shuttle may call, and nothing else: no config, no automations, and no
  * delegate, since only the owner starts a Thread (ADR 0015). Task edits go through the files, which

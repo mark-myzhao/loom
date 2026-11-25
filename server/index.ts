@@ -4,7 +4,7 @@ import { existsSync, watch } from "node:fs";
 import { join, sep } from "node:path";
 import index from "../web/index.html";
 import { initBackup, pushIfDue, scheduleBackup } from "./backup";
-import { artifactPrompt, askPrompt, automationPrompt, gatewayTools, ingestPrompt, setupPrompt, SHUTTLE_ROUTES, shuttlePrompt, taskPrompt } from "./prompts";
+import { artifactPrompt, askPrompt, automationPrompt, ingestPrompt, SHUTTLE_ROUTES, shuttlePrompt, taskPrompt } from "./prompts";
 import { findLiveRun, getRun, hasLiveRuns, initRuns, listRuns, noteText, readTranscript, sendMessage, sendNote, startRun, stopRun, subscribe, type RunInit } from "./runs";
 import * as store from "./store";
 import { DATA, HttpError } from "./store";
@@ -155,8 +155,8 @@ const threadsOf = (slug: string, taskId: string, log?: ReturnType<typeof store.r
 const author = (m: RunMeta) =>
   m.kind !== "task" ? "claude" : threadsOf(m.project!, m.taskId!).find((t) => t.run.id === m.id)?.address ?? "agent";
 
-/** The Shuttle signs its own changes; shell commands and the setup run edit no task. */
-const isTracked = (m: RunMeta) => !m.spec.shell && m.kind !== "shuttle" && m.kind !== "setup";
+/** The Shuttle signs its own changes; shell commands edit no task. */
+const isTracked = (m: RunMeta) => !m.spec.shell && m.kind !== "shuttle";
 
 /** Every start and resume. Overlapping runs share one baseline, so their changes cannot be pinned on a specific run. */
 function runStarted(m: RunMeta) {
@@ -204,31 +204,6 @@ function readerSpec(cfg: Config, cwd: string): RunSpec {
   };
 }
 
-let connectorSetup: Promise<void> | undefined;
-
-/**
- * Some MCP gateways keep their backends off in headless sessions until enabled, and enabling only
- * takes effect in the next session. Runs once per connector list; concurrent callers share it.
- */
-function ensureConnectors(): Promise<void> {
-  const cfg = store.loadConfig();
-  const wanted = cfg.connectors.join(",");
-  if (!wanted || !cfg.connectorGateway || store.loadState().connectors === wanted) return Promise.resolve();
-  connectorSetup ??= new Promise<void>((resolve) => {
-    const { list, enable } = gatewayTools(cfg);
-    startRun(
-      { kind: "setup", title: "Enable connectors" },
-      { cwd: DATA, permissionMode: cfg.reader.permissionMode, allowedTools: ["ToolSearch", list, enable], disallowedTools: ["Bash"] },
-      setupPrompt(cfg),
-      (m) => {
-        if (m.status === "done") store.saveState({ connectors: wanted });
-        resolve();
-      },
-    );
-  }).finally(() => (connectorSetup = undefined));
-  return connectorSetup;
-}
-
 function readableProject(slug: string) {
   if (!existsSync(store.projectDir(slug))) bad("no such project", 404);
   const p = store.readProject(slug);
@@ -244,7 +219,6 @@ async function runAutomation(a: Automation): Promise<RunMeta> {
   const init: RunInit = { kind: "automation", title: a.name, ...(p ? { project: p.slug } : {}) };
   const cwd = p ? store.projectDir(p.slug) : DATA;
   if (a.kind === "command") return startRun(init, { cwd, shell: true, permissionMode: "", allowedTools: [] }, a.run);
-  await ensureConnectors();
   const cfg = store.loadConfig();
   return startRun(init, readerSpec(cfg, cwd), automationPrompt(cfg, a.run, p));
 }
@@ -257,7 +231,6 @@ async function ingest(textIn: unknown, slugIn?: unknown): Promise<RunMeta> {
   const p = slugIn ? readableProject(store.checkSlug(slugIn)) : undefined;
   // The original is on disk before anything else can fail.
   const file = store.saveInbox(text);
-  await ensureConnectors();
   const cfg = store.loadConfig();
   return startRun(
     { kind: "ingest", title: `Ingest: ${firstLine(text, 60)}`, ...(p ? { project: p.slug } : {}) },
@@ -271,7 +244,6 @@ async function ingest(textIn: unknown, slugIn?: unknown): Promise<RunMeta> {
 async function ask(slug: string, textIn: unknown): Promise<RunMeta> {
   const text = needText(textIn);
   readableProject(slug);
-  await ensureConnectors();
   const cfg = store.loadConfig();
   const p = readableProject(slug);
   return startRun({ kind: "ask", title: firstLine(text, 70), project: slug }, readerSpec(cfg, store.projectDir(slug)), askPrompt(cfg, p, text));
@@ -282,7 +254,6 @@ async function generateArtifact(slug: string, textIn: unknown, taskIdIn?: unknow
   readableProject(slug);
   const taskId = taskIdIn ? store.checkTaskId(taskIdIn) : undefined;
   if (taskId && !store.readTask(slug, taskId)) bad(`task ${taskId} does not exist`);
-  await ensureConnectors();
   const cfg = store.loadConfig();
   const p = readableProject(slug);
   const tasks = store.listTasks(slug);

@@ -181,38 +181,19 @@ export function formatFrontmatter(data: Record<string, string | undefined>, body
 
 // ---------- storage, config, state ----------
 
-export const DEFAULT_GATEWAY = "gateway";
-const GATEWAY_TOOLS = [
-  "slack_who_am_i", "slack_read_thread", "slack_read_channel", "slack_read_conversation_info",
-  "slack_read_canvas", "slack_read_file", "slack_read_user_profile", "slack_search_channels",
-  "slack_search_users", "slack_search_public_and_private",
-  "gws_docs_read", "gws_docs_get_structure", "gws_docs_list_comments", "gws_drive_get", "gws_drive_search",
-  "gws_drive_list", "gws_drive_export", "gws_sheets_read", "gws_sheets_list_tabs", "gws_slides_read",
-  "gws_calendar_get", "gws_calendar_list",
-  "github_pull_request_read", "github_issue_read", "github_content_read", "github_list_pull_requests",
-  "github_search_pull_requests", "github_search_issues",
-];
-
 export const DEFAULT_FETCH_INSTRUCTIONS = `How to fetch sources:
-- Slack: call slack_who_am_i first (required before any other Slack tool), then slack_read_thread / slack_read_channel with the link.
-- Google Docs, Sheets, Slides: the gws_docs_read / gws_sheets_read / gws_slides_read tools (gws_drive_get for metadata and titles).
-- GitHub links: the github_* read tools. Anything else: WebFetch.
-- These tools may be deferred: load them with ToolSearch (e.g. "select:mcp__${DEFAULT_GATEWAY}__gws_docs_read") before concluding one is missing.
+- Public links: WebFetch.
+- Private sources (Slack, Google Docs, GitHub): an MCP tool for that service, if this session has one. It may be deferred: look for it with ToolSearch before concluding it is missing.
 - If a source cannot be fetched (no access, tool missing), do not guess its content. Say so in your final summary.`;
 
 export const DEFAULT_CONFIG: Config = {
   ownerName: "",
   claudeBin: "claude",
   maxConcurrentRuns: 3,
-  connectors: ["slack", "gws", "github"],
-  connectorGateway: DEFAULT_GATEWAY,
   reader: {
     model: "",
     permissionMode: "acceptEdits",
-    allowedTools: [
-      "Read", "Write", "Edit", "Glob", "Grep", "WebFetch", "ToolSearch",
-      ...GATEWAY_TOOLS.map((t) => `mcp__${DEFAULT_GATEWAY}__${t}`),
-    ],
+    allowedTools: ["Read", "Write", "Edit", "Glob", "Grep", "WebFetch", "ToolSearch"],
     // Leaving Bash off the allow-list is not enough: acceptEdits auto-approves read-only shell commands.
     disallowedTools: ["Bash"],
     fetchInstructions: DEFAULT_FETCH_INSTRUCTIONS,
@@ -258,9 +239,6 @@ export function saveConfig(patch: Partial<Config>): Config {
     bad("ownerName and claudeBin must be strings");
   next.maxConcurrentRuns = Math.round(Number(next.maxConcurrentRuns));
   if (!(next.maxConcurrentRuns >= 1 && next.maxConcurrentRuns <= 8)) bad("maxConcurrentRuns must be 1 to 8");
-  next.connectors = strList(next.connectors, "connectors");
-  if (typeof next.connectorGateway !== "string" || !/^[\w-]*$/.test(next.connectorGateway))
-    bad("connectorGateway must be an MCP server name");
   next.reader.allowedTools = strList(next.reader.allowedTools, "reader.allowedTools");
   next.reader.disallowedTools = strList(next.reader.disallowedTools, "reader.disallowedTools");
   next.agent.allowedTools = strList(next.agent.allowedTools, "agent.allowedTools");

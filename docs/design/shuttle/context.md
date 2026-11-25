@@ -7,7 +7,7 @@ A Shuttle session (a bobbin) is disposable. The Shuttle writes every decision, f
 ## What Loom's own runs say
 
 Read from the run records in `data/runs/`. No Shuttle run is recorded yet (its code is in a git stash), so the Shuttle figures further down are arithmetic on these, not measurements.
-- **~32K tokens** in context before a session reads anything: Claude Code's own prompt, tool definitions, connectors and skills. Same in the 2-turn setup run and the long T-009 task run.
+- **~32K tokens** in context before a session reads anything: Claude Code's own prompt, tool definitions, connectors and skills. Same in a 2-turn run and the long T-009 task run.
 - **1 hour** prompt-cache lifetime on Loom's headless runs (every cache write is recorded as `ephemeral_1h`).
 - **32K → 274K** context growth of the T-009 agent over 94 turns as Claude Code counts them (59 model calls in the main session). It re-read 11.1M cached tokens along the way and cost $10.77.
 - **~5K tokens** one `GET /api/state` today, with two projects. The Shuttle prompt points at it for "what is happening".

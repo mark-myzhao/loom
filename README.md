@@ -27,7 +27,7 @@ editor. There is no other database.
 - [Bun](https://bun.sh) 1.2.3 or newer
 - Git
 - The [Claude Code](https://claude.com/claude-code) CLI, signed in
-- Optional: read-only MCP connectors (Slack, Google Workspace, GitHub) configured in
+- Optional: read-only MCP servers (Slack, Google Workspace, GitHub) configured in
   Claude Code, for reading private sources. Public links work through WebFetch alone.
 
 ## Run
@@ -56,9 +56,8 @@ DASH_DATA_DIR=/tmp/dash-test PORT=4411 bun server/index.ts
 ## First use
 
 Open Settings (bottom of the left rail) and set your name, so Claude knows which action
-items are yours. The default source-reading tools assume an MCP gateway named
-`gateway`; if you use other MCP servers, or none, edit "Allowed tools" and "How to
-fetch sources" there, and clear "Connector gateway" to skip the one-time enable step.
+items are yours. To read private sources through an MCP server, add its read-only
+tools to "Allowed tools" there and say how to use them in "How to fetch sources".
 
 ## Layout
 
