@@ -42,3 +42,15 @@ test("a document past about 8,000 tokens is marked Over length in GRAPH.md and t
   const brief = taskPrompt({ project: p, task: store.readTask(p.slug, "T-001")!, worktree: true, ancestors: [], siblings: [] });
   expect(brief).toMatch(/artifacts\/t-001-long\.md {2}"Long" {2}~8\.\dK tokens {2}Over length/);
 });
+
+test("the brief points only at markdown: an HTML visual is reached through the document that links it", () => {
+  const p = store.createProject("Visual demo");
+  store.createTask(p.slug, { title: "Draw" });
+  store.createArtifact(p.slug, { filename: "flow.html", task: "T-001", content: '<title>Flow</title><meta name="loom:task" content="T-001"><svg></svg>' });
+  store.createArtifact(p.slug, { title: "Flow notes", task: "T-001", content: "# Flow notes\n\n## Summary\n\nThree steps.\n\n[[t-001-flow.html]]\n" });
+  const { edges } = store.projectGraph(p.slug);
+  expect(edges.some((e) => e.from === "t-001-flow-notes.md" && e.rel === "mentions" && e.to === "t-001-flow.html" && !e.missing)).toBe(true);
+  const brief = taskPrompt({ project: p, task: store.readTask(p.slug, "T-001")!, worktree: true, ancestors: [], siblings: [] });
+  expect(brief).toContain('artifacts/t-001-flow-notes.md  "Flow notes"');
+  expect(brief).not.toContain("artifacts/t-001-flow.html");
+});

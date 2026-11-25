@@ -2,7 +2,7 @@
 
 ## Summary
 
-A Thread's brief carries the task, the parent's context and the task's neighbourhood in [the graph](../graph.md): its other Threads, the memory index and a manifest of each linked artifact's title, size and sections with line ranges. Bodies are read one section at a time, because a token read at turn one is re-read on every later turn. Documents therefore stay small (a 120-word summary, 1,500 tokens a section, 8,000 a document). HTML pages are read through a markdown rendering Loom generates, which measured 24% to 41% smaller. A Thread is one run: resume it while its cache is warm; cold, the work goes to the next Thread, which starts from the files. Part of the design in [the design index](../README.md).
+A Thread's brief carries the task, the parent's context and the task's neighbourhood in [the graph](../graph.md): its other Threads, the memory index and a manifest of each linked artifact's title, size and sections with line ranges. Bodies are read a section at a time, since a token read at turn one is re-read every later turn. Documents stay small (a 120-word summary, 1,500 tokens a section, 8,000 a document). Facts live in markdown; HTML is only a visual that a markdown document links, shown inline, and no brief lists it. A Thread is one run: resumed while its cache is warm; cold, the next Thread starts from the files. Part of the design in [the design index](../README.md).
 
 ## Today, and the three tiers
 
@@ -66,36 +66,24 @@ Nearly half of an HTML page is tags, styles and drawings an agent pays for and c
 - **Open with a Summary** of at most 120 words. It is the first thing a Thread reads and often the only thing.
 - **A section is at most about 1,500 tokens** and stands on its own: it names what it depends on instead of assuming the reader came from the section above.
 - **A document is at most about 8,000 tokens.** Past that, split it by subject into several artifacts of the same task (`t-003-shuttle-context.md`, `t-003-shuttle-board.md`). Loom marks an artifact **Over length** in the manifest and on the task page, the way it already marks memory entries.
-- **Markdown for anything a Thread will work from.** HTML that exists anyway is read through a rendering (T7). HTML stays for pages made for the owner's eyes: comparisons, mock-ups, marks. When a design needs both, the rules go in markdown and the pictures in a companion page.
+- **Facts live in markdown.** HTML is only for a diagram or an interactive piece, linked from a markdown document (T7).
 
 Left out of this design: showing a task's artifacts as tabs on the task page. It is a reading convenience for the owner and no part of the agent work.
 
 Change: four lines in `conventions.md`; a size check beside the existing memory one in `store.ts`. Built in step 4: past 32,000 characters an artifact is marked Over length on the task page, on its card in `GRAPH.md` and in the brief. The check uses the file's size, so an HTML page counts its markup, which is what a Thread would pay to read it.
 
-## T7. Agents read a markdown rendering of an HTML document, never the HTML
+## T7. Markdown is the source; HTML is only a visual a markdown document links
 
-Three ways to load an HTML page were measured on this project's two pages (characters; about four to a token):
+An HTML page costs an agent about twice its text: on this project's two pages, 51K and 64K characters of HTML held 30K and 37K of text. The first answer was a markdown rendering Loom would generate beside each page. Measured, it saved 24% to 41%, and it meant a converter and two copies of every page to keep in step. The owner chose the other way round ([ADR 0023](../../adr/0023-markdown-is-the-source.md)): write the markdown, and keep HTML for what markdown cannot draw.
 
-| Document | Raw HTML | Markdown rendering | Accessibility tree | Bare text |
-| --- | --- | --- | --- | --- |
-| `t-001-oss-research.html` | 51.3K | 39.0K (76%) | 52.2K (102%) | 29.7K (58%) |
-| `t-003-shuttle-design.html`, before the split | 64.2K | 37.8K (59%) | 57.7K (90%) | 36.5K (57%) |
+- **Facts live in markdown.** Every document an agent or the owner reads for its content is a markdown artifact. The app's markdown view is its template: title, origin, headings, tables and links look the same in every document, and none carries its own layout.
+- **HTML is only a diagram or an interactive piece.** It is one self-contained file that holds no fact its markdown document lacks, so nothing is lost when an agent never sees it.
+- **The markdown document links it, and the app shows it there.** A link to an HTML artifact in a paragraph of its own (`[[t-007-flow.html]]`) is followed by the page itself, in the same sandboxed frame its own page gets: scripts run, in an opaque origin the API refuses. A link inside a sentence stays a link.
+- **The brief points only at markdown.** An HTML artifact is left out of the Documents list; the Thread meets it as a link in the markdown it reads. It keeps its card in `GRAPH.md`, where the link is an edge like any other.
 
-- **Markdown rendering wins.** It drops styles, scripts and drawings and keeps headings, lists, tables, code and link targets. What is left over bare text is table pipes and URLs, both of which an agent needs.
-- **The accessibility tree does not help here.** It spends a role label on every paragraph, cell and list item, so on a page that is mostly prose it is as large as the HTML. Its published savings come from a different kind of page.
-- **Bare text** saves a little more on a table-heavy page and loses the tables, headings and links.
+Not built: a check that a document opens with a Summary. The outline in the brief shows whether it does, and the conventions ask for it.
 
-What others report: Stagehand measured 88% fewer tokens for the accessibility tree and 83% for markdown against raw HTML across ten web pages; another benchmark gives 33K tokens of HTML against 4.5K of markdown; one of Cloudflare's own documentation pages goes from 16,180 to 3,150 as markdown. Those are public web pages full of navigation, scripts and wrappers. A self-authored document has little of that, which is why the saving here is 24% to 41%, not 80%.
-
-**Design.** For each HTML artifact Loom keeps a rendering at `artifacts/.text/<name>.md`, regenerated when the file changes; the server already watches the directory. Like `MEMORY.md` it is generated and never edited. A drawing becomes one line holding its label, so every diagram needs an `aria-label` that says what it shows. The manifest (T1) lists the rendering and its section line ranges, and the brief says the `.html` is for the owner.
-
-A file rather than a tool, because every session has Read and not every session has a shell: the same line ranges that serve markdown documents serve these. A section endpoint (`GET …/artifacts/<name>?section=3`) would do the same job only for sessions that can call it.
-
-Not built: the design review suggested cutting T7, and the owner has not decided (roadmap, open questions).
-
-*Change: a converter in `store.ts` (the test version for these numbers was 70 lines; `turndown` is the usual library), one line in the conventions' layout, and `art()` in `taskPrompt` pointing at the rendering. The accessibility-tree figure is from one dump of Chrome's tree, written out with a role and name per line.*
-
-Sources: [Stagehand](https://www.stagehand.dev/blog/html-vs-markdown-vs-accessibility-tree-llm), [HTML vs Markdown vs SOM](https://dev.to/dbhurley/html-vs-markdown-vs-som-which-format-should-your-ai-agent-use-2aad), [Skip the browser](https://dev.to/stevengonsalvez/browser-tools-for-ai-agents-part-4-skip-the-browser-save-80-on-tokens-304c). All three are secondary write-ups read from search summaries.
+*Change: one rule in `conventions.md`; the frame in `linkMentions` (`web/ui.tsx`); one line in `taskPrompt` that skips HTML. The project's one whole-page HTML artifact, T-001's research page, is still to be rewritten as markdown.*
 
 ## What stays as it is
 

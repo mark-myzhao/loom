@@ -21,7 +21,7 @@ projects/<slug>/
   tasks/T-001.log.md          that task's timeline (append-only)
   memory/<entry>.md           one durable fact per file
   memory/MEMORY.md            index of the entries (generated; never edit it)
-  artifacts/<name>.md|.html   whole documents
+  artifacts/<name>.md         whole documents; <name>.html only for a visual one of them links
   GRAPH.md                    every node and edge of the project, one per line (generated; never edit it)
 runs/                         app-owned run metadata and transcripts. Leave them alone.
 .trash/                       recoverable deletes. Leave it alone.
@@ -167,8 +167,8 @@ The fields are timestamp, author, type, then an optional detail.
 
 ## Artifacts
 
-An artifact is a whole document that belongs to the project or to one task: markdown, or a
-single self-contained HTML file when the content needs layout or visuals.
+An artifact is a whole document that belongs to the project or to one task, written in
+markdown. A diagram or an interactive piece may be a self-contained HTML file beside it.
 
 Markdown artifacts start with frontmatter:
 
@@ -203,8 +203,9 @@ Agents read documents one section at a time, so keep them small and sectioned:
 - Keep a document to about 8,000 tokens (about 32,000 characters). Past that, split it by
   subject into several artifacts of the same task (`t-007-context.md`, `t-007-board.md`).
   Loom marks a longer one **Over length**.
-- Use markdown for anything an agent will work from. HTML is for pages made for the owner's
-  eyes; when a subject needs both, put the facts in markdown and the pictures in HTML.
+- Facts live in markdown. HTML is only for a diagram or an interactive piece, and holds no
+  fact its markdown document lacks: agents are never shown it. Link it from that document in
+  a paragraph of its own (`[[t-007-flow.html]]`) and the app shows it there, inline.
 
 ## Memory
 

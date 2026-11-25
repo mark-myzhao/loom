@@ -17,7 +17,7 @@ Designs live here, one subject per file. Decisions live in [`../adr`](../adr/REA
 | | [pictures.html](pictures.html) | For people: the diagrams, the board mock-up and the marks at size |
 | Shuttle | [shuttle/context.md](shuttle/context.md) | Rules R1 to R7 for the Shuttle's context, prompt cache and permissions, with the measurements |
 | | [shuttle/prior-art.md](shuttle/prior-art.md) | Where the rules come from, ideas left out, what three other systems publish |
-| Threads | [threads/context.md](threads/context.md) | Rules T1 to T7 for what a Thread reads; document size limits; reading HTML |
+| Threads | [threads/context.md](threads/context.md) | Rules T1 to T7 for what a Thread reads; document size limits; markdown as the source, HTML only for visuals |
 | | [threads/dispatch.md](threads/dispatch.md) | Dispatch and the Threads board |
 | | [threads/states.md](threads/states.md) | Task status; blocked assigned with a comment or derived; waiting on a human or a task; Thread state; the board as a view |
 | | [threads/notes.md](threads/notes.md) | Notes to a running Thread; the owner's controls over work in flight |
@@ -32,6 +32,6 @@ They are the rules of [threads/context.md](threads/context.md) (T6), applied to 
 
 - A page opens with a `## Summary` of at most 120 words that stands on its own.
 - A section is at most about 1,500 tokens; a page at most about 8,000. Past that, split by subject.
-- Markdown for anything an agent will work from. HTML only for pictures, with the facts repeated in a markdown page.
+- Facts live in markdown. HTML only for pictures, which hold no fact a markdown page lacks.
 - A new area gets a folder; a page that does not fit an area goes at this level.
 - When a design changes because of a decision, add an ADR and update the page in the same change. Pages describe the design as it stands; ADRs are the history.

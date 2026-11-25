@@ -162,7 +162,7 @@ T-006 | mentions | loom:docs/design/threads/context.md#T1 | "Print the outline a
 ```
 
 - **One line per node and one per edge, with the address spelled the same everywhere.** `Grep "T-006" GRAPH.md` returns T-006's card and every edge that touches it, in either direction, without loading the file. That is the whole query interface.
-- **A file, not an endpoint**, for the reason T7 gives: every session has Read and Grep, and reader sessions (ask, ingest, document Threads) have no shell.
+- **A file, not an endpoint**: every session has Read and Grep, and reader sessions (ask, ingest, document Threads) have no shell.
 - **Sections are not listed here.** A document's outline is computed when a brief or a card needs it.
 - **Every address on the page can be read, and nothing else is on it.** Run and session ids stay out: no reader opens a transcript. A Thread's address reads through its task's timeline, where its reports are.
 - **No live figures.** Turns and context of a running Thread stay on the board, so the file changes when work changes state and not on every model call.

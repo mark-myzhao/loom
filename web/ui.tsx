@@ -134,6 +134,16 @@ function linkMentions(root: HTMLElement, slug: string) {
       if (href) a.setAttribute("href", href);
       a.textContent = m[2] ?? m[0];
       frag.append(a);
+      // A visual linked in a paragraph of its own is shown in place, in the sandbox its own page gets.
+      const name = m[1] ?? target;
+      if (/\.html?$/i.test(name) && text.trim() === m[0] && node.parentElement?.childNodes.length === 1) {
+        const frame = document.createElement("iframe");
+        frame.className = "doc-embed";
+        frame.setAttribute("sandbox", "allow-scripts");
+        frame.src = `/api/projects/${enc(slug)}/artifacts/${enc(name)}/raw`;
+        frame.title = name;
+        frag.append(frame);
+      }
       last = m.index + m[0].length;
     }
     if (!last) continue;

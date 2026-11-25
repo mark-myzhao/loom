@@ -105,7 +105,7 @@ ${forTask}The owner's request:
 ${text}
 
 - If the request is a link (or links) to import: fetch each one and save a faithful copy as artifacts/<name>.md with origin "imported" and the url as source. Keep headings, lists, tables and wording; do not summarise or editorialise.
-- If the request asks you to write something: read memory/MEMORY.md, the entries that matter and tasks/ first, fetch any sources you need, and write the document with origin "generated". Use markdown unless the request needs layout or visuals, in which case write one self-contained .html file.
+- If the request asks you to write something: read memory/MEMORY.md, the entries that matter and tasks/ first, fetch any sources you need, and write the document with origin "generated". Write markdown. If it needs a diagram or an interactive piece, put only that in one self-contained .html file and link it from the markdown in a paragraph of its own.
 - Leave memory and tasks as they are.
 
 ${fetching(cfg)}
@@ -148,10 +148,12 @@ export function taskPrompt(i: TaskPromptInput): string {
   const artifacts = listArtifacts(p.slug);
   const documents = [...docs].flatMap(([address, { why, linked }]) => {
     const a = artifacts.find((x) => x.name === address);
+    // HTML holds only visuals for the owner; the facts are in the markdown that links it.
+    if (a?.kind === "html") return [];
     const [repoName, rel = ""] = address.split(":");
     const repo = a ? undefined : p.repos.find((r) => r.name === repoName);
     const path = a ? join(dir, "artifacts", address) : resolve(repo?.path ?? "", rel);
-    const text = (a?.kind ?? "md") === "md" ? readText(path) ?? "" : "";
+    const text = readText(path) ?? "";
     const shown = a ? `artifacts/${address}` : path;
     const title = a?.title ?? /^#\s+(.+)$/m.exec(text)?.[1]?.trim() ?? rel;
     const isLinked = (heading: string) => [...linked].some((l) => heading.toLowerCase().startsWith(l));

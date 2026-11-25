@@ -481,6 +481,7 @@ a.row-title:hover { text-decoration: underline; text-decoration-color: var(--acc
 .doc-title { font-size: 36px; margin-bottom: 8px; }
 .doc { padding: 34px 44px; }
 .doc-frame { width: 100%; height: 78vh; border: 1px solid var(--rule); border-radius: 6px; background: #fff; }
+.doc-embed { display: block; width: 100%; height: 420px; margin-top: 8px; border: 1px solid var(--rule); border-radius: 6px; background: #fff; resize: vertical; }
 .source-edit { min-height: 70vh; font: 13px/1.55 var(--mono); }
 
 /* ---------- graph ---------- */
