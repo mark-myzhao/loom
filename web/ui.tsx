@@ -1,9 +1,10 @@
 import DOMPurify from "dompurify";
 import { marked } from "marked";
-import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { isClosed, type BoardRow, type Priority, type RunMeta, type TaskStatus, type TaskSummary } from "../server/types";
+import { useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { Select } from "./controls";
+import { EFFORTS, isClosed, MODELS, type BoardRow, type Override, type Priority, type RunMeta, type TaskStatus, type TaskSummary } from "../server/types";
 import {
-  agentRun, ago, api, buildTree, descendants, docHref, dueLabel, enc, GROUPS, isLive, money, sortTasks, STATUS_LABEL, taskHref, useApp,
+  agentRun, ago, api, buildTree, descendants, docHref, dueLabel, enc, GROUPS, isLive, money, onSubmitKey, sortTasks, STATUS_LABEL, taskHref, useApp,
   type Tree,
 } from "./lib";
 
@@ -326,4 +327,47 @@ export function RunList({ runs, withProject }: { runs: RunMeta[]; withProject?: 
 
 export function KindBadge({ kind }: { kind: "md" | "html" }) {
   return <span className={`kind kind-${kind}`}>{kind === "md" ? "MD" : "HTML"}</span>;
+}
+
+/**
+ * A chat box: the text grows with what is typed, Send sits inside it, and the model and effort for
+ * the message sit below, showing the defaults until changed. A choice holds until it is changed back.
+ */
+export function Composer({ label, placeholder, busy, model: defaultModel, onSend }: {
+  label: string; placeholder: string; busy?: boolean; model: string;
+  onSend: (text: string, override: Override) => Promise<unknown>;
+}) {
+  const { snap } = useApp();
+  const [text, setText] = useState("");
+  // Empty until picked, so what is shown is what the CLI will use: the session's model, else the CLI's
+  // settings, else its documented defaults (Opus 5.5; medium effort on these models). An alias such as
+  // "fable" shows as the model it names. https://code.claude.com/docs/en/model-config
+  const [model, setModel] = useState("");
+  const [effort, setEffort] = useState("");
+  const cli = snap.cliModel;
+  const shownModel = model || defaultModel || MODELS.find((m) => m.value === cli || m.label.toLowerCase().startsWith(`${cli} `))?.value || cli || "claude-opus-5-5";
+  const shownEffort = effort || snap.cliEffort[shownModel] || snap.cliEffort[""] || "medium";
+  const box = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    box.current!.style.height = "auto";
+    box.current!.style.height = `${box.current!.scrollHeight}px`;
+  }, [text]);
+  // A model the list does not name (an older id, say) still shows as the current choice.
+  const models = MODELS.some((m) => m.value === shownModel) ? MODELS : [{ value: shownModel }, ...MODELS];
+  const efforts = EFFORTS.map((value) => ({ value, label: value[0]!.toUpperCase() + value.slice(1) }));
+  const send = async () => {
+    if (text.trim() && !busy && (await onSend(text, { model, effort }))) setText("");
+  };
+  return (
+    <div className="composer">
+      <div className="composer-box">
+        <textarea ref={box} rows={2} value={text} aria-label={label} placeholder={placeholder} onChange={(e) => setText(e.target.value)} onKeyDown={onSubmitKey(send)} />
+        <button className="primary" disabled={!text.trim() || busy} onClick={send}>Send</button>
+      </div>
+      <div className="composer-meta">
+        <Select className="inline-select" value={shownModel} onChange={setModel} aria-label="Model for this message" options={models} />
+        <Select className="inline-select effort" value={shownEffort} onChange={setEffort} aria-label="Effort for this message" options={efforts} />
+      </div>
+    </div>
+  );
 }

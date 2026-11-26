@@ -190,6 +190,7 @@ export const DEFAULT_CONFIG: Config = {
   ownerName: "",
   claudeBin: "claude",
   maxConcurrentRuns: 3,
+  shuttleModel: "claude-fable-5-2",
   reader: {
     model: "",
     permissionMode: "acceptEdits",
@@ -199,7 +200,7 @@ export const DEFAULT_CONFIG: Config = {
     fetchInstructions: DEFAULT_FETCH_INSTRUCTIONS,
   },
   agent: {
-    model: "",
+    model: "claude-opus-5-5",
     permissionMode: "auto",
     allowedTools: ["Read", "Write", "Edit", "Glob", "Grep"],
     useWorktree: true,
@@ -236,8 +237,8 @@ export function saveConfig(patch: Partial<Config>): Config {
     reader: { ...cur.reader, ...(patch.reader ?? {}) },
     agent: { ...cur.agent, ...(patch.agent ?? {}) },
   };
-  if (typeof next.ownerName !== "string" || typeof next.claudeBin !== "string" || !next.claudeBin.trim())
-    bad("ownerName and claudeBin must be strings");
+  if (typeof next.ownerName !== "string" || typeof next.shuttleModel !== "string" || typeof next.claudeBin !== "string" || !next.claudeBin.trim())
+    bad("ownerName, shuttleModel and claudeBin must be strings");
   next.maxConcurrentRuns = Math.round(Number(next.maxConcurrentRuns));
   if (!(next.maxConcurrentRuns >= 1 && next.maxConcurrentRuns <= 8)) bad("maxConcurrentRuns must be 1 to 8");
   next.reader.allowedTools = strList(next.reader.allowedTools, "reader.allowedTools");

@@ -5,7 +5,7 @@ import { appendFile } from "node:fs/promises";
 import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig, nowIso, randomId, readTimeline, runsDir, writeAtomic } from "./store";
-import type { RunKind, RunMeta, RunSpec, RunStatus, RunUsage } from "./types";
+import type { Override, RunKind, RunMeta, RunSpec, RunStatus, RunUsage } from "./types";
 
 export interface RunInit {
   kind: RunKind;
@@ -36,6 +36,7 @@ interface Job {
   id: string;
   prompt: string;
   resume: boolean;
+  override?: Override;
 }
 
 const metas = new Map<string, RunMeta>();
@@ -156,7 +157,7 @@ function emit(a: Active, line: Line) {
   for (const sub of a.subs) sub(line);
 }
 
-export function startRun(init: RunInit, spec: RunSpec, prompt: string, onDone?: DoneHook): RunMeta {
+export function startRun(init: RunInit, spec: RunSpec, prompt: string, onDone?: DoneHook, override?: Override): RunMeta {
   const d = new Date().toISOString().replace(/\D/g, "").slice(0, 14);
   let id = `${d}-${randomId(4)}`;
   while (metas.has(id)) id = `${d}-${randomId(4)}`;
@@ -168,7 +169,7 @@ export function startRun(init: RunInit, spec: RunSpec, prompt: string, onDone?: 
   saveMeta(meta);
   if (onDone) hooks.set(id, onDone);
   lifecycle.started(meta);
-  queue.push({ id, prompt, resume: false });
+  queue.push({ id, prompt, resume: false, override });
   pump();
   return meta;
 }
@@ -184,11 +185,13 @@ function pump() {
   }
 }
 
-function buildArgs(meta: RunMeta, resume: boolean): string[] {
+function buildArgs(meta: RunMeta, { resume, override }: Job): string[] {
   const s = meta.spec;
+  const model = override?.model || s.model;
   // Input is a stream of messages too, so a note can reach the session while it works.
   const args = ["-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose", "--permission-mode", s.permissionMode];
-  if (s.model) args.push("--model", s.model);
+  if (model) args.push("--model", model);
+  if (override?.effort) args.push("--effort", override.effort);
   if (s.systemPrompt) args.push("--append-system-prompt", s.systemPrompt);
   for (const d of s.addDirs ?? []) args.push("--add-dir", d);
   for (const d of s.pluginDirs ?? []) args.push("--plugin-dir", d);
@@ -216,7 +219,7 @@ async function execute(a: Active, job: Job) {
   let proc: ReturnType<typeof Bun.spawn>;
   try {
     // A command's stderr joins its stdout, so the transcript shows both in order.
-    proc = Bun.spawn(shell ? ["sh", "-c", `exec 2>&1\n${job.prompt}`] : [bin, ...buildArgs(meta, job.resume)], {
+    proc = Bun.spawn(shell ? ["sh", "-c", `exec 2>&1\n${job.prompt}`] : [bin, ...buildArgs(meta, job)], {
       cwd, env, stdin: shell ? "ignore" : "pipe", stdout: "pipe", stderr: "pipe",
     });
   } catch (e) {
@@ -383,7 +386,7 @@ export function sendNote(id: string, text: string): boolean {
  * hook does not fire again. The message carries the time, since the session's opening prompt holds
  * the time it started, and a Thread first gets the notes recorded after its last result.
  */
-export function sendMessage(id: string, message: string): RunMeta {
+export function sendMessage(id: string, message: string, override?: Override): RunMeta {
   const meta = metas.get(id);
   if (!meta) throw new Error("no such run");
   if (active.has(id) || live(meta.status)) throw new Error("the run is still in progress");
@@ -400,7 +403,7 @@ export function sendMessage(id: string, message: string): RunMeta {
   emit(a, { type: "dash_user", text, time: nowIso() });
   saveMeta(meta);
   lifecycle.started(meta);
-  queue.push({ id, prompt: text, resume: true });
+  queue.push({ id, prompt: text, resume: true, override });
   pump();
   return meta;
 }

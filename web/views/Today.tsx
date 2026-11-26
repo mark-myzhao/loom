@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BOARD_GROUPS, CACHE_COLD_MS, isClosed, type BoardRow, type RunMeta } from "../../server/types";
+import { BOARD_GROUPS, CACHE_COLD_MS, isClosed, type BoardRow, type Override, type RunMeta } from "../../server/types";
 import { compact } from "../../server/usage";
 import { api, buildTree, enc, GROUPS, isLive, onSubmitKey, sortTasks, taskHref, useApp } from "../lib";
-import { Empty, RunList, ShuttleMark, TaskRow, ThreadMark } from "../ui";
+import { Composer, Empty, RunList, ShuttleMark, TaskRow, ThreadMark } from "../ui";
 import { Transcript, useRunLines } from "./RunDrawer";
 
 /** The Shuttle: Loom's resident agent and the owner's one conversation with it, on a page of its own. */
 export function Shuttle() {
   const { snap, act, openRun } = useApp();
-  const [text, setText] = useState("");
   const [fresh, setFresh] = useState(false);
   const run = fresh ? undefined : snap.shuttle;
   const live = !!run && isLive(run);
@@ -19,12 +18,10 @@ export function Shuttle() {
   useEffect(() => {
     feed.current?.scrollTo({ top: feed.current.scrollHeight });
   }, [lines.length, live]);
-  const send = async () => {
-    if (!text.trim() || live) return;
-    if (await act(() => api<RunMeta>("POST", "/shuttle", { text, fresh }))) {
-      setText("");
-      setFresh(false);
-    }
+  const send = async (text: string, override: Override) => {
+    const sent = await act(() => api<RunMeta>("POST", "/shuttle", { text, fresh, ...override }));
+    if (sent) setFresh(false);
+    return sent;
   };
   return (
     <section className="shuttle shadowed">
@@ -44,10 +41,7 @@ export function Shuttle() {
         {run && <Transcript lines={lines} chat />}
         {live && <p className="sysline"><span className="pill live run-running">{run.status}</span></p>}
       </div>
-      <div className="compose">
-        <textarea rows={2} value={text} aria-label="Message the Shuttle" placeholder={live ? "Shuttle is working…" : "Tell the Shuttle…"} onChange={(e) => setText(e.target.value)} onKeyDown={onSubmitKey(send)} />
-        <button className="primary" disabled={!text.trim() || live} onClick={send}>Send</button>
-      </div>
+      <Composer label="Message the Shuttle" placeholder={live ? "Shuttle is working…" : "Tell the Shuttle…"} busy={live} model={snap.config.shuttleModel} onSend={send} />
     </section>
   );
 }

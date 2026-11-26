@@ -190,6 +190,8 @@ export interface Config {
   ownerName: string;
   claudeBin: string;
   maxConcurrentRuns: number;
+  /** The Shuttle, Loom's resident agent. Empty uses the CLI default. */
+  shuttleModel: string;
   /** Sessions that read sources and edit the data files: drops, questions, documents, Claude automations. */
   reader: {
     model: string;
@@ -211,6 +213,16 @@ export interface Config {
 
 /** Idle this long, the one-hour prompt cache is gone: a fresh Shuttle session costs less than a resume. */
 export const CACHE_COLD_MS = 55 * 60_000;
+
+/** A model and effort for one message, over the run's own; empty keeps the run's. Pinned ids, so a session does not drift. */
+export type Override = { model?: string; effort?: string };
+export const MODELS = [
+  { value: "claude-fable-5-2", label: "Fable 5.2" },
+  { value: "claude-opus-5-5", label: "Opus 5.5" },
+  { value: "claude-sonnet-5-5", label: "Sonnet 5.5" },
+  { value: "claude-haiku-5-5", label: "Haiku 5.5" },
+];
+export const EFFORTS = ["low", "medium", "high", "xhigh", "max"];
 
 /** A Shuttle message is Loom's context, a "---" line, then the owner's own words. */
 export function ownerText(message: string): string {
@@ -256,6 +268,10 @@ export interface ProjectSnapshot extends Project {
 export interface Snapshot {
   dataDir: string;
   config: Config;
+  /** The model Claude Code uses when none is passed (an id or an alias), from ~/.claude/settings.json; empty when unset. */
+  cliModel: string;
+  /** The effort Claude Code uses when none is passed, by model ("" for any model), from ~/.claude/settings.json. */
+  cliEffort: Record<string, string>;
   automations: Automation[];
   lastBackupPush?: string;
   /** The run that holds the current Shuttle conversation, if one has started. */

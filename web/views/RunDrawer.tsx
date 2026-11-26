@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ownerText, type Config, type RunMeta } from "../../server/types";
-import { api, enc, isLive, money, onSubmitKey, stamp, useApp } from "../lib";
-import { Markdown, RunPill } from "../ui";
+import { api, enc, isLive, money, stamp, useApp } from "../lib";
+import { Composer, Markdown, RunPill } from "../ui";
 
 type Line = Record<string, any>;
 
@@ -169,7 +169,6 @@ export function RunDrawer({ id, onClose }: { id: string; onClose: () => void }) 
   const { snap, act } = useApp();
   const [fetched, setFetched] = useState<RunMeta | null>(null);
   const [missing, setMissing] = useState(false);
-  const [reply, setReply] = useState("");
   const bottom = useRef<HTMLDivElement>(null);
   // The snapshot carries the latest 150 runs; an older one is fetched by id.
   const run = snap.runs.find((r) => r.id === id) ?? (fetched?.id === id ? fetched : null);
@@ -187,11 +186,6 @@ export function RunDrawer({ id, onClose }: { id: string; onClose: () => void }) 
     if (live) bottom.current?.scrollIntoView({ block: "end" });
   }, [lines.length, live]);
 
-  const send = async () => {
-    if (!reply.trim()) return;
-    if (await act(() => api("POST", `/runs/${enc(id)}/message`, { text: reply }))) setReply("");
-  };
-
   if (!run) return <Drawer title={missing ? "Run not found" : "Loading…"} onClose={onClose}>{missing && <p className="empty">No run has the id {id}.</p>}</Drawer>;
   return (
     <Drawer
@@ -202,10 +196,8 @@ export function RunDrawer({ id, onClose }: { id: string; onClose: () => void }) 
         live ? (
           <button className="danger" onClick={() => act(() => api("POST", `/runs/${enc(id)}/stop`))}>Stop</button>
         ) : run.sessionId ? (
-          <div className="compose">
-            <textarea rows={2} value={reply} aria-label="Reply" placeholder="Reply to continue this session…" onChange={(e) => setReply(e.target.value)} onKeyDown={onSubmitKey(send)} />
-            <button className="primary" disabled={!reply.trim()} onClick={send}>Send</button>
-          </div>
+          <Composer label="Reply" placeholder="Reply to continue this session…" model={run.spec.model ?? ""}
+            onSend={(text, override) => act(() => api("POST", `/runs/${enc(id)}/message`, { text, ...override }))} />
         ) : undefined
       }
     >
@@ -252,6 +244,9 @@ export function Settings({ onClose }: { onClose: () => void }) {
         <label>Runs at once <small>1–8. The rest queue.</small>
           <input type="number" min={1} max={8} value={c.maxConcurrentRuns} onChange={(e) => set({ maxConcurrentRuns: Number(e.target.value) })} />
         </label>
+
+        <h3 className="label">Shuttle</h3>
+        <label>Model <small>Empty uses the CLI default.</small><input value={c.shuttleModel} onChange={(e) => set({ shuttleModel: e.target.value })} /></label>
 
         <h3 className="label">Sessions that read sources</h3>
         <label>Model <small>Empty uses the CLI default.</small><input value={c.reader.model} onChange={(e) => reader({ model: e.target.value })} /></label>

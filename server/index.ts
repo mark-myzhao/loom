@@ -1,6 +1,7 @@
 // Routing, actions, automations and the watcher.
 
 import { existsSync, watch } from "node:fs";
+import { homedir } from "node:os";
 import { join, sep } from "node:path";
 import index from "../web/index.html";
 import { initBackup, pushIfDue, scheduleBackup } from "./backup";
@@ -10,7 +11,7 @@ import * as store from "./store";
 import { DATA, HttpError } from "./store";
 import { readTelemetry, track } from "./telemetry";
 import { compact, usageRows } from "./usage";
-import { BOARD_GROUPS, CACHE_COLD_MS, isClosed, ownerText, type Automation, type BoardRow, type Config, type RunMeta, type RunSpec, type Snapshot, type Task, type TaskDetail, type TaskSummary } from "./types";
+import { BOARD_GROUPS, CACHE_COLD_MS, EFFORTS, isClosed, MODELS, ownerText, type Automation, type BoardRow, type Config, type Override, type RunMeta, type RunSpec, type Snapshot, type Task, type TaskDetail, type TaskSummary } from "./types";
 
 const PORT = Number(process.env.PORT) || 4400;
 const PROD = process.env.NODE_ENV === "production";
@@ -420,7 +421,7 @@ function writeShuttleSessions() {
  * an idle hour starts a fresh session instead, opened with a hand-over that code writes from the
  * files: standing instructions, open work and the last exchanges (rules R2 and R3).
  */
-function talkToShuttle(textIn: unknown, fresh: unknown): RunMeta {
+function talkToShuttle(textIn: unknown, fresh: unknown, override: Override): RunMeta {
   const text = needText(textIn);
   const cfg = store.loadConfig();
   const last = getRun(store.loadState().shuttle ?? "");
@@ -430,7 +431,7 @@ function talkToShuttle(textIn: unknown, fresh: unknown): RunMeta {
   if (last?.sessionId && fresh !== true && !cold) {
     const ended = listRuns().filter((r) => r.kind !== "shuttle" && r.endedAt && r.endedAt > (last.endedAt ?? ""));
     const news = ended.map((r) => `- run ${r.id} (${r.kind}, "${r.title}") ${r.status}${r.error ? `: ${firstLine(r.error, 200)}` : ""}`);
-    return sendMessage(last.id, [...(news.length ? ["Since your last reply these runs ended:", ...news] : []), "---", text].join("\n"));
+    return sendMessage(last.id, [...(news.length ? ["Since your last reply these runs ended:", ...news] : []), "---", text].join("\n"), override);
   }
 
   const notebook = (store.readText(join(DATA, "SHUTTLE.md")) ?? "").trim().split("\n").slice(0, 40).join("\n");
@@ -461,9 +462,9 @@ function talkToShuttle(textIn: unknown, fresh: unknown): RunMeta {
     // Links go to ingest runs, so the Shuttle never reads the web.
     allowedTools: ["Read", "Glob", "Grep", ...routes],
     systemPrompt: shuttlePrompt(cfg, api),
-    ...(cfg.reader.model ? { model: cfg.reader.model } : {}),
+    ...(cfg.shuttleModel ? { model: cfg.shuttleModel } : {}),
   };
-  const run = startRun({ kind: "shuttle", title: `Shuttle: ${firstLine(text, 100)}` }, spec, envelope);
+  const run = startRun({ kind: "shuttle", title: `Shuttle: ${firstLine(text, 100)}` }, spec, envelope, undefined, override);
   store.saveState({ shuttle: run.id });
   return run;
 }
@@ -502,8 +503,18 @@ function saveAutomation(id: string | undefined, input: Record<string, unknown>):
 const summary = ({ body: _body, ...t }: Task): TaskSummary => t;
 
 function snapshot(): Snapshot {
+  const cliEffort: Record<string, string> = {};
+  let cliModel = "";
+  try {
+    const s = JSON.parse(store.readText(join(homedir(), ".claude", "settings.json")) ?? "{}");
+    cliModel = s.model ?? "";
+    if (s.effortLevel) cliEffort[""] = s.effortLevel;
+    for (const [model, m] of Object.entries<{ effortLevel?: string }>(s.modelSettings ?? {})) if (m.effortLevel) cliEffort[model] = m.effortLevel;
+  } catch {}
   return {
     dataDir: DATA,
+    cliModel,
+    cliEffort,
     config: store.loadConfig(),
     automations: store.listAutomations(),
     lastBackupPush: store.loadState().lastBackupPush,
@@ -625,7 +636,9 @@ async function api(req: Request, url: URL): Promise<Response> {
   }
   if (is("POST", "shuttle")) {
     const b = await readBody(req);
-    return json(talkToShuttle(b.text, b.fresh));
+    // Only listed values pass, since they become CLI arguments.
+    const override = { model: MODELS.find((m) => m.value === b.model)?.value, effort: EFFORTS.find((e) => e === b.effort) };
+    return json(talkToShuttle(b.text, b.fresh, override));
   }
 
   if (is("POST", "automations")) return json(saveAutomation(undefined, await readBody(req)));
@@ -650,9 +663,11 @@ async function api(req: Request, url: URL): Promise<Response> {
       return json({ ok: true });
     }
     if (is("POST", "runs", null, "message")) {
-      const text = needText((await readBody(req)).text);
+      const b = await readBody(req);
+      const text = needText(b.text);
+      const override = { model: MODELS.find((m) => m.value === b.model)?.value, effort: EFFORTS.find((e) => e === b.effort) };
       try {
-        return json(sendMessage(run.id, text));
+        return json(sendMessage(run.id, text, override));
       } catch (e) {
         return bad((e as Error).message, 409);
       }
