@@ -57,7 +57,7 @@ A manifest only helps if the sections behind it are worth opening one at a time.
 
 | Document | Size | Of which text | Sections |
 | --- | --- | --- | --- |
-| `t-001-oss-research.html` | 51K chars · ~13K tokens | 58% | 9 |
+| `t-001-oss-research.html` (before it became markdown) | 51K chars · ~13K tokens | 58% | 9 |
 | `t-003-shuttle-design.html` (before it was split) | 56K chars · ~14K tokens | 53% | 8 |
 | `t-003-superagent-research.md` | 12K chars · ~3K tokens | ~100% | 7 |
 
@@ -83,7 +83,7 @@ An HTML page costs an agent about twice its text: on this project's two pages, 5
 
 Not built: a check that a document opens with a Summary. The outline in the brief shows whether it does, and the conventions ask for it.
 
-*Change: one rule in `conventions.md`; the frame in `linkMentions` (`web/ui.tsx`); one line in `taskPrompt` that skips HTML. The project's one whole-page HTML artifact, T-001's research page, is still to be rewritten as markdown.*
+*Change: one rule in `conventions.md`; the frame in `linkMentions` (`web/ui.tsx`); one line in `taskPrompt` that skips HTML. The project's one whole-page HTML artifact, T-001's research page, was rewritten as two markdown artifacts, `t-001-oss-research.md` and `t-001-oss-survey.md`.*
 
 ## What stays as it is
 
