@@ -456,10 +456,10 @@ function talkToShuttle(textIn: unknown, fresh: unknown): RunMeta {
   const routes = SHUTTLE_ROUTES.map(([, method, path, body]) => `Bash(curl -s -X ${method} ${api}${path.replace(/<[^>]+>/g, "*")}${body ? " *" : ""})`);
   const spec: RunSpec = {
     cwd: DATA,
-    // Anything not allowed below is refused: no writes outside projects/ and SHUTTLE.md, no other route.
+    // Anything not allowed below is refused: it reads files and changes them only through its routes (ADR 0026).
     permissionMode: "default",
     // Links go to ingest runs, so the Shuttle never reads the web.
-    allowedTools: ["Read", "Glob", "Grep", "Edit(projects/**)", "Write(projects/**)", "Edit(SHUTTLE.md)", "Write(SHUTTLE.md)", ...routes],
+    allowedTools: ["Read", "Glob", "Grep", ...routes],
     systemPrompt: shuttlePrompt(cfg, api),
     ...(cfg.reader.model ? { model: cfg.reader.model } : {}),
   };
@@ -583,6 +583,11 @@ async function api(req: Request, url: URL): Promise<Response> {
   const m = req.method;
   const is = (method: string, ...pattern: (string | null)[]) =>
     m === method && seg.length === pattern.length && pattern.every((p, i) => p === null || p === seg[i]);
+  // An agent's curl allow rule can be bent to reach any route, so the server keeps these for the owner (ADR 0026).
+  if ((m === "DELETE" || is("PUT", "config") || is("POST", "automations") || is("PUT", "automations", null)) && !isOwner(req))
+    bad("only the owner can do that", 403);
+  // The Shuttle is the only other caller of the task routes; Threads write their files (ADR 0026).
+  const by = isOwner(req) ? "me" : "shuttle";
 
   if (is("GET", "state")) return json(snapshot());
   if (is("GET", "events"))
@@ -612,6 +617,12 @@ async function api(req: Request, url: URL): Promise<Response> {
     return json(await ingest(b.text, b.project));
   }
 
+  if (is("PUT", "shuttle", "notebook")) {
+    const text = needText((await readBody(req)).text);
+    if (text.split("\n").length > 40) bad("the notebook is at most 40 lines");
+    store.writeAtomic(join(DATA, "SHUTTLE.md"), text + "\n");
+    return json({ ok: true });
+  }
   if (is("POST", "shuttle")) {
     const b = await readBody(req);
     return json(talkToShuttle(b.text, b.fresh));
@@ -671,19 +682,19 @@ async function api(req: Request, url: URL): Promise<Response> {
     }
     if (P("DELETE", "repos", null)) return json(store.removeRepo(slug, seg[3]!));
 
-    if (P("POST", "tasks")) return json(store.createTask(slug, await readBody(req), "me"));
+    if (P("POST", "tasks")) return json(store.createTask(slug, await readBody(req), by));
     if (seg[2] === "tasks" && seg[3]) {
       const id = store.checkTaskId(seg[3]);
       if (P("GET", "tasks", null)) return json(taskDetail(slug, id));
-      if (P("PATCH", "tasks", null)) return json(store.patchTask(slug, id, await readBody(req), "me"));
+      if (P("PATCH", "tasks", null)) return json(store.patchTask(slug, id, await readBody(req), by));
       if (P("DELETE", "tasks", null)) return store.deleteTask(slug, id), json({ ok: true });
       if (P("POST", "tasks", null, "comments")) {
         const b = await readBody(req);
         if (!store.readTask(slug, id)) bad("no such task", 404);
         const text = typeof b.text === "string" ? b.text.trim() : "";
         if (!text && !b.done) bad("text must not be empty");
-        if (text) store.appendEvent(slug, id, { by: "me", type: "comment", body: text });
-        if (b.done) store.patchTask(slug, id, { status: "done" }, "me");
+        if (text) store.appendEvent(slug, id, { by, type: "comment", body: text });
+        if (b.done) store.patchTask(slug, id, { status: "done" }, by);
         return json({ ok: true });
       }
       if (P("POST", "tasks", null, "checklist")) {

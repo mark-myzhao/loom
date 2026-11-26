@@ -14,7 +14,7 @@ One file per decision, numbered in the order they were made. The design itself i
 | [0008](0008-shuttle-may-send-notes.md) | The Shuttle may send notes on its own judgement | Accepted; amended by 0012 | Built |
 | [0009](0009-five-words.md) | Five words and two marks | Accepted; amended by 0017 and 0019 | Built |
 | [0010](0010-usage-from-session-totals.md) | Usage is recorded per session start, from the transcript's running totals | Accepted | Built |
-| [0011](0011-shuttle-permissions-allow-list.md) | The Shuttle's permissions are an allow-list | Accepted; amended by 0015 | Built |
+| [0011](0011-shuttle-permissions-allow-list.md) | The Shuttle's permissions are an allow-list | Accepted; amended by 0015 and 0026 | Built |
 | [0012](0012-server-sets-note-author.md) | The server sets a note's author, and only the owner's note starts a session | Accepted | Built |
 | [0013](0013-broken-is-derived.md) | Broken is derived from the run, and blocked keeps its meaning | Accepted; amended by 0020 | Built |
 | [0014](0014-first-version-scope.md) | Scope of the first version | Accepted; amended by 0017 | Decided |
@@ -29,6 +29,7 @@ One file per decision, numbered in the order they were made. The design itself i
 | [0023](0023-markdown-is-the-source.md) | Markdown is the source; HTML is only a visual a markdown document links | Accepted; amended by 0024 | Built |
 | [0024](0024-layout-markers.md) | Documents get their look from a few layout markers the app draws | Accepted | Built |
 | [0025](0025-skills-a-thread-loads.md) | Threads load Loom's own skills from a plugin in the checkout | Accepted | Built |
+| [0026](0026-shuttle-writes-through-the-api.md) | The Shuttle changes Loom only through its API | Accepted | Built |
 
 ## Adding one
 

@@ -155,3 +155,16 @@ test("telemetry logs writes with who made them, runs, and the dashboard's views,
   expect(log.some((e) => JSON.stringify(e).includes("skip Windows"))).toBe(false);
   expect(readFileSync(join(data, ".gitignore"), "utf8")).toContain("telemetry/");
 });
+
+test("without the owner's token, task changes are signed by the Shuttle, and config, automations and deletes are refused", async () => {
+  const p = await call("POST", "/projects", { name: "Signed" });
+  const t = await call("POST", `/projects/${p.slug}/tasks`, { title: "Draft", comment: "from the call" });
+  await call("PATCH", `/projects/${p.slug}/tasks/${t.id}`, { status: "done", comment: "shipped" });
+  const { timeline } = await call("GET", `/projects/${p.slug}/tasks/${t.id}`);
+  expect(timeline.map((e: any) => e.by)).toEqual(["shuttle", "shuttle", "shuttle", "shuttle"]);
+  for (const [method, path] of [["DELETE", `/projects/${p.slug}/tasks/${t.id}`], ["PUT", "/config"], ["POST", "/automations"]])
+    expect((await call(method!, path!, {})).error).toBe("only the owner can do that");
+  expect((await call("PUT", "/shuttle/notebook", { text: "Reply in bullets." })).ok).toBe(true);
+  expect(readFileSync(join(data, "SHUTTLE.md"), "utf8")).toBe("Reply in bullets.\n");
+  expect((await call("PUT", "/shuttle/notebook", { text: "x\n".repeat(41) })).error).toBe("the notebook is at most 40 lines");
+});
