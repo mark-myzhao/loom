@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import type { ProjectSnapshot, RunMeta, Task, TaskDetail, TimelineEvent } from "../../server/types";
+import type { Override, ProjectSnapshot, RunMeta, Task, TaskDetail, TimelineEvent } from "../../server/types";
 import { isClosed, PRIORITIES, TASK_STATUSES } from "../../server/types";
 import { ago, api, buildTree, day, descendants, enc, go, hashWith, isLive, onSubmitKey, stamp, STATUS_LABEL, taskHref, useApp, useData } from "../lib";
 import { DateInput, Select } from "../controls";
-import { editable, Empty, Markdown, Progress, RunRow, StatusChip, TaskRow } from "../ui";
+import { editable, Empty, Markdown, ModelPick, Progress, RunRow, StatusChip, TaskRow } from "../ui";
 import { ArtifactRows, ArtifactsHead } from "./Project";
 
 const AUTHOR: Record<string, string> = { me: "You", claude: "Claude", agent: "Agent", shuttle: "Shuttle" };
@@ -37,12 +37,13 @@ function Delegate({ p, task, runs }: { p: ProjectSnapshot; task: Task; runs: Run
   const [path, setPath] = useState(registered?.path ?? "");
   const [instructions, setInstructions] = useState("");
   const [worktree, setWorktree] = useState(snap.config.agent.useWorktree);
+  const [pick, setPick] = useState<Override>({});
   const live = runs.find((r) => r.kind === "task" && isLive(r));
   useEffect(() => {
     if (!path && registered) setPath(registered.path);
   }, [registered?.path]);
   const start = async () => {
-    const run = await act(() => api<RunMeta>("POST", `/projects/${enc(p.slug)}/tasks/${task.id}/delegate`, { repoPath: path, instructions, worktree }));
+    const run = await act(() => api<RunMeta>("POST", `/projects/${enc(p.slug)}/tasks/${task.id}/delegate`, { repoPath: path, instructions, worktree, ...pick }));
     if (run) {
       setInstructions("");
       openRun(run.id);
@@ -59,6 +60,9 @@ function Delegate({ p, task, runs }: { p: ProjectSnapshot; task: Task; runs: Run
       </label>
       <label>Purpose
         <textarea rows={3} value={instructions} placeholder="One line on what this Thread is for; constraints, whether to open a draft PR…" onChange={(e) => setInstructions(e.target.value)} />
+      </label>
+      <label>Model and effort
+        <span className="pick"><ModelPick model={snap.config.agent.model} pick={pick} onPick={setPick} /></span>
       </label>
       <label className="check"><input type="checkbox" checked={worktree} onChange={(e) => setWorktree(e.target.checked)} /> Separate git worktree</label>
       {live && <button className="wide live" onClick={() => openRun(live.id)}>Thread is working…</button>}

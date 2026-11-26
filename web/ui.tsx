@@ -330,33 +330,43 @@ export function KindBadge({ kind }: { kind: "md" | "html" }) {
 }
 
 /**
- * A chat box: the text grows with what is typed, Send sits inside it, and the model and effort for
- * the message sit below, showing the defaults until changed. A choice holds until it is changed back.
+ * The model and effort for a session, showing what the CLI will use until changed. A pick stays empty
+ * until made, so what is shown is the session's model, else the CLI's settings, else its documented
+ * defaults (Opus 5.5; medium effort on these models). An alias such as "fable" shows as the model it
+ * names. https://code.claude.com/docs/en/model-config
  */
-export function Composer({ label, placeholder, busy, model: defaultModel, onSend }: {
+export function ModelPick({ model: defaultModel, pick, onPick, className = "" }: {
+  model: string; pick: Override; onPick: (pick: Override) => void; className?: string;
+}) {
+  const { snap } = useApp();
+  const cli = snap.cliModel;
+  const model = pick.model || defaultModel || MODELS.find((m) => m.value === cli || m.label.toLowerCase().startsWith(`${cli} `))?.value || cli || "claude-opus-5-5";
+  const effort = pick.effort || snap.cliEffort[model] || snap.cliEffort[""] || "medium";
+  // A model the list does not name (an older id, say) still shows as the current choice.
+  const models = MODELS.some((m) => m.value === model) ? MODELS : [{ value: model }, ...MODELS];
+  return (
+    <>
+      <Select className={className} value={model} onChange={(m) => onPick({ ...pick, model: m })} aria-label="Model" options={models} />
+      <Select className={`${className} effort`} value={effort} onChange={(e) => onPick({ ...pick, effort: e })} aria-label="Effort"
+        options={EFFORTS.map((value) => ({ value, label: value[0]!.toUpperCase() + value.slice(1) }))} />
+    </>
+  );
+}
+
+/** A chat box: the text grows with what is typed, Send sits inside it, and the message's model and effort sit below. */
+export function Composer({ label, placeholder, busy, model, onSend }: {
   label: string; placeholder: string; busy?: boolean; model: string;
   onSend: (text: string, override: Override) => Promise<unknown>;
 }) {
-  const { snap } = useApp();
   const [text, setText] = useState("");
-  // Empty until picked, so what is shown is what the CLI will use: the session's model, else the CLI's
-  // settings, else its documented defaults (Opus 5.5; medium effort on these models). An alias such as
-  // "fable" shows as the model it names. https://code.claude.com/docs/en/model-config
-  const [model, setModel] = useState("");
-  const [effort, setEffort] = useState("");
-  const cli = snap.cliModel;
-  const shownModel = model || defaultModel || MODELS.find((m) => m.value === cli || m.label.toLowerCase().startsWith(`${cli} `))?.value || cli || "claude-opus-5-5";
-  const shownEffort = effort || snap.cliEffort[shownModel] || snap.cliEffort[""] || "medium";
+  const [pick, setPick] = useState<Override>({});
   const box = useRef<HTMLTextAreaElement>(null);
   useLayoutEffect(() => {
     box.current!.style.height = "auto";
     box.current!.style.height = `${box.current!.scrollHeight}px`;
   }, [text]);
-  // A model the list does not name (an older id, say) still shows as the current choice.
-  const models = MODELS.some((m) => m.value === shownModel) ? MODELS : [{ value: shownModel }, ...MODELS];
-  const efforts = EFFORTS.map((value) => ({ value, label: value[0]!.toUpperCase() + value.slice(1) }));
   const send = async () => {
-    if (text.trim() && !busy && (await onSend(text, { model, effort }))) setText("");
+    if (text.trim() && !busy && (await onSend(text, pick))) setText("");
   };
   return (
     <div className="composer">
@@ -365,8 +375,7 @@ export function Composer({ label, placeholder, busy, model: defaultModel, onSend
         <button className="primary" disabled={!text.trim() || busy} onClick={send}>Send</button>
       </div>
       <div className="composer-meta">
-        <Select className="inline-select" value={shownModel} onChange={setModel} aria-label="Model for this message" options={models} />
-        <Select className="inline-select effort" value={shownEffort} onChange={setEffort} aria-label="Effort for this message" options={efforts} />
+        <ModelPick className="inline-select" model={model} pick={pick} onPick={setPick} />
       </div>
     </div>
   );

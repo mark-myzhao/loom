@@ -476,6 +476,7 @@ a.row-title:hover { text-decoration: underline; text-decoration-color: var(--acc
 .delegate { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--rule); border-radius: 6px; }
 .delegate .label { color: var(--ink); }
 .delegate .select { width: 100%; }
+.delegate .pick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font: 400 14px var(--sans); }
 .delegate input:not([type="checkbox"]) { font: 12px var(--mono) !important; }
 .delegate textarea { font-size: 13px !important; }
 .delegate small { font-size: 12px; line-height: 1.5; color: var(--ink-2); }

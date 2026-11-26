@@ -272,7 +272,7 @@ async function generateArtifact(slug: string, textIn: unknown, taskIdIn?: unknow
   );
 }
 
-function delegate(slug: string, taskId: string, body: { repoPath?: unknown; instructions?: unknown; worktree?: unknown }): RunMeta {
+function delegate(slug: string, taskId: string, body: { repoPath?: unknown; instructions?: unknown; worktree?: unknown; model?: unknown; effort?: unknown }): RunMeta {
   const p = readableProject(slug);
   const tasks = store.listTasks(slug);
   const task = tasks.find((t) => t.id === taskId) ?? bad("no such task", 404);
@@ -281,6 +281,7 @@ function delegate(slug: string, taskId: string, body: { repoPath?: unknown; inst
   const wantWorktree = typeof body.worktree === "boolean" ? body.worktree : cfg.agent.useWorktree;
   const useWorktree = wantWorktree && existsSync(join(repoPath, ".git"));
   const instructions = typeof body.instructions === "string" ? body.instructions : undefined;
+  const override = { model: MODELS.find((m) => m.value === body.model)?.value, effort: EFFORTS.find((e) => e === body.effort) };
 
   const spec: RunSpec = {
     cwd: repoPath,
@@ -297,7 +298,7 @@ function delegate(slug: string, taskId: string, body: { repoPath?: unknown; inst
     siblings: task.parent ? tasks.filter((t) => t.parent === task.parent && t.id !== taskId) : [],
   });
   const purpose = instructions ? firstLine(instructions, 200) : undefined;
-  const run = startRun({ kind: "task", title: `${taskId}: ${task.title}`, project: slug, taskId, ...(purpose ? { purpose } : {}) }, spec, prompt);
+  const run = startRun({ kind: "task", title: `${taskId}: ${task.title}`, project: slug, taskId, ...(purpose ? { purpose } : {}) }, spec, prompt, undefined, override);
   const repo = p.repos.find((r) => r.path === repoPath);
   const patched = store.patchTask(slug, taskId, { status: "in-progress", run: run.id, ...(repo ? { repo: repo.name } : {}) }, "me");
   store.appendEvent(slug, taskId, { by: "me", type: "run", detail: `started in ${repo?.name ?? repoPath} · run ${run.id}` });
