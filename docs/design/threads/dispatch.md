@@ -43,3 +43,7 @@ Step 6 built the board in `board()` beside `talkToShuttle`, and the Shuttle's le
 - **A question is answered** by the owner's note to the task or to the Thread that asked, written after it.
 - **Actions:** Answer and Steer send a note; Send back sets `in-progress` and sends one; Continue sends the owner's note to carry on (resuming or starting the next Thread); Stop stops the run; Accept sets `done`; Drop moves the task to the trash; Start delegates with a one-line purpose, kept on the run record and shown on the Thread's card. Block and Unblock are in [Task status](states.md#as-built).
 - **Errands** (ingest, ask, documents) are not Threads and no longer show on Today; the Shuttle reports them.
+
+## Skills a Thread loads
+
+Every Thread is started with `--plugin-dir plugins/thread`, a Claude Code plugin in the Loom checkout loaded for that session only. It adds to the skills of the repository and of the owner's own setup, and it holds one skill today, `loom-thread:pr`: the [mattpocock/skills](https://github.com/mattpocock/skills) `pr` skill, copied unchanged with its licence, so a Thread's pull request has the same Summary, Evidence and Merge Danger sections as the owner's. The brief names it by its full name, because a bare `pr` does not resolve to a plugin's skill. A Thread still opens a pull request only when the owner's extra instructions ask for one. A new skill goes in `plugins/thread/skills/`; each one adds its description to every Thread's fixed context. See [ADR 0025](../../adr/0025-skills-a-thread-loads.md).

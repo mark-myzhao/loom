@@ -18,7 +18,7 @@ Designs live here, one subject per file. Decisions live in [`../adr`](../adr/REA
 | Shuttle | [shuttle/context.md](shuttle/context.md) | Rules R1 to R7 for the Shuttle's context, prompt cache and permissions, with the measurements |
 | | [shuttle/prior-art.md](shuttle/prior-art.md) | Where the rules come from, ideas left out, what three other systems publish |
 | Threads | [threads/context.md](threads/context.md) | Rules T1 to T7 for what a Thread reads; document size limits; markdown as the source, HTML only for visuals |
-| | [threads/dispatch.md](threads/dispatch.md) | Dispatch and the Threads board |
+| | [threads/dispatch.md](threads/dispatch.md) | Dispatch and the Threads board; the skills a Thread loads |
 | | [threads/states.md](threads/states.md) | Task status; blocked assigned with a comment or derived; waiting on a human or a task; Thread state; the board as a view |
 | | [threads/notes.md](threads/notes.md) | Notes to a running Thread; the owner's controls over work in flight |
 | Usage | [usage/tracking.md](usage/tracking.md) | How token usage is recorded, the Usage page, the retro report |

@@ -284,6 +284,7 @@ function delegate(slug: string, taskId: string, body: { repoPath?: unknown; inst
   const spec: RunSpec = {
     cwd: repoPath,
     addDirs: [store.projectDir(slug)],
+    pluginDirs: [join(import.meta.dir, "..", "plugins", "thread")],
     permissionMode: cfg.agent.permissionMode,
     allowedTools: cfg.agent.allowedTools,
     ...(cfg.agent.model ? { model: cfg.agent.model } : {}),

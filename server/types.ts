@@ -139,6 +139,8 @@ export interface RunSpec {
   disallowedTools?: string[];
   model?: string;
   addDirs?: string[];
+  /** Plugins loaded for this session only, such as the skills Loom gives every Thread. */
+  pluginDirs?: string[];
   worktree?: string;
   /** The prompt is a shell command to run, not instructions for Claude. */
   shell?: boolean;

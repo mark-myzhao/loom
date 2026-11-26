@@ -1,0 +1,1 @@
+Ported from [mattpocock/skills](https://github.com/mattpocock/skills) (`skills/engineering/pr`, v1.3.1, MIT, see `LICENSE`), unchanged, so a Thread's pull requests use the same description format as the owner's. Its Summary guidance comes from Dex Horthy's `show-me`; see `CREDITS.md`.

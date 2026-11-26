@@ -191,6 +191,7 @@ function buildArgs(meta: RunMeta, resume: boolean): string[] {
   if (s.model) args.push("--model", s.model);
   if (s.systemPrompt) args.push("--append-system-prompt", s.systemPrompt);
   for (const d of s.addDirs ?? []) args.push("--add-dir", d);
+  for (const d of s.pluginDirs ?? []) args.push("--plugin-dir", d);
   if (resume) args.push("--resume", meta.sessionId!);
   else {
     args.push("--name", `dash: ${meta.title.slice(0, 80)}`);
