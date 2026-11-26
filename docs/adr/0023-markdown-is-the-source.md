@@ -1,6 +1,6 @@
 # 0023. Markdown is the source; HTML is only a visual a markdown document links
 
-- Status: Accepted
+- Status: Accepted; amended by 0024
 - Date: 2026-11-24
 - Implementation: Built; HTML pages written before it are converted to markdown by hand, as project data
 - Design: [threads/context.md](../design/threads/context.md) (T6, T7)

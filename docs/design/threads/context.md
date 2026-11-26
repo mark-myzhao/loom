@@ -77,13 +77,14 @@ Change: four lines in `conventions.md`; a size check beside the existing memory 
 An HTML page costs an agent about twice its text: on this project's two pages, 51K and 64K characters of HTML held 30K and 37K of text. The first answer was a markdown rendering Loom would generate beside each page. Measured, it saved 24% to 41%, and it meant a converter and two copies of every page to keep in step. The owner chose the other way round ([ADR 0023](../../adr/0023-markdown-is-the-source.md)): write the markdown, and keep HTML for what markdown cannot draw.
 
 - **Facts live in markdown.** Every document an agent or the owner reads for its content is a markdown artifact. The app's markdown view is its template: title, origin, headings, tables and links look the same in every document, and none carries its own layout.
+- **A few markers give a document its look** ([ADR 0024](../../adr/0024-layout-markers.md)). The template draws a `## Summary` section as a box, `> [!note]`, `> [!decision]` and `> [!warning]` as callouts, a list between `::: cards` and `:::` as cards, a numbered `####` heading as a card, and `{small}`, `{medium}` and `{large}` as effort tags. Each costs an agent a few characters and reads as plain markdown where it is not drawn. `conventions.md` defines them for agents under "Layout markers"; there are no others.
 - **HTML is only a diagram or an interactive piece.** It is one self-contained file that holds no fact its markdown document lacks, so nothing is lost when an agent never sees it.
 - **The markdown document links it, and the app shows it there.** A link to an HTML artifact in a paragraph of its own (`[[t-007-flow.html]]`) is followed by the page itself, in the same sandboxed frame its own page gets: scripts run, in an opaque origin the API refuses. A link inside a sentence stays a link.
 - **The brief points only at markdown.** An HTML artifact is left out of the Documents list; the Thread meets it as a link in the markdown it reads. It keeps its card in `GRAPH.md`, where the link is an edge like any other.
 
 Not built: a check that a document opens with a Summary. The outline in the brief shows whether it does, and the conventions ask for it.
 
-*Change: one rule in `conventions.md`; the frame in `linkMentions` (`web/ui.tsx`); one line in `taskPrompt` that skips HTML. The project's one whole-page HTML artifact, T-001's research page, was rewritten as two markdown artifacts, `t-001-oss-research.md` and `t-001-oss-survey.md`.*
+*Change: one rule in `conventions.md`; the frame in `linkMentions` (`web/ui.tsx`); one line in `taskPrompt` that skips HTML. The markers: `drawBlocks` in `web/ui.tsx`, their styles under `.prose` in `web/styles.css`, and "Layout markers" in `conventions.md`. The project's one whole-page HTML artifact, T-001's research page, was rewritten as two markdown artifacts, `t-001-oss-research.md` and `t-001-oss-survey.md`.*
 
 ## What stays as it is
 

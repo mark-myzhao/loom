@@ -26,7 +26,8 @@ One file per decision, numbered in the order they were made. The design itself i
 | [0020](0020-task-status-and-derived-blocked.md) | Five task statuses, and blocked is assigned with a comment or derived | Accepted; amended by 0021 | Built |
 | [0021](0021-cancelled-task-status.md) | A sixth task status, cancelled | Accepted | Built |
 | [0022](0022-local-action-telemetry.md) | Owner and agent actions are logged locally, outside the snapshot history | Accepted | Built |
-| [0023](0023-markdown-is-the-source.md) | Markdown is the source; HTML is only a visual a markdown document links | Accepted | Built |
+| [0023](0023-markdown-is-the-source.md) | Markdown is the source; HTML is only a visual a markdown document links | Accepted; amended by 0024 | Built |
+| [0024](0024-layout-markers.md) | Documents get their look from a few layout markers the app draws | Accepted | Built |
 
 ## Adding one
 

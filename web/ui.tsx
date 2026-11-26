@@ -152,12 +152,55 @@ function linkMentions(root: HTMLElement, slug: string) {
   }
 }
 
+/** Wraps a heading and what follows it, up to the next heading matching `stop`, in a block. */
+function wrapSection(h: Element, stop: RegExp, className: string) {
+  const block = document.createElement("section");
+  block.className = className;
+  h.before(block);
+  for (let n: Element | null = h; n && (n === h || !stop.test(n.tagName)); ) {
+    const next: Element | null = n.nextElementSibling;
+    block.append(n);
+    n = next;
+  }
+}
+
+/** The document template's markers (defined for agents in server/conventions.md, "Layout markers"). */
+function drawBlocks(root: HTMLElement) {
+  root.querySelectorAll(":scope > h2").forEach((h) => {
+    if (h.textContent!.trim() === "Summary") wrapSection(h, /^H[12]$/, "summary");
+  });
+  root.querySelectorAll(":scope > h4").forEach((h) => {
+    if (/^\d+\.\s/.test(h.textContent!)) wrapSection(h, /^H[1-4]$/, "item-card");
+  });
+  root.querySelectorAll("blockquote").forEach((q) => {
+    const p = q.firstElementChild;
+    const m = p?.tagName === "P" ? /^\[!(note|decision|warning)\][ \t]*\n?/i.exec(p.innerHTML) : null;
+    if (!m) return;
+    p!.innerHTML = p!.innerHTML.slice(m[0].length);
+    if (!p!.textContent!.trim()) p!.remove();
+    q.className = `callout ${m[1]!.toLowerCase()}`;
+  });
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const nodes: Text[] = [];
+  while (walker.nextNode()) {
+    const n = walker.currentNode as Text;
+    if (/\{(small|medium|large)\}/.test(n.data) && !n.parentElement?.closest("pre, code")) nodes.push(n);
+  }
+  for (const node of nodes) {
+    const box = document.createElement("span");
+    box.innerHTML = node.data.replace(/[&<>]/g, (c) => `&#${c.charCodeAt(0)};`)
+      .replace(/\{(small|medium|large)\}/g, '<span class="effort $1">$1</span>');
+    node.replaceWith(...box.childNodes);
+  }
+}
+
 export function renderMarkdown(text: string, slug?: string): string {
-  const html = DOMPurify.sanitize(marked.parse(text, { gfm: true, async: false }) as string);
-  if (!slug) return html;
+  // `::: cards` … `:::` becomes a div the list inside renders into; the blank lines keep it markdown.
+  const md = text.replace(/^::: ?cards[ \t]*\n([\s\S]*?)\n:::[ \t]*$/gm, '<div class="cards">\n\n$1\n\n</div>');
   const box = document.createElement("div");
-  box.innerHTML = html;
-  linkMentions(box, slug);
+  box.innerHTML = DOMPurify.sanitize(marked.parse(md, { gfm: true, async: false }) as string);
+  drawBlocks(box);
+  if (slug) linkMentions(box, slug);
   return box.innerHTML;
 }
 

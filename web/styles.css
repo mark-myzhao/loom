@@ -410,6 +410,27 @@ a.row-title:hover { text-decoration: underline; text-decoration-color: var(--acc
 .prose a { text-decoration-color: var(--accent); }
 .prose img { max-width: 100%; }
 .prose hr { border: 0; border-top: 1px solid var(--rule); margin: 1.5em 0; }
+/* Layout markers (server/conventions.md): the template draws them, so documents carry no styling. */
+.prose .summary, .prose .callout { background: var(--card); border: 1px solid var(--rule); border-left: 4px solid var(--accent); border-radius: 6px; padding: 14px 18px; margin: 0 0 1.2em; color: var(--ink); }
+.prose .summary > h2 { font-size: 13px; font-family: var(--sans); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); margin: 0 0 0.5em; }
+.prose .callout.decision { border-left-color: var(--moss); }
+.prose .callout.warning { border-left-color: var(--amber); }
+.prose .callout::before { display: block; font: 600 11px/1.6 var(--sans); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); content: "Note"; }
+.prose .callout.decision::before { content: "Decision"; }
+.prose .callout.warning::before { content: "Warning"; }
+.prose .summary > :last-child, .prose .callout > :last-child, .prose .item-card > :last-child { margin-bottom: 0; }
+.prose .cards > ul { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.prose .cards li { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 10px 12px; margin: 0; font-size: 14px; }
+.prose .cards li > strong:first-child { display: block; margin-bottom: 2px; }
+/* A last card alone on its row takes the whole row. */
+.prose .cards li:last-child:nth-child(3n + 1) { grid-column: 1 / -1; }
+@media (max-width: 720px) { .prose .cards > ul { grid-template-columns: minmax(0, 1fr); } }
+.prose .item-card { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 12px 16px; margin: 0 0 0.85em; }
+.prose .item-card > h4 { margin-top: 0; }
+.prose .effort { display: inline-block; font: 600 11px/1.5 var(--sans); padding: 0 7px; border-radius: 10px; border: 1px solid currentColor; white-space: nowrap; vertical-align: 1px; letter-spacing: 0; }
+.prose .effort.small { color: var(--moss); }
+.prose .effort.medium { color: var(--amber); }
+.prose .effort.large { color: var(--bad); }
 
 /* ---------- task ---------- */
 

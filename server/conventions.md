@@ -207,6 +207,45 @@ Agents read documents one section at a time, so keep them small and sectioned:
   fact its markdown document lacks: agents are never shown it. Link it from that document in
   a paragraph of its own (`[[t-007-flow.html]]`) and the app shows it there, inline.
 
+### Layout markers
+
+A document carries no styling of its own. The app draws its look from plain markdown plus
+the markers below, and from nothing else: no HTML tags, no inline styles, no other markers
+or callout names. Each marker reads as ordinary text where it is not drawn, so use one only
+where it fits, never for decoration.
+
+| Write | The app draws | Use it for |
+| --- | --- | --- |
+| `## Summary` (exactly that heading, at level 2) | the section in a highlighted box | the opening summary every document has |
+| `> [!note]`, `> [!decision]` or `> [!warning]` as a quote's first line | a labelled box: note, decision (green), warning (amber) | one point the reader must not miss |
+| `::: cards`, then a list, then `:::`, each on its own line | each list item as a card, three to a row | three to six parallel things, each opening with a **bold name** |
+| `#### 1. Title`: a level-4 heading starting with a number and a dot | that heading and its text up to the next heading as one card | ranked recommendations, options, findings |
+| `{small}`, `{medium}` or `{large}` anywhere in text | an effort tag | the effort of a recommendation or task |
+
+Example:
+
+```markdown
+## Summary
+
+One paragraph of at most 120 words that stands on its own.
+
+> [!decision]
+> Keep markdown in git as the storage format.
+
+::: cards
+- **Agent boards** Dispatch coding agents; no memory.
+- **Notebooks** Remember everything; dispatch nothing.
+- **Loom** Does both, for one person.
+:::
+
+#### 1. Enforce "no push" with deny rules {small}
+
+What to do, then why.
+```
+
+A callout marker is lowercase and is the first line of the quote, alone. A card list holds
+only list items. Markers inside code are left as written.
+
 ## Memory
 
 Memory is what a newcomer to the project must know: roughly five to fifteen entries, one
