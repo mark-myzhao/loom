@@ -43,6 +43,9 @@ Step 6 built the board in `board()` beside `talkToShuttle`, and the Shuttle's le
 - **A question is answered** by the owner's note to the task or to the Thread that asked, written after it.
 - **Actions:** Answer and Steer send a note; Send back sets `in-progress` and sends one; Continue sends the owner's note to carry on (resuming or starting the next Thread); Stop stops the run; Accept sets `done`; Drop moves the task to the trash; Start delegates with a one-line purpose, kept on the run record and shown on the Thread's card. Block and Unblock are in [Task status](states.md#as-built).
 - **Ingest is the one errand left**: it is not a Thread, does not show on Today, and the Shuttle reports it. The ask and document errands are retired (ADR 0027); a question or a document is a task with a Thread.
+- **Start warns on a task waiting on another**: the task page names the open task and asks before starting, since such a Thread can only report the wait.
+- **An overloaded API gets one more try**: a run whose session ends on a 529, after Claude Code's own retries, is resumed once in the same run with a note to carry on; a second failure fails the run.
+- **A Thread in a worktree runs plain single commands**: its prompt asks for no `cd`, `&&`, `;` or `$(...)`, which Claude Code's worktree guard refuses.
 - **A Thread waiting on the owner reads "asks"**: while its question is unanswered, its pill on a task row and its run show "asks", not "done".
 
 ## Skills a Thread loads

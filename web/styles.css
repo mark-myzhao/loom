@@ -479,6 +479,7 @@ a.row-title:hover { text-decoration: underline; text-decoration-color: var(--acc
 .delegate input:not([type="checkbox"]) { font: 12px var(--mono) !important; }
 .delegate textarea { font-size: 13px !important; }
 .delegate small { font-size: 12px; line-height: 1.5; color: var(--ink-2); }
+.delegate small.warn { color: var(--amber); }
 .task-side > button.link { justify-self: start; }
 
 .linked-from { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; font-size: 14px; }

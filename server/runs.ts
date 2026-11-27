@@ -31,6 +31,8 @@ interface Active {
   input?: import("bun").FileSink;
   pending: string[];
   stopRequested?: boolean;
+  /** Carried on once after an overloaded API. */
+  retried?: boolean;
 }
 interface Job {
   id: string;
@@ -237,6 +239,7 @@ async function execute(a: Active, job: Job) {
 
   let stderr = "";
   let resultError = false;
+  let overloaded = false;
   let resultText: string | undefined;
   const readErr = (async () => {
     const dec = new TextDecoder();
@@ -266,6 +269,7 @@ async function execute(a: Active, job: Job) {
     } else if (line.type === "result") {
       if (typeof line.result === "string") meta.result = resultText = line.result;
       resultError = !!line.is_error;
+      overloaded = line.api_error_status === 529;
       meta.resultAt = nowIso();
       // The session ends once its input closes. A note already written is still read first.
       a.input?.end();
@@ -293,6 +297,13 @@ async function execute(a: Active, job: Job) {
   await readErr;
 
   if (a.stopRequested) return finish(a, "stopped");
+  // Claude Code has already retried the call by then; a session that still fails carries on once.
+  if (overloaded && meta.sessionId && !a.retried) {
+    a.retried = true;
+    const prompt = `Loom: ${nowIso()}\nThe API was overloaded; carry on from where you stopped.`;
+    emit(a, { type: "dash_user", text: prompt, time: nowIso() });
+    return execute(a, { ...job, prompt, resume: true });
+  }
   if (code !== 0 || resultError) {
     const error = stderr.trim().slice(-1500) || (resultError ? resultText : "") || `${shell ? "the command" : "claude"} exited with code ${code}`;
     return finish(a, "failed", error);

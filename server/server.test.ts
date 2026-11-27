@@ -9,7 +9,8 @@ const data = mkdtempSync(join(tmpdir(), "loom-test-"));
 const port = 4500 + Math.floor(Math.random() * 400);
 const base = `http://127.0.0.1:${port}/api`;
 // Answers each input message with a result, as Claude Code does with stream-json input, and logs
-// what it was sent. "SLOW" in a message holds the answer for a second; "MARK" sets the task to review.
+// what it was sent. "SLOW" in a message holds the answer for a second; "MARK" sets the task to review;
+// "OVERLOAD" answers with the API's 529.
 const fakeClaude = join(data, "fake-claude.sh");
 const sent = join(data, "fake-claude.log");
 const taskFile = join(data, "projects", "notes-demo", "tasks", "T-001.md");
@@ -19,6 +20,7 @@ while read -r line; do
   printf '%s\\n' "$line" >> "${sent}"
   case "$line" in *SLOW*) sleep 1;; esac
   case "$line" in *MARK*) sed -i.bak 's/^status: .*/status: review/' "${taskFile}";; esac
+  case "$line" in *OVERLOAD*) echo '{"type":"result","result":"API Error: 529 Overloaded.","is_error":true,"api_error_status":529}'; continue;; esac
   echo '{"type":"result","result":"Noted.","is_error":false}'
 done
 `);
@@ -180,4 +182,10 @@ test("without the owner's token, task changes are signed by the Shuttle, and con
   expect((await call("PUT", "/shuttle/notebook", { text: "Reply in bullets." })).ok).toBe(true);
   expect(readFileSync(join(data, "SHUTTLE.md"), "utf8")).toBe("Reply in bullets.\n");
   expect((await call("PUT", "/shuttle/notebook", { text: "x\n".repeat(41) })).error).toBe("the notebook is at most 40 lines");
+});
+
+test("a session the API overloads carries on once, in the same run", async () => {
+  const id = await say("OVERLOAD now");
+  expect((await call("GET", `/runs/${id}`)).status).toBe("done");
+  expect(readFileSync(sent, "utf8")).toContain("The API was overloaded; carry on from where you stopped.");
 });
