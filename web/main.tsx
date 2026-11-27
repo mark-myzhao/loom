@@ -19,10 +19,27 @@ const PAGES = [
   { route: "automations", label: "Automations", icon: "M6.5 14A10 10 0 0 1 24 8.5M24 3.5v5h-5M25.5 18A10 10 0 0 1 8 23.5M8 28.5v-5h5" },
   { route: "usage", label: "Usage", icon: "M6 27V18M13 27V10M20 27V14M27 27V5" },
 ];
+/** The rail's width in pixels: dragged between min and max, back to start on a double-click. */
+const RAIL = { min: 180, max: 420, start: 236 };
 
 function Rail({ snap, current, onSettings }: { snap: Snapshot; current: string[]; onSettings: () => void }) {
   const { act } = useApp();
   const [name, setName] = useState<string | null>(null);
+  // Hidden and width are kept per browser, so the rail stays as the owner left it.
+  const [width, setWidth] = useState(() => Number(localStorage.getItem("loom.railWidth")) || RAIL.start);
+  const [hidden, setHidden] = useState(() => localStorage.getItem("loom.railHidden") === "1");
+  useEffect(() => {
+    localStorage.setItem("loom.railWidth", String(width));
+    localStorage.setItem("loom.railHidden", hidden ? "1" : "");
+  }, [width, hidden]);
+  const resize = (w: number) => setWidth(Math.round(Math.min(RAIL.max, Math.max(RAIL.min, w))));
+  // The rail starts at the window's left edge, so the pointer's x is the new width.
+  const drag = (e: React.PointerEvent<HTMLDivElement>) => {
+    const grip = e.currentTarget;
+    grip.setPointerCapture(e.pointerId);
+    grip.onpointermove = (m) => resize(m.clientX);
+    grip.onpointerup = () => (grip.onpointermove = null);
+  };
   const open = snap.projects.filter((p) => p.status !== "done");
   const live = snap.runs.filter(isLive).length;
   const finished = snap.projects.filter((p) => p.status === "done");
@@ -45,8 +62,18 @@ function Rail({ snap, current, onSettings }: { snap: Snapshot; current: string[]
       </a>
     );
   };
+  const toggle = (
+    <button className="rail-toggle" onClick={() => setHidden(!hidden)} title={hidden ? "Show sidebar" : "Hide sidebar"} aria-label={hidden ? "Show sidebar" : "Hide sidebar"} aria-expanded={!hidden}>
+      <svg className="rail-icon" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 6h22v20H5zM13 6v20" /></svg>
+    </button>
+  );
+  if (hidden) return <nav className="rail hidden">{toggle}</nav>;
   return (
-    <nav className="rail">
+    <nav className="rail" style={{ "--rail-w": `${width}px` } as React.CSSProperties}>
+      {toggle}
+      <div className="rail-grip" role="separator" aria-orientation="vertical" aria-label="Resize sidebar" aria-valuenow={width} aria-valuemin={RAIL.min} aria-valuemax={RAIL.max} tabIndex={0}
+        onPointerDown={drag} onDoubleClick={() => setWidth(RAIL.start)}
+        onKeyDown={(e) => (e.key === "ArrowLeft" ? resize(width - 16) : e.key === "ArrowRight" && resize(width + 16))} />
       <a className="brand" href="#/" aria-label="Loom, Today"><Wordmark /></a>
       {PAGES.map(({ route, label, icon }) => (
         <a key={label} href={`#/${route}`} {...on(route ? current[0] === route : current.length === 0)}>
