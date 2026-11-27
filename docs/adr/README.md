@@ -18,7 +18,7 @@ One file per decision, numbered in the order they were made. The design itself i
 | [0012](0012-server-sets-note-author.md) | The server sets a note's author, and only the owner's note starts a session | Accepted | Built |
 | [0013](0013-broken-is-derived.md) | Broken is derived from the run, and blocked keeps its meaning | Accepted; amended by 0020 | Built |
 | [0014](0014-first-version-scope.md) | Scope of the first version | Accepted; amended by 0017 | Decided |
-| [0015](0015-only-the-owner-starts-a-thread.md) | Only the owner starts a Thread | Accepted | Built |
+| [0015](0015-only-the-owner-starts-a-thread.md) | Only the owner starts a Thread | Superseded by 0027 | Built |
 | [0016](0016-one-graph-derived-from-files.md) | One graph, derived from files | Accepted | Partly built |
 | [0017](0017-several-threads-weave-a-task.md) | Several Threads may weave one task | Accepted | Partly built |
 | [0018](0018-a-project-is-a-task.md) | A project is a task, and sources and repos are artifacts | Accepted | Partly built |
@@ -30,6 +30,7 @@ One file per decision, numbered in the order they were made. The design itself i
 | [0024](0024-layout-markers.md) | Documents get their look from a few layout markers the app draws | Accepted | Built |
 | [0025](0025-skills-a-thread-loads.md) | Threads load Loom's own skills from a plugin in the checkout | Accepted | Built |
 | [0026](0026-shuttle-writes-through-the-api.md) | The Shuttle changes Loom only through its API | Accepted | Built |
+| [0027](0027-shuttle-starts-a-thread-the-owner-asks-for.md) | The Shuttle starts a Thread the owner asks for, and hands work off only that way | Accepted | Built |
 
 ## Adding one
 

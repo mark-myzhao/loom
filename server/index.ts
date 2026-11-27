@@ -272,11 +272,13 @@ async function generateArtifact(slug: string, textIn: unknown, taskIdIn?: unknow
   );
 }
 
-function delegate(slug: string, taskId: string, body: { repoPath?: unknown; instructions?: unknown; worktree?: unknown; model?: unknown; effort?: unknown }): RunMeta {
+function delegate(slug: string, taskId: string, body: { repoPath?: unknown; instructions?: unknown; worktree?: unknown; model?: unknown; effort?: unknown }, by = "me"): RunMeta {
   const p = readableProject(slug);
   const tasks = store.listTasks(slug);
   const task = tasks.find((t) => t.id === taskId) ?? bad("no such task", 404);
-  const repoPath = store.checkRepoPath(body.repoPath);
+  // Without a path, the task's codebase as the board picks it; a project with none gets a document Thread in its directory.
+  const registered = p.repos.find((r) => r.name === task.repo) ?? p.repos[0];
+  const repoPath = store.checkRepoPath(body.repoPath ?? registered?.path ?? store.projectDir(slug));
   const cfg = store.loadConfig();
   const wantWorktree = typeof body.worktree === "boolean" ? body.worktree : cfg.agent.useWorktree;
   const useWorktree = wantWorktree && existsSync(join(repoPath, ".git"));
@@ -300,9 +302,9 @@ function delegate(slug: string, taskId: string, body: { repoPath?: unknown; inst
   const purpose = instructions ? firstLine(instructions, 200) : undefined;
   const run = startRun({ kind: "task", title: `${taskId}: ${task.title}`, project: slug, taskId, ...(purpose ? { purpose } : {}) }, spec, prompt, undefined, override);
   const repo = p.repos.find((r) => r.path === repoPath);
-  const patched = store.patchTask(slug, taskId, { status: "in-progress", run: run.id, ...(repo ? { repo: repo.name } : {}) }, "me");
-  store.appendEvent(slug, taskId, { by: "me", type: "run", detail: `started in ${repo?.name ?? repoPath} · run ${run.id}` });
-  // The owner's own change is already logged; keep it out of the run's diff.
+  const patched = store.patchTask(slug, taskId, { status: "in-progress", run: run.id, ...(repo ? { repo: repo.name } : {}) }, by);
+  store.appendEvent(slug, taskId, { by, type: "run", detail: `started in ${repo?.name ?? repoPath} · run ${run.id}` });
+  // The start is already logged; keep it out of the run's diff.
   baseline?.tasks.set(`${slug}/${taskId}`, {
     status: patched.status, priority: patched.priority, due: patched.due, title: patched.title, repo: patched.repo, parent: patched.parent,
   });
@@ -721,8 +723,11 @@ async function api(req: Request, url: URL): Promise<Response> {
       if (P("POST", "tasks", null, "note")) return json(note(slug, id, await readBody(req), isOwner(req)));
       if (P("POST", "tasks", null, "unblock")) return json(unblock(slug, id, (await readBody(req)).text, isOwner(req)));
       if (P("POST", "tasks", null, "delegate")) {
-        if (!isOwner(req)) bad("only the owner starts a Thread", 403);
-        return json(delegate(slug, id, await readBody(req)));
+        // Any other caller is taken for the Shuttle, which starts a Thread only while answering a message
+        // in which the owner asked for it (ADR 0027).
+        if (!isOwner(req) && getRun(store.loadState().shuttle ?? "")?.status !== "running")
+          bad("the Shuttle starts a Thread only while answering the owner", 403);
+        return json(delegate(slug, id, await readBody(req), by));
       }
     }
 

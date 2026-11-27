@@ -1,6 +1,6 @@
 # 0015. Only the owner starts a Thread
 
-- Status: Accepted
+- Status: Superseded by 0027
 - Date: 2026-11-23
 - Implementation: Built
 - Design: [shuttle/context.md](../design/shuttle/context.md)
