@@ -26,7 +26,7 @@ One function, `account` in `server/runs.ts`, reads a run's transcript when the r
 
 Claude Code prints a `result` line when a session stops, and its `modelUsage` and `total_cost_usd` are totals for the whole session, earlier resumes included. So an entry is the last total before the next message minus the total before it. Loom used to add `total_cost_usd` on every result line, which counted earlier work again: T-001 showed $72.34 and cost $10.33; T-009 showed $16.64 and cost $10.77.
 
-Records written before tracking existed are filled in from their transcripts when the server starts, once. A session that was killed before printing a result line has no usage entry for that stretch. Not verified: whether Claude Code then folds those tokens into the totals of the next resume, in which case they appear on the later entry.
+Records written before tracking existed are filled in from their transcripts when the server starts, once. A session that was killed before printing a result line has no usage entry for that stretch. Loom has no price list of its own, so an ended run with model calls and $0 shows its cost as unknown, not $0, and a run list's total counts such runs as unpriced; the Usage page leaves them out. Not verified: whether Claude Code then folds those tokens into the totals of the next resume, in which case they appear on the later entry.
 
 ## Reading it
 
