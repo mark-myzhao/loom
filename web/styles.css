@@ -231,7 +231,7 @@ button.pill:hover:not(:disabled) { background: var(--accent); border-color: var(
 .mark.thread-running path { stroke-dasharray: 5 3; animation: weave 1.2s linear infinite; }
 @keyframes weave { to { stroke-dashoffset: -16; } }
 @media (prefers-reduced-motion: reduce) { .mark.thread-running path { animation: none; } }
-.pill.state-asks, .pill.state-failed { color: var(--bad); }
+.pill.state-asks, .pill.run-asks, .pill.state-failed { color: var(--bad); }
 .pill.state-running, .pill.state-queued { color: var(--accent); }
 .pill.state-blocked, .pill.state-ended { color: var(--amber); }
 .pill.state-review { color: var(--slate); }
@@ -362,7 +362,6 @@ a.row-title:hover { text-decoration: underline; text-decoration-color: var(--acc
 
 .summary { font: 400 19px/1.45 var(--serif); max-width: 64ch; cursor: text; margin-bottom: 20px; }
 .summary-edit { font: 400 19px/1.45 var(--serif); margin-bottom: 20px; }
-.askbox { display: flex; gap: 8px; }
 .tabs { display: flex; gap: 26px; margin-top: 30px; border-bottom: 1px solid var(--rule); }
 .tabs a { padding: 8px 0; margin-bottom: -1px; text-decoration: none; font-size: 15px; font-weight: 500; color: var(--ink-2); border-bottom: 2px solid transparent; }
 .tabs a:hover { color: var(--ink); }

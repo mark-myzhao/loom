@@ -56,8 +56,12 @@ export function Prio({ p }: { p: Priority }) {
   return <span className={`prio prio-${p}`}>{p.toUpperCase()}</span>;
 }
 
+/** A Thread that ended on a question the owner has not answered reads "asks", not "done" (threads/states.md). */
+const runState = (board: BoardRow[], run: RunMeta) => (board.some((b) => b.state === "asks" && b.runId === run.id) ? "asks" : run.status);
+
 export function RunPill({ run }: { run: RunMeta }) {
-  return <span className={`pill run-${run.status}${isLive(run) ? " live" : ""}`}>{run.status}</span>;
+  const state = runState(useApp().snap.board, run);
+  return <span className={`pill run-${state}${isLive(run) ? " live" : ""}`}>{state}</span>;
 }
 
 /** Props for text that opens its editor on click, Enter or Space. Style it with `.editable`. */
@@ -257,7 +261,7 @@ export function TaskRow({ slug, task, tree, showProject }: { slug: string; task:
       <a className="row-title" href={taskHref(slug, task.id)}>{task.title}</a>
       <span className="row-meta">
         {run && (isLive(run) || task.status === "in-progress" || task.status === "review" || task.status === "blocked") && (
-          <span className={`pill run-${run.status}${isLive(run) ? " live" : ""}`}>Thread {isLive(run) ? "working" : run.status}</span>
+          <span className={`pill run-${runState(snap.board, run)}${isLive(run) ? " live" : ""}`}>Thread {isLive(run) ? "working" : runState(snap.board, run)}</span>
         )}
         {kids.length > 0 && <span title="Subtasks done or cancelled">⤷ {kids.filter((k) => isClosed(k.status)).length}/{kids.length}</span>}
         <Progress done={task.checked} total={task.total} title="Checklist" />
@@ -315,7 +319,7 @@ export function RunRow({ run, projectName }: { run: RunMeta; projectName?: strin
 
 export function RunList({ runs, withProject }: { runs: RunMeta[]; withProject?: boolean }) {
   const { snap } = useApp();
-  if (!runs.length) return <Empty>No runs yet. Drops, automations, questions and delegated tasks will appear here.</Empty>;
+  if (!runs.length) return <Empty>No runs yet. Drops, automations and Threads will appear here.</Empty>;
   const names = new Map(snap.projects.map((p) => [p.slug, p.name]));
   return (
     <>

@@ -11,8 +11,9 @@ test("the Shuttle's system prompt does not change between messages", () => {
   expect(first).not.toContain("2026-11-24");
 });
 
-test("the Shuttle may call no config, automation, delegate or state route", () => {
-  for (const [, , path] of SHUTTLE_ROUTES) expect(path).not.toMatch(/config|automations|delegate|\/api\/state/);
+test("the Shuttle may call no config, automation, state, ask or generate route", () => {
+  for (const [, , path] of SHUTTLE_ROUTES) expect(path).not.toMatch(/config|automations|\/api\/state|\/ask|\/generate/);
   const prompt = shuttlePrompt(DEFAULT_CONFIG, "http://127.0.0.1:4400");
-  expect(prompt).not.toMatch(/\/delegate|\/automations|\/api\/state/);
+  expect(prompt).not.toMatch(/\/automations|\/api\/state|\/ask|\/generate/);
+  expect(prompt).toContain("/tasks/<T-nnn>/delegate");
 });

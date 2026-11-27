@@ -129,6 +129,7 @@ export interface Automation {
   enabled: boolean;
 }
 
+// "ask" and "artifact" runs are no longer started (ADR 0027); their old records still load.
 export type RunKind = "automation" | "ingest" | "ask" | "artifact" | "task" | "shuttle";
 export type RunStatus = "queued" | "running" | "done" | "failed" | "stopped" | "interrupted";
 

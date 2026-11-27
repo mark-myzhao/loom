@@ -94,7 +94,7 @@ test("a note reaches a running Thread; only the owner's note wakes an ended one"
   const tasks = `/projects/${p.slug}/tasks/T-001`;
   expect((await call("GET", `/projects/${p.slug}/tasks/T-000`)).children.map((t: any) => t.id)).toEqual(["T-001"]);
 
-  expect((await call("POST", `${tasks}/delegate`, { repoPath: repo })).error).toBe("only the owner starts a Thread");
+  expect((await call("POST", `${tasks}/delegate`, { repoPath: repo })).error).toBe("the Shuttle starts a Thread only while answering the owner");
   const browser = await fetch(`${base}/owner`, { headers: { "Sec-Fetch-Site": "same-origin" } });
   const { token } = (await browser.json()) as any;
   expect((await fetch(`${base}/owner`)).status).toBe(403);
@@ -154,6 +154,19 @@ test("telemetry logs writes with who made them, runs, and the dashboard's views,
   expect(log).toContainEqual(expect.objectContaining({ ev: "run.end", kind: "task", taskId: "T-001", status: "done" }));
   expect(log.some((e) => JSON.stringify(e).includes("skip Windows"))).toBe(false);
   expect(readFileSync(join(data, ".gitignore"), "utf8")).toContain("telemetry/");
+});
+
+test("while answering the owner, the Shuttle starts a Thread, signed by it, in the project's directory when it has no codebase", async () => {
+  const p = await call("POST", "/projects", { name: "Survey" });
+  const t = await call("POST", `/projects/${p.slug}/tasks`, { title: "Survey base models" });
+  const shuttle = await call("POST", "/shuttle", { text: "SLOW start a Thread on the survey" });
+  await until(shuttle.id, "running");
+  const run = await call("POST", `/projects/${p.slug}/tasks/${t.id}/delegate`, { instructions: "survey" });
+  expect(run.spec.cwd).toBe(join(data, "projects", p.slug));
+  await until(run.id, "done");
+  await until(shuttle.id, "done");
+  const { timeline } = await call("GET", `/projects/${p.slug}/tasks/${t.id}`);
+  expect(timeline.find((e: any) => e.type === "run" && e.detail.startsWith("started"))?.by).toBe("shuttle");
 });
 
 test("without the owner's token, task changes are signed by the Shuttle, and config, automations and deletes are refused", async () => {

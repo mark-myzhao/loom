@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { Artifact, ArtifactDetail, MemoryEntry, ProjectSnapshot, RunMeta, Source, Task } from "../../server/types";
+import type { Artifact, ArtifactDetail, MemoryEntry, ProjectSnapshot, Source, Task } from "../../server/types";
 import { isClosed, PROJECT_STATUSES } from "../../server/types";
 import { ago, api, docHref, enc, go, onSubmitKey, taskHref, useApp, useData, useRoute } from "../lib";
 import { Select } from "../controls";
@@ -10,21 +10,12 @@ const TABS = ["tasks", "graph", "artifacts", "memory", "context", "activity"] as
 type Tab = (typeof TABS)[number];
 
 export function ProjectPage({ project: p, tab }: { project: ProjectSnapshot; tab: string }) {
-  const { snap, act, openRun } = useApp();
+  const { snap, act } = useApp();
   const base = `/projects/${enc(p.slug)}`;
   const current: Tab = (TABS as readonly string[]).includes(tab) ? (tab as Tab) : "tasks";
   const runs = snap.runs.filter((r) => r.project === p.slug);
-  const [question, setQuestion] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
 
-  const ask = async () => {
-    if (!question.trim()) return;
-    const run = await act(() => api<RunMeta>("POST", `${base}/ask`, { text: question }));
-    if (run) {
-      setQuestion("");
-      openRun(run.id);
-    }
-  };
   const saveSummary = async () => {
     if (editing !== null && editing !== p.summary) await act(() => api("PATCH", base, { summary: editing }));
     setEditing(null);
@@ -65,14 +56,6 @@ export function ProjectPage({ project: p, tab }: { project: ProjectSnapshot; tab
           </span>
         </p>
       )}
-
-      <div className="askbox">
-        <input
-          value={question} aria-label={`Ask Claude about ${p.name}`} placeholder={`Ask Claude about ${p.name}, or tell it what to update…`}
-          onChange={(e) => setQuestion(e.target.value)} onKeyDown={(e) => e.key === "Enter" && ask()}
-        />
-        <button className="primary" disabled={!question.trim()} onClick={ask}>Ask</button>
-      </div>
 
       <nav className="tabs">
         {TABS.map((t) => (
@@ -146,21 +129,12 @@ export function ArtifactRows({ slug, items, inherited }: { slug: string; items: 
   );
 }
 
-/** The section heading with its three ways to add one: ask Claude (or import links), write a blank document, upload a file. */
+/** The section heading with its two ways to add one: write a blank document, or upload a file. A Thread on the task writes the rest. */
 export function ArtifactsHead({ slug, taskId, count }: { slug: string; taskId?: string; count?: number }) {
-  const { act, toast, openRun } = useApp();
+  const { act, toast } = useApp();
   const file = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState<string | null>(null);
-  const [request, setRequest] = useState<string | null>(null);
   const base = `/projects/${enc(slug)}/artifacts`;
-  const generate = async () => {
-    if (!request?.trim()) return;
-    const run = await act(() => api<RunMeta>("POST", `${base}/generate`, { text: request, taskId }));
-    if (run) {
-      setRequest(null);
-      openRun(run.id);
-    }
-  };
   const upload = async (f?: File) => {
     if (!f) return;
     if (!/\.(md|html?)$/i.test(f.name)) return toast("Upload a .md or .html file.");
@@ -177,7 +151,6 @@ export function ArtifactsHead({ slug, taskId, count }: { slug: string; taskId?: 
       <div className="section-head">
         <h3 className="label">Artifacts{count ? <span className="count">{count}</span> : null}</h3>
         <span className="btn-row">
-          <button className="link" onClick={() => setRequest(request === null ? "" : null)}>Have Claude write one</button>
           {title === null ? (
             <button className="link" onClick={() => setTitle("")}>New document</button>
           ) : (
@@ -187,16 +160,6 @@ export function ArtifactsHead({ slug, taskId, count }: { slug: string; taskId?: 
           <input ref={file} type="file" accept=".md,.html,.htm,text/markdown,text/html" hidden onChange={(e) => (upload(e.target.files?.[0]), (e.target.value = ""))} />
         </span>
       </div>
-      {request !== null && (
-        <div className="compose boxed">
-          <textarea
-            autoFocus rows={2} value={request} onChange={(e) => setRequest(e.target.value)}
-            onKeyDown={(e) => (e.key === "Escape" ? setRequest(null) : onSubmitKey(generate)(e))}
-            placeholder={taskId ? `Describe a document for ${taskId}, or paste a link to import…` : "Describe a document to write, or paste a link to import…"}
-          />
-          <button className="primary" disabled={!request.trim()} onClick={generate}>Hand to Claude</button>
-        </div>
-      )}
     </>
   );
 }
@@ -206,7 +169,7 @@ function ArtifactsTab({ slug }: { slug: string }) {
   return (
     <>
       <ArtifactsHead slug={slug} count={data?.length} />
-      {data && (data.length ? <ArtifactRows slug={slug} items={data} /> : <Empty>No artifacts yet. Ask Claude for one, upload a file, or write one. Anything too long for a task belongs here.</Empty>)}
+      {data && (data.length ? <ArtifactRows slug={slug} items={data} /> : <Empty>No artifacts yet. Write one, upload a file, or start a Thread on a task to write one. Anything too long for a task belongs here.</Empty>)}
     </>
   );
 }

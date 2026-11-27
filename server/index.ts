@@ -5,7 +5,7 @@ import { homedir } from "node:os";
 import { join, sep } from "node:path";
 import index from "../web/index.html";
 import { initBackup, pushIfDue, scheduleBackup } from "./backup";
-import { artifactPrompt, askPrompt, automationPrompt, ingestPrompt, SHUTTLE_ROUTES, shuttlePrompt, taskPrompt } from "./prompts";
+import { automationPrompt, ingestPrompt, SHUTTLE_ROUTES, shuttlePrompt, taskPrompt } from "./prompts";
 import { findLiveRun, getRun, hasLiveRuns, initRuns, listRuns, noteText, readTranscript, sendMessage, sendNote, startRun, stopRun, subscribe, type RunInit } from "./runs";
 import * as store from "./store";
 import { DATA, HttpError } from "./store";
@@ -248,35 +248,13 @@ async function ingest(textIn: unknown, slugIn?: unknown): Promise<RunMeta> {
   );
 }
 
-async function ask(slug: string, textIn: unknown): Promise<RunMeta> {
-  const text = needText(textIn);
-  readableProject(slug);
-  const cfg = store.loadConfig();
-  const p = readableProject(slug);
-  return startRun({ kind: "ask", title: firstLine(text, 70), project: slug }, readerSpec(cfg, store.projectDir(slug)), askPrompt(cfg, p, text));
-}
-
-async function generateArtifact(slug: string, textIn: unknown, taskIdIn?: unknown): Promise<RunMeta> {
-  const text = needText(textIn);
-  readableProject(slug);
-  const taskId = taskIdIn ? store.checkTaskId(taskIdIn) : undefined;
-  if (taskId && !store.readTask(slug, taskId)) bad(`task ${taskId} does not exist`);
-  const cfg = store.loadConfig();
-  const p = readableProject(slug);
-  const tasks = store.listTasks(slug);
-  const task = taskId ? tasks.find((t) => t.id === taskId) : undefined;
-  return startRun(
-    { kind: "artifact", title: `Document: ${firstLine(text, 60)}`, project: slug, ...(task ? { taskId: task.id } : {}) },
-    readerSpec(cfg, store.projectDir(slug)),
-    artifactPrompt(cfg, p, text, task, task ? store.ancestorsOf(tasks, task.id) : []),
-  );
-}
-
-function delegate(slug: string, taskId: string, body: { repoPath?: unknown; instructions?: unknown; worktree?: unknown; model?: unknown; effort?: unknown }): RunMeta {
+function delegate(slug: string, taskId: string, body: { repoPath?: unknown; instructions?: unknown; worktree?: unknown; model?: unknown; effort?: unknown }, by = "me"): RunMeta {
   const p = readableProject(slug);
   const tasks = store.listTasks(slug);
   const task = tasks.find((t) => t.id === taskId) ?? bad("no such task", 404);
-  const repoPath = store.checkRepoPath(body.repoPath);
+  // Without a path, the task's codebase as the board picks it; a project with none gets a document Thread in its directory.
+  const registered = p.repos.find((r) => r.name === task.repo) ?? p.repos[0];
+  const repoPath = store.checkRepoPath(body.repoPath ?? registered?.path ?? store.projectDir(slug));
   const cfg = store.loadConfig();
   const wantWorktree = typeof body.worktree === "boolean" ? body.worktree : cfg.agent.useWorktree;
   const useWorktree = wantWorktree && existsSync(join(repoPath, ".git"));
@@ -300,9 +278,9 @@ function delegate(slug: string, taskId: string, body: { repoPath?: unknown; inst
   const purpose = instructions ? firstLine(instructions, 200) : undefined;
   const run = startRun({ kind: "task", title: `${taskId}: ${task.title}`, project: slug, taskId, ...(purpose ? { purpose } : {}) }, spec, prompt, undefined, override);
   const repo = p.repos.find((r) => r.path === repoPath);
-  const patched = store.patchTask(slug, taskId, { status: "in-progress", run: run.id, ...(repo ? { repo: repo.name } : {}) }, "me");
-  store.appendEvent(slug, taskId, { by: "me", type: "run", detail: `started in ${repo?.name ?? repoPath} · run ${run.id}` });
-  // The owner's own change is already logged; keep it out of the run's diff.
+  const patched = store.patchTask(slug, taskId, { status: "in-progress", run: run.id, ...(repo ? { repo: repo.name } : {}) }, by);
+  store.appendEvent(slug, taskId, { by, type: "run", detail: `started in ${repo?.name ?? repoPath} · run ${run.id}` });
+  // The start is already logged; keep it out of the run's diff.
   baseline?.tasks.set(`${slug}/${taskId}`, {
     status: patched.status, priority: patched.priority, due: patched.due, title: patched.title, repo: patched.repo, parent: patched.parent,
   });
@@ -685,7 +663,6 @@ async function api(req: Request, url: URL): Promise<Response> {
     if (P("PATCH")) return json(store.patchProject(slug, await readBody(req)));
     if (P("DELETE")) return store.deleteProject(slug), json({ ok: true });
     if (P("GET", "graph")) return json(store.projectGraph(slug));
-    if (P("POST", "ask")) return json(await ask(slug, (await readBody(req)).text));
 
     if (P("POST", "sources")) {
       const b = await readBody(req);
@@ -721,17 +698,16 @@ async function api(req: Request, url: URL): Promise<Response> {
       if (P("POST", "tasks", null, "note")) return json(note(slug, id, await readBody(req), isOwner(req)));
       if (P("POST", "tasks", null, "unblock")) return json(unblock(slug, id, (await readBody(req)).text, isOwner(req)));
       if (P("POST", "tasks", null, "delegate")) {
-        if (!isOwner(req)) bad("only the owner starts a Thread", 403);
-        return json(delegate(slug, id, await readBody(req)));
+        // Any other caller is taken for the Shuttle, which starts a Thread only while answering a message
+        // in which the owner asked for it (ADR 0027).
+        if (!isOwner(req) && getRun(store.loadState().shuttle ?? "")?.status !== "running")
+          bad("the Shuttle starts a Thread only while answering the owner", 403);
+        return json(delegate(slug, id, await readBody(req), by));
       }
     }
 
     if (P("GET", "artifacts")) return json(store.listArtifacts(slug));
     if (P("POST", "artifacts")) return json(store.createArtifact(slug, await readBody(req)));
-    if (P("POST", "artifacts", "generate")) {
-      const b = await readBody(req);
-      return json(await generateArtifact(slug, b.text, b.taskId));
-    }
     if (P("GET", "artifacts", null)) return json(store.readArtifact(slug, seg[3]!));
     if (P("PUT", "artifacts", null)) return json(store.writeArtifact(slug, seg[3]!, (await readBody(req)).content));
     if (P("DELETE", "artifacts", null)) return store.deleteArtifact(slug, seg[3]!), json({ ok: true });
