@@ -31,6 +31,7 @@ One file per decision, numbered in the order they were made. The design itself i
 | [0025](0025-skills-a-thread-loads.md) | Threads load Loom's own skills from a plugin in the checkout | Accepted | Built |
 | [0026](0026-shuttle-writes-through-the-api.md) | The Shuttle changes Loom only through its API | Accepted | Built |
 | [0027](0027-shuttle-starts-a-thread-the-owner-asks-for.md) | The Shuttle starts a Thread the owner asks for, and the ask and generate errands retire | Accepted | Built |
+| [0028](0028-a-thread-opens-a-pull-request.md) | A Thread opens a pull request when its work is ready | Accepted | Built |
 
 ## Adding one
 
