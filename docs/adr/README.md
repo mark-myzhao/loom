@@ -30,7 +30,7 @@ One file per decision, numbered in the order they were made. The design itself i
 | [0024](0024-layout-markers.md) | Documents get their look from a few layout markers the app draws | Accepted | Built |
 | [0025](0025-skills-a-thread-loads.md) | Threads load Loom's own skills from a plugin in the checkout | Accepted | Built |
 | [0026](0026-shuttle-writes-through-the-api.md) | The Shuttle changes Loom only through its API | Accepted | Built |
-| [0027](0027-shuttle-starts-a-thread-the-owner-asks-for.md) | The Shuttle starts a Thread the owner asks for, and hands work off only that way | Accepted | Built |
+| [0027](0027-shuttle-starts-a-thread-the-owner-asks-for.md) | The Shuttle starts a Thread the owner asks for, and the ask and generate errands retire | Accepted | Built |
 
 ## Adding one
 

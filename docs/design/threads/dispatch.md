@@ -42,7 +42,8 @@ Step 6 built the board in `board()` beside `talkToShuttle`, and the Shuttle's le
 
 - **A question is answered** by the owner's note to the task or to the Thread that asked, written after it.
 - **Actions:** Answer and Steer send a note; Send back sets `in-progress` and sends one; Continue sends the owner's note to carry on (resuming or starting the next Thread); Stop stops the run; Accept sets `done`; Drop moves the task to the trash; Start delegates with a one-line purpose, kept on the run record and shown on the Thread's card. Block and Unblock are in [Task status](states.md#as-built).
-- **Errands** (ingest, ask, documents) are not Threads and no longer show on Today. Of them the Shuttle starts only ingest and reports it; ask and documents are the dashboard's.
+- **Ingest is the one errand left**: it is not a Thread, does not show on Today, and the Shuttle reports it. The ask and document errands are retired (ADR 0027); a question or a document is a task with a Thread.
+- **A Thread waiting on the owner reads "asks"**: while its question is unanswered, its pill on a task row and its run show "asks", not "done".
 
 ## Skills a Thread loads
 

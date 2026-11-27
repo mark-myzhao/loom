@@ -5,7 +5,7 @@ import { homedir } from "node:os";
 import { join, sep } from "node:path";
 import index from "../web/index.html";
 import { initBackup, pushIfDue, scheduleBackup } from "./backup";
-import { artifactPrompt, askPrompt, automationPrompt, ingestPrompt, SHUTTLE_ROUTES, shuttlePrompt, taskPrompt } from "./prompts";
+import { automationPrompt, ingestPrompt, SHUTTLE_ROUTES, shuttlePrompt, taskPrompt } from "./prompts";
 import { findLiveRun, getRun, hasLiveRuns, initRuns, listRuns, noteText, readTranscript, sendMessage, sendNote, startRun, stopRun, subscribe, type RunInit } from "./runs";
 import * as store from "./store";
 import { DATA, HttpError } from "./store";
@@ -245,30 +245,6 @@ async function ingest(textIn: unknown, slugIn?: unknown): Promise<RunMeta> {
     (m) => {
       if (m.status === "done") store.archiveInbox(file);
     },
-  );
-}
-
-async function ask(slug: string, textIn: unknown): Promise<RunMeta> {
-  const text = needText(textIn);
-  readableProject(slug);
-  const cfg = store.loadConfig();
-  const p = readableProject(slug);
-  return startRun({ kind: "ask", title: firstLine(text, 70), project: slug }, readerSpec(cfg, store.projectDir(slug)), askPrompt(cfg, p, text));
-}
-
-async function generateArtifact(slug: string, textIn: unknown, taskIdIn?: unknown): Promise<RunMeta> {
-  const text = needText(textIn);
-  readableProject(slug);
-  const taskId = taskIdIn ? store.checkTaskId(taskIdIn) : undefined;
-  if (taskId && !store.readTask(slug, taskId)) bad(`task ${taskId} does not exist`);
-  const cfg = store.loadConfig();
-  const p = readableProject(slug);
-  const tasks = store.listTasks(slug);
-  const task = taskId ? tasks.find((t) => t.id === taskId) : undefined;
-  return startRun(
-    { kind: "artifact", title: `Document: ${firstLine(text, 60)}`, project: slug, ...(task ? { taskId: task.id } : {}) },
-    readerSpec(cfg, store.projectDir(slug)),
-    artifactPrompt(cfg, p, text, task, task ? store.ancestorsOf(tasks, task.id) : []),
   );
 }
 
@@ -687,7 +663,6 @@ async function api(req: Request, url: URL): Promise<Response> {
     if (P("PATCH")) return json(store.patchProject(slug, await readBody(req)));
     if (P("DELETE")) return store.deleteProject(slug), json({ ok: true });
     if (P("GET", "graph")) return json(store.projectGraph(slug));
-    if (P("POST", "ask")) return json(await ask(slug, (await readBody(req)).text));
 
     if (P("POST", "sources")) {
       const b = await readBody(req);
@@ -733,10 +708,6 @@ async function api(req: Request, url: URL): Promise<Response> {
 
     if (P("GET", "artifacts")) return json(store.listArtifacts(slug));
     if (P("POST", "artifacts")) return json(store.createArtifact(slug, await readBody(req)));
-    if (P("POST", "artifacts", "generate")) {
-      const b = await readBody(req);
-      return json(await generateArtifact(slug, b.text, b.taskId));
-    }
     if (P("GET", "artifacts", null)) return json(store.readArtifact(slug, seg[3]!));
     if (P("PUT", "artifacts", null)) return json(store.writeArtifact(slug, seg[3]!, (await readBody(req)).content));
     if (P("DELETE", "artifacts", null)) return store.deleteArtifact(slug, seg[3]!), json({ ok: true });

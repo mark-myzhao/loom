@@ -69,50 +69,6 @@ ${fetching(cfg)}
 ${WRAP_UP} Start the summary with the project name(s) you filed this under.`;
 }
 
-export function askPrompt(cfg: Config, p: Project, text: string): string {
-  return `You are working inside one project of the owner's personal dashboard. ${opening()} ${owner(cfg)}
-
-Your working directory is this project's data directory (${projectDir(p.slug)}): tasks/ (T-000 is the project itself), memory/, artifacts/. The file formats are defined in ${DATA}/CLAUDE.md; follow them exactly whenever you change a file. Read memory/MEMORY.md and the tasks before answering; open memory entries and artifacts as the question needs.
-
-${fetching(cfg)}
-
-The owner asks:
-${text}
-
-Answer directly. If the request implies changes to memory or tasks, make them and say which files you changed.`;
-}
-
-const ref = (slug: string, t: Task) => `${t.id} ("${t.title}", ${taskFile(slug, t.id)})`;
-
-/** `ancestors` is nearest first. */
-export function artifactPrompt(cfg: Config, p: Project, text: string, task?: Task, ancestors: Task[] = []): string {
-  let forTask = "";
-  if (task) {
-    const lower = task.id.toLowerCase();
-    forTask = `This document is for task ${ref(p.slug, task)}: read the task first, name the file ${lower}-<subject>, and mark it with "task: ${task.id}".`;
-    if (ancestors.length) {
-      const chain = ancestors.map((a) => ref(p.slug, a)).join(", which is part of ");
-      const shared = ancestors.length > 1 ? "those tasks and their artifacts" : "the parent and its artifacts";
-      forTask += ` It is a subtask of ${chain}: read ${shared} for the shared background, and write only what is specific to ${task.id}.`;
-    }
-    forTask += "\n\n";
-  }
-  return `You are adding a document to one project of the owner's personal dashboard. ${opening()} ${owner(cfg)}
-
-Your working directory is this project's data directory (${projectDir(p.slug)}). Documents live in artifacts/; their format is defined under "Artifacts" in ${DATA}/CLAUDE.md. Follow it exactly.
-
-${forTask}The owner's request:
-${text}
-
-- If the request is a link (or links) to import: fetch each one and save a faithful copy as artifacts/<name>.md with origin "imported" and the url as source. Keep headings, lists, tables and wording; do not summarise or editorialise.
-- If the request asks you to write something: read memory/MEMORY.md, the entries that matter and tasks/ first, fetch any sources you need, and write the document with origin "generated". Write markdown. If it needs a diagram or an interactive piece, put only that in one self-contained .html file and link it from the markdown in a paragraph of its own.
-- Leave memory and tasks as they are.
-
-${fetching(cfg)}
-
-Finish with one or two sentences: the file name(s) you created and anything you could not access.`;
-}
-
 export interface TaskPromptInput {
   project: Project;
   task: Task;
@@ -253,8 +209,8 @@ End your final message with the same report.`;
 }
 
 /**
- * The Loom API routes the Shuttle may call, and nothing else: no config, no automations, and no ask or
- * generated document, since work it hands off goes to a Thread on a task (ADR 0027). It changes files only through these, and
+ * The Loom API routes the Shuttle may call, and nothing else: no config and no automations. Work it
+ * hands off goes to a Thread on a task (ADR 0027). It changes files only through these, and
  * the server signs its task changes "shuttle" (ADR 0026). Its notes are labelled an agent's.
  */
 export const SHUTTLE_ROUTES = [
