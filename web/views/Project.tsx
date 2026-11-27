@@ -111,8 +111,8 @@ const ORIGIN: Record<string, { text: string; className: string }> = {
   repo: { text: "Codebase", className: " by-import" },
 };
 
-/** `depth` indents a document under the one that links to it. The star pins it to the top of the Artifacts tab. */
-export function ArtifactRows({ slug, items, inherited, depth }: { slug: string; items: Artifact[]; inherited?: string; depth?: Map<string, number> }) {
+/** With `fold`, a document is indented under the one that links to it, which shows or hides those under it. The star pins it to the top of the Artifacts tab. */
+export function ArtifactRows({ slug, items, inherited, fold }: { slug: string; items: Artifact[]; inherited?: string; fold?: { depth: Map<string, number>; kids: Map<string, number>; open: Set<string>; toggle: (key: string) => void } }) {
   const { act } = useApp();
   const pin = (e: React.MouseEvent, a: Artifact) => {
     e.preventDefault();
@@ -121,9 +121,12 @@ export function ArtifactRows({ slug, items, inherited, depth }: { slug: string; 
   return (
     <>
       {items.map((a) => (
-        <a key={a.name} className="row doc-row" style={{ paddingLeft: 2 + 30 * (depth?.get(a.name) ?? 0) }} href={docHref(slug, a.name)}>
+        <a key={a.name} className="row doc-row" style={{ paddingLeft: 2 + 30 * (fold?.depth.get(a.name) ?? 0) }} href={docHref(slug, a.name)}>
           <KindBadge kind={a.kind} />
           <span className="row-title">{a.title}</span>
+          {fold?.kids.has(a.name) && (
+            <button className="link fold" aria-expanded={fold.open.has(a.name)} onClick={(e) => (e.preventDefault(), fold.toggle(a.name))}>{fold.open.has(a.name) ? "▾" : "▸"} {fold.kids.get(a.name)} linked</button>
+          )}
           <span className="id">{a.name}</span>
           <span className="row-meta">
             {a.over && <span className="memory-over" title={`Over length: ${a.over}.`}>Over length</span>}
@@ -176,31 +179,40 @@ export function ArtifactsHead({ slug, taskId, count }: { slug: string; taskId?: 
 /**
  * Orders one task's documents as an outline: a document sits under the one that links to it. Pages
  * often link back to their index, so the parent must link to more documents than the child does;
- * that also rules out a loop.
+ * that also rules out a loop. Those under a document that is not open are left out.
  */
-function outline(items: Artifact[], edges: GraphEdge[]) {
+function outline(items: Artifact[], edges: GraphEdge[], open: Set<string>) {
   const names = new Set(items.map((a) => a.name));
   const links = new Map(items.map((a) => [a.name, new Set(edges.filter((e) => e.rel === "mentions" && e.from === a.name).map((e) => e.to.split("#")[0]!).filter((to) => names.has(to)))]));
   const out = (a: Artifact) => links.get(a.name)!;
   const parent = (a: Artifact) => items.filter((b) => out(b).has(a.name) && out(b).size > out(a).size).sort((x, y) => out(y).size - out(x).size)[0];
   const ordered: Artifact[] = [];
   const depth = new Map<string, number>();
+  const kids = new Map<string, number>();
   const add = (a: Artifact, d: number) => {
     ordered.push(a);
     depth.set(a.name, d);
-    for (const c of items) if (parent(c) === a) add(c, d + 1);
+    const under = items.filter((c) => parent(c) === a);
+    if (under.length) kids.set(a.name, under.length);
+    if (open.has(a.name)) for (const c of under) add(c, d + 1);
   };
   for (const a of items) if (!parent(a)) add(a, 0);
-  return { ordered, depth };
+  return { ordered, depth, kids };
 }
 
-/** Pinned first, then a group per task, newest group first, each an outline by the documents' own links. */
+/**
+ * Pinned first, then a group per task, newest group first, each an outline by the documents' own
+ * links. A group starts open and linked documents start folded; a filter shows every match.
+ */
 function ArtifactsTab({ p }: { p: ProjectSnapshot }) {
   const { data } = useData<Artifact[]>(`/projects/${enc(p.slug)}/artifacts`);
   const { data: graph } = useData<{ edges: GraphEdge[] }>(`/projects/${enc(p.slug)}/graph`);
   const [q, setQ] = useState("");
   const shown = (data ?? []).filter((a) => `${a.title} ${a.name} ${a.task ?? ""}`.toLowerCase().includes(q.trim().toLowerCase()));
   const pinned = shown.filter((a) => a.pinned);
+  // What the owner has flipped from its default: a group's id to fold it, a document's name to open it.
+  const [flipped, setFlipped] = useState<Set<string>>(new Set());
+  const toggle = (key: string) => setFlipped(new Set(flipped.has(key) ? [...flipped].filter((k) => k !== key) : [...flipped, key]));
   return (
     <>
       <ArtifactsHead slug={p.slug} count={data?.length} />
@@ -213,14 +225,18 @@ function ArtifactsTab({ p }: { p: ProjectSnapshot }) {
         </section>
       )}
       {[...new Set(shown.map((a) => a.task ?? ""))].map((id) => {
-        const { ordered, depth } = outline(shown.filter((a) => (a.task ?? "") === id), graph?.edges ?? []);
+        const items = shown.filter((a) => (a.task ?? "") === id);
+        const open = q.trim() ? new Set(items.map((a) => a.name)) : flipped;
+        const folded = !q.trim() && flipped.has(id || "Project");
+        const { ordered, ...shape } = outline(items, graph?.edges ?? [], open);
         return (
           <section key={id} className="group">
             <h3 className="label">
+              <button className="link" aria-expanded={!folded} aria-label={`${folded ? "Show" : "Hide"} ${id || "Project"}`} onClick={() => toggle(id || "Project")}>{folded ? "▸" : "▾"}</button>&nbsp;
               {id ? <a href={taskHref(p.slug, id)}>{id} <span className="path">{p.tasks.find((t) => t.id === id)?.title}</span></a> : "Project"}
-              <span className="count">{ordered.length}</span>
+              <span className="count">{items.length}</span>
             </h3>
-            <ArtifactRows slug={p.slug} items={ordered} depth={depth} />
+            {!folded && <ArtifactRows slug={p.slug} items={ordered} fold={{ ...shape, open, toggle }} />}
           </section>
         );
       })}
