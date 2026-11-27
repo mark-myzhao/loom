@@ -182,7 +182,7 @@ export function formatFrontmatter(data: Record<string, string | undefined>, body
 // ---------- storage, config, state ----------
 
 export const DEFAULT_FETCH_INSTRUCTIONS = `How to fetch sources:
-- Public links: WebFetch.
+- Public links: WebFetch. To find current sources: WebSearch.
 - Private sources (Slack, Google Docs, GitHub): an MCP tool for that service, if this session has one. It may be deferred: look for it with ToolSearch before concluding it is missing.
 - If a source cannot be fetched (no access, tool missing), do not guess its content. Say so in your final summary.`;
 
@@ -194,7 +194,7 @@ export const DEFAULT_CONFIG: Config = {
   reader: {
     model: "",
     permissionMode: "acceptEdits",
-    allowedTools: ["Read", "Write", "Edit", "Glob", "Grep", "WebFetch", "ToolSearch"],
+    allowedTools: ["Read", "Write", "Edit", "Glob", "Grep", "WebFetch", "WebSearch", "ToolSearch"],
     // Leaving Bash off the allow-list is not enough: acceptEdits auto-approves read-only shell commands.
     disallowedTools: ["Bash"],
     fetchInstructions: DEFAULT_FETCH_INSTRUCTIONS,
@@ -213,8 +213,8 @@ const statePath = () => join(DATA, "state.json");
 
 /** Stored values over defaults, one level deep for reader and agent. Read on every action. */
 export function loadConfig(): Config {
-  // "sync" is the former name of "reader", so settings saved under it still apply; "schedule" is gone.
-  const { sync, schedule: _gone, ...s } = (readJson(configPath()) ?? {}) as Partial<Config> & { sync?: Partial<Config["reader"]>; schedule?: unknown };
+  // "sync" is the former name of "reader", so settings saved under it still apply; the schedule and connectors are gone.
+  const { sync, schedule: _s, connectors: _c, connectorGateway: _g, ...s } = (readJson(configPath()) ?? {}) as Partial<Config> & { sync?: Partial<Config["reader"]>; [gone: string]: unknown };
   const d = DEFAULT_CONFIG;
   return {
     ...d,
@@ -255,7 +255,9 @@ export function saveConfig(patch: Partial<Config>): Config {
 
 export const loadState = (): AppState => readJson<AppState>(statePath()) ?? {};
 export function saveState(patch: Partial<AppState>): AppState {
-  const next = { ...loadState(), ...patch };
+  // The daily sync and the connectors are gone; their keys drop out at the next save.
+  const { lastDailySync: _d, connectors: _c, ...cur } = loadState() as AppState & Record<string, unknown>;
+  const next = { ...cur, ...patch };
   writeJson(statePath(), next);
   return next;
 }

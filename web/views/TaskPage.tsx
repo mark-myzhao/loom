@@ -39,10 +39,12 @@ function Delegate({ p, task, runs }: { p: ProjectSnapshot; task: Task; runs: Run
   const [worktree, setWorktree] = useState(snap.config.agent.useWorktree);
   const [pick, setPick] = useState<Override>({});
   const live = runs.find((r) => r.kind === "task" && isLive(r));
+  const waits = snap.board.find((r) => r.project === p.slug && r.taskId === task.id && r.group === "Waiting on task")?.detail;
   useEffect(() => {
     if (!path && registered) setPath(registered.path);
   }, [registered?.path]);
   const start = async () => {
+    if (waits && !confirm(`${task.id} waits on ${waits}. Start a Thread anyway?`)) return;
     const run = await act(() => api<RunMeta>("POST", `/projects/${enc(p.slug)}/tasks/${task.id}/delegate`, { repoPath: path, instructions, worktree, ...pick }));
     if (run) {
       setInstructions("");
@@ -66,8 +68,9 @@ function Delegate({ p, task, runs }: { p: ProjectSnapshot; task: Task; runs: Run
       </label>
       <label className="check"><input type="checkbox" checked={worktree} onChange={(e) => setWorktree(e.target.checked)} /> Separate git worktree</label>
       {live && <button className="wide live" onClick={() => openRun(live.id)}>Thread is working…</button>}
+      {waits && <small className="warn">Waits on {waits}: a Thread now may only report that.</small>}
       <button className="primary wide" disabled={!path.trim()} onClick={start}>{runs.some((r) => r.kind === "task") ? "Start another Thread" : "Start a Thread"}</button>
-      <small>A Thread is one run of an agent on this task. It gets the task and what it touches, commits locally, and reports back in the timeline. It does not push unless told to.</small>
+      <small>A Thread is one run of an agent on this task. It gets the task and what it touches, commits, opens a pull request when the work is ready, and reports back in the timeline.</small>
     </section>
   );
 }
