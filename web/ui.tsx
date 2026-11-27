@@ -145,7 +145,7 @@ function linkMentions(root: HTMLElement, slug: string) {
         const frame = document.createElement("iframe");
         frame.className = "doc-embed";
         frame.setAttribute("sandbox", "allow-scripts");
-        frame.src = `/api/projects/${enc(slug)}/artifacts/${enc(name)}/raw`;
+        frame.src = `/api/projects/${enc(slug)}/artifacts/${enc(name)}/raw?view=embed`;
         frame.title = name;
         frag.append(frame);
       }
@@ -156,6 +156,15 @@ function linkMentions(root: HTMLElement, slug: string) {
     node.replaceWith(frag);
   }
 }
+
+// An inline visual reports its height (the server adds the script), so its frame
+// fits it: the sandbox keeps the app from measuring the page itself.
+addEventListener("message", (e) => {
+  if (typeof e.data?.loomHeight !== "number") return;
+  for (const f of document.querySelectorAll<HTMLIFrameElement>("iframe.doc-embed")) {
+    if (f.contentWindow === e.source) f.style.height = `${e.data.loomHeight + 2}px`; // and its border
+  }
+});
 
 /** Wraps a heading and what follows it, up to the next heading matching `stop`, in a block. */
 function wrapSection(h: Element, stop: RegExp, className: string) {

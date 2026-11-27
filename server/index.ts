@@ -714,7 +714,12 @@ async function api(req: Request, url: URL): Promise<Response> {
     if (P("GET", "artifacts", null, "raw")) {
       const a = store.readArtifact(slug, seg[3]!);
       // Untrusted HTML: an opaque origin wherever it is opened, and no content sniffing.
-      return new Response(a.content, {
+      // Shown inline in a document, the page tells the app its height so the frame can fit it.
+      // It gets no vertical scrollbar, whose coming and going would change the height it reports.
+      const report = url.searchParams.get("view") === "embed"
+        ? '<script>document.documentElement.style.overflowY = "hidden"; new ResizeObserver(() => parent.postMessage({ loomHeight: document.documentElement.offsetHeight }, "*")).observe(document.documentElement)</script>'
+        : "";
+      return new Response(a.content + report, {
         headers: {
           "Content-Type": a.kind === "html" && url.searchParams.get("view") !== "source" ? "text/html; charset=utf-8" : "text/plain; charset=utf-8",
           "Content-Security-Policy": "sandbox allow-scripts",
