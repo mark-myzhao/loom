@@ -23,6 +23,7 @@ test("a Thread's brief is its task's neighbourhood: outlines, earlier Threads, m
     project: p, task: tasks.find((t) => t.id === "T-002")!, worktree: true, ancestors: store.ancestorsOf(tasks, "T-002"), siblings: [],
   });
   expect(brief).toContain('artifacts/t-001-plan.md  "Plan"');
+  expect(brief).toContain("open a pull request against the default branch");
   expect(brief).toMatch(/    Goal  L10-13 /);
   expect(brief).toMatch(/    Steps  L14-17 .*<- the section linked/);
   expect(brief).toContain('T-002.1  done  12 turns  report "Built the parser; tests pass."');
