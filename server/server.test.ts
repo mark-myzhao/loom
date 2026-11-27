@@ -145,6 +145,21 @@ test("a note reaches a running Thread; only the owner's note wakes an ended one"
   expect(readFileSync(taskFile, "utf8")).toContain("status: in-progress");
 }, 30_000);
 
+test("a pin is one line of the document's metadata, counted on the project, and leaves its modified time alone", async () => {
+  const { slug } = await call("POST", "/projects", { name: "Pin demo" });
+  const md = await call("POST", `/projects/${slug}/artifacts`, { title: "Plan" });
+  const html = await call("POST", `/projects/${slug}/artifacts`, { filename: "map.html", content: "<html><head><title>Map</title></head><body></body></html>" });
+  for (const a of [md, html]) {
+    const on = await call("PATCH", `/projects/${slug}/artifacts/${a.name}`, { pinned: true });
+    expect(on).toMatchObject({ pinned: true, title: a.title, modifiedAt: a.modifiedAt });
+    const off = await call("PATCH", `/projects/${slug}/artifacts/${a.name}`, { pinned: false });
+    expect(off.pinned).toBeUndefined();
+    expect(off.content).toBe(a.content);
+  }
+  const project = (await call("GET", "/state")).projects.find((p: any) => p.slug === slug);
+  expect(project).toMatchObject({ artifacts: 2, memory: 0 });
+});
+
 test("telemetry logs writes with who made them, runs, and the dashboard's views, outside the snapshots", async () => {
   await call("POST", "/telemetry", { events: [{ ev: "view", tab: "t1", route: "#/usage" }, { ev: "api", path: "/forged" }] });
   await Bun.sleep(100);

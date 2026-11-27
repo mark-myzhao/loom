@@ -502,6 +502,8 @@ function snapshot(): Snapshot {
     projects: store.listProjectSlugs().map((slug) => ({
       ...store.readProject(slug),
       tasks: store.listTasks(slug).filter((t) => t.id !== "T-000").map(summary),
+      artifacts: store.listArtifacts(slug).length,
+      memory: store.listMemory(slug).length,
     })),
     runs: listRuns(150),
     board: board(),
@@ -710,6 +712,7 @@ async function api(req: Request, url: URL): Promise<Response> {
     if (P("POST", "artifacts")) return json(store.createArtifact(slug, await readBody(req)));
     if (P("GET", "artifacts", null)) return json(store.readArtifact(slug, seg[3]!));
     if (P("PUT", "artifacts", null)) return json(store.writeArtifact(slug, seg[3]!, (await readBody(req)).content));
+    if (P("PATCH", "artifacts", null)) return json(store.pinArtifact(slug, seg[3]!, (await readBody(req)).pinned));
     if (P("DELETE", "artifacts", null)) return store.deleteArtifact(slug, seg[3]!), json({ ok: true });
     if (P("GET", "artifacts", null, "raw")) {
       const a = store.readArtifact(slug, seg[3]!);

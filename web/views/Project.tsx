@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { Artifact, ArtifactDetail, MemoryEntry, ProjectSnapshot, Source, Task } from "../../server/types";
+import type { Artifact, ArtifactDetail, GraphEdge, MemoryEntry, ProjectSnapshot, Source, Task } from "../../server/types";
 import { isClosed, PROJECT_STATUSES } from "../../server/types";
 import { ago, api, docHref, enc, go, onSubmitKey, taskHref, useApp, useData, useRoute } from "../lib";
 import { Select } from "../controls";
@@ -22,6 +22,8 @@ export function ProjectPage({ project: p, tab }: { project: ProjectSnapshot; tab
   };
   const counts: Partial<Record<Tab, number>> = {
     tasks: p.tasks.filter((t) => !isClosed(t.status)).length,
+    artifacts: p.artifacts,
+    memory: p.memory,
     context: p.sources.length + p.repos.length,
     activity: runs.length,
   };
@@ -68,7 +70,7 @@ export function ProjectPage({ project: p, tab }: { project: ProjectSnapshot; tab
 
       {current === "tasks" && <TasksTab p={p} />}
       {current === "graph" && <Graph project={p} />}
-      {current === "artifacts" && <ArtifactsTab slug={p.slug} />}
+      {current === "artifacts" && <ArtifactsTab p={p} />}
       {current === "memory" && <MemoryTab slug={p.slug} sources={p.sources} />}
       {current === "context" && <ContextTab p={p} />}
       {current === "activity" && <RunList runs={runs} />}
@@ -109,11 +111,17 @@ const ORIGIN: Record<string, { text: string; className: string }> = {
   repo: { text: "Codebase", className: " by-import" },
 };
 
-export function ArtifactRows({ slug, items, inherited }: { slug: string; items: Artifact[]; inherited?: string }) {
+/** `depth` indents a document under the one that links to it. The star pins it to the top of the Artifacts tab. */
+export function ArtifactRows({ slug, items, inherited, depth }: { slug: string; items: Artifact[]; inherited?: string; depth?: Map<string, number> }) {
+  const { act } = useApp();
+  const pin = (e: React.MouseEvent, a: Artifact) => {
+    e.preventDefault();
+    act(() => api("PATCH", `/projects/${enc(slug)}/artifacts/${enc(a.name)}`, { pinned: !a.pinned }));
+  };
   return (
     <>
       {items.map((a) => (
-        <a key={a.name} className="row doc-row" href={docHref(slug, a.name)}>
+        <a key={a.name} className="row doc-row" style={{ paddingLeft: 2 + 30 * (depth?.get(a.name) ?? 0) }} href={docHref(slug, a.name)}>
           <KindBadge kind={a.kind} />
           <span className="row-title">{a.title}</span>
           <span className="id">{a.name}</span>
@@ -122,6 +130,7 @@ export function ArtifactRows({ slug, items, inherited }: { slug: string; items: 
             {inherited ? <span>from {inherited}</span> : a.task && <span>{a.task}</span>}
             {a.origin && <span className={`tag${ORIGIN[a.origin]?.className ?? ""}`}>{ORIGIN[a.origin]?.text ?? a.origin}</span>}
             <span>{ago(a.modifiedAt)}</span>
+            <button className={`link pin${a.pinned ? " on" : ""}`} aria-pressed={!!a.pinned} title={a.pinned ? "Unpin" : "Pin to the top of Artifacts"} onClick={(e) => pin(e, a)}>{a.pinned ? "★" : "☆"}</button>
           </span>
         </a>
       ))}
@@ -164,12 +173,58 @@ export function ArtifactsHead({ slug, taskId, count }: { slug: string; taskId?: 
   );
 }
 
-function ArtifactsTab({ slug }: { slug: string }) {
-  const { data } = useData<Artifact[]>(`/projects/${enc(slug)}/artifacts`);
+/**
+ * Orders one task's documents as an outline: a document sits under the one that links to it. Pages
+ * often link back to their index, so the parent must link to more documents than the child does;
+ * that also rules out a loop.
+ */
+function outline(items: Artifact[], edges: GraphEdge[]) {
+  const names = new Set(items.map((a) => a.name));
+  const links = new Map(items.map((a) => [a.name, new Set(edges.filter((e) => e.rel === "mentions" && e.from === a.name).map((e) => e.to.split("#")[0]!).filter((to) => names.has(to)))]));
+  const out = (a: Artifact) => links.get(a.name)!;
+  const parent = (a: Artifact) => items.filter((b) => out(b).has(a.name) && out(b).size > out(a).size).sort((x, y) => out(y).size - out(x).size)[0];
+  const ordered: Artifact[] = [];
+  const depth = new Map<string, number>();
+  const add = (a: Artifact, d: number) => {
+    ordered.push(a);
+    depth.set(a.name, d);
+    for (const c of items) if (parent(c) === a) add(c, d + 1);
+  };
+  for (const a of items) if (!parent(a)) add(a, 0);
+  return { ordered, depth };
+}
+
+/** Pinned first, then a group per task, newest group first, each an outline by the documents' own links. */
+function ArtifactsTab({ p }: { p: ProjectSnapshot }) {
+  const { data } = useData<Artifact[]>(`/projects/${enc(p.slug)}/artifacts`);
+  const { data: graph } = useData<{ edges: GraphEdge[] }>(`/projects/${enc(p.slug)}/graph`);
+  const [q, setQ] = useState("");
+  const shown = (data ?? []).filter((a) => `${a.title} ${a.name} ${a.task ?? ""}`.toLowerCase().includes(q.trim().toLowerCase()));
+  const pinned = shown.filter((a) => a.pinned);
   return (
     <>
-      <ArtifactsHead slug={slug} count={data?.length} />
-      {data && (data.length ? <ArtifactRows slug={slug} items={data} /> : <Empty>No artifacts yet. Write one, upload a file, or start a Thread on a task to write one. Anything too long for a task belongs here.</Empty>)}
+      <ArtifactsHead slug={p.slug} count={data?.length} />
+      {data && !data.length && <Empty>No artifacts yet. Write one, upload a file, or start a Thread on a task to write one. Anything too long for a task belongs here.</Empty>}
+      {!!data?.length && <input className="add-line" type="search" value={q} aria-label="Filter artifacts" placeholder="Filter by title, file or task" onChange={(e) => setQ(e.target.value)} />}
+      {pinned.length > 0 && (
+        <section className="group">
+          <h3 className="label">Pinned<span className="count">{pinned.length}</span></h3>
+          <ArtifactRows slug={p.slug} items={pinned} />
+        </section>
+      )}
+      {[...new Set(shown.map((a) => a.task ?? ""))].map((id) => {
+        const { ordered, depth } = outline(shown.filter((a) => (a.task ?? "") === id), graph?.edges ?? []);
+        return (
+          <section key={id} className="group">
+            <h3 className="label">
+              {id ? <a href={taskHref(p.slug, id)}>{id} <span className="path">{p.tasks.find((t) => t.id === id)?.title}</span></a> : "Project"}
+              <span className="count">{ordered.length}</span>
+            </h3>
+            <ArtifactRows slug={p.slug} items={ordered} depth={depth} />
+          </section>
+        );
+      })}
+      {!!data?.length && !shown.length && <Empty>Nothing matches “{q}”.</Empty>}
     </>
   );
 }

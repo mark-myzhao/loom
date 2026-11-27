@@ -3,7 +3,7 @@
 
 import {
   appendFileSync, existsSync, mkdirSync, openSync, closeSync, readFileSync, readSync, readdirSync,
-  renameSync, statSync, writeFileSync, writeSync,
+  renameSync, statSync, utimesSync, writeFileSync, writeSync,
 } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
 import {
@@ -875,6 +875,7 @@ function artifactMeta(slug: string, name: string): Artifact | undefined {
     task: isTaskId(data.task) ? data.task : undefined,
     source: data.source || undefined,
     created: data.created || undefined,
+    pinned: data.pinned === "true" || undefined,
     modifiedAt: st.mtime.toISOString(),
     size: st.size,
     // About 8,000 tokens at four characters a token: past that, a Thread cannot afford to read it.
@@ -901,6 +902,28 @@ export function writeArtifact(slug: string, name: string, content: unknown): Art
   if (typeof content !== "string") bad("content must be a string");
   if (!existsSync(path)) bad("no such artifact", 404);
   writeAtomic(path, content as string);
+  return readArtifact(slug, name);
+}
+
+const HTML_PIN = '<meta name="loom:pinned" content="true">';
+
+/**
+ * A pin is one line of the document's own metadata, so it travels with the file; nothing else in
+ * the file is rewritten. The modification time is kept: pinning is not an edit, and lists sort by it.
+ */
+export function pinArtifact(slug: string, name: string, pinned: unknown): ArtifactDetail {
+  const path = artifactPath(slug, name);
+  const text = readText(path) ?? bad("no such artifact", 404);
+  const { mtime } = statSync(path);
+  const md = artifactKind(name) === "md";
+  let out = md ? text.replace(/^(---\r?\n)pinned: true\r?\n/, "$1") : text.replace(`\n${HTML_PIN}`, "");
+  if (pinned) {
+    if (md) out = /^---\r?\n/.test(out) ? out.replace(/^---\r?\n/, (open) => `${open}pinned: true\n`) : `---\npinned: true\n---\n\n${out}`;
+    else if (/<head[^>]*>/i.test(out)) out = out.replace(/<head[^>]*>/i, (head) => `${head}\n${HTML_PIN}`);
+    else bad("this page has no <head> to hold the pin");
+  }
+  writeAtomic(path, out);
+  utimesSync(path, mtime, mtime);
   return readArtifact(slug, name);
 }
 

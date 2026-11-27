@@ -56,7 +56,7 @@ Each node has stored attributes, read from a file or a record, and derived ones,
 | Task | id, title, status, priority, due, parent, after, repo, created, updated; Context, Things to do, Exit criteria (`T-nnn.md`); its timeline (`T-nnn.log.md`) | checklist progress; its Threads and their states; blocked and what it waits on, a human or a task ([states](threads/states.md)); linked from |
 | … root task (project) | as any task (`tasks/T-000.md`); the slug (its directory) | open subtasks; Threads running; its memory entries |
 | Thread | task, purpose, kind (coding or document), worktree and branch, who started it, started, ended (run record and the timeline's `run` events) | address; state; turns, peak context, cost; cache warm until; its report; its open question; which Thread it continues |
-| Artifact, any kind | name, title, origin, task, source, created (frontmatter or `<meta>`) | kind; written by; linked from |
+| Artifact, any kind | name, title, origin, task, source, created, pinned (frontmatter or `<meta>`) | kind; written by; linked from |
 | … document | nothing more | size; sections; Over length; modified |
 | … link | `source` is the URL | where it points (`gdoc`, `slack`, `github`, `url`), from the URL; its copies; what was read from it |
 | … repository | `source` is the path | the files in it that are linked |
@@ -238,6 +238,8 @@ Unchanged: the task and memory formats, derived Thread states, the size rules of
 ## What is built
 
 Step 3's first part: `projectGraph(slug)` in `store.ts` returns the nodes with their cards and the edges, and `writeGraph` writes `GRAPH.md` whenever a project file changes and at start. The UI renders `[[…]]` as links and the task page lists what links to it. The project's Graph tab draws every node and edge from `GET /api/projects/<slug>/graph` with a spring layout: the owner pans, zooms and drags nodes, done tasks are hollow green rings with struck-through labels, hovering a node shows its card and lights its neighbours, clicking opens it, and choosing a task narrows it to the task's subtree and everything one edge away; the parent and child tree is the tab's other view. Until the later steps land:
+
+- **The Artifacts tab is an outline of the graph.** Pinned artifacts come first ([ADR 0029](../adr/0029-a-pin-is-artifact-metadata.md)), then one group per task by its "documents" edges, newest first. Within a group an artifact sits under the one that mentions it; since pages link back to their index, the parent is the one that mentions more artifacts of the group.
 
 - **A project is `tasks/T-000.md`** (step 8), migrated once from `project.json` on start. Links and repositories are artifacts with `origin: link` and `origin: repo`; a migrated link keeps its old id as its name. The store still offers a `Project` view (name, status, summary, sources, repos) built from them, so the dashboard's project pages read as before; the project page links to the task page of `T-000`, which lists every task with no parent as its subtask.
 - **A Thread is numbered by its task's `run` events** and its state is its run record's status; its report is the last `agent` comment after its start. No purpose yet (step 6).

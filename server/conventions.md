@@ -192,6 +192,8 @@ created: 2026-01-06
   `<meta name="loom:origin" content="generated">` (likewise `loom:task`, `loom:source`,
   `loom:created`) with the title in `<title>`. Keep all CSS and JavaScript inline, load
   nothing from the network, and paint your own background.
+- `pinned: true` (`loom:pinned` in HTML) is the owner's mark on a document to keep at hand.
+  The dashboard writes it; leave it as you find it.
 - Filenames are lowercase and hyphenated. If a document on the subject already exists,
   update it instead of adding another.
 

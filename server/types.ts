@@ -81,6 +81,8 @@ export interface Artifact {
   task?: string;
   source?: string;
   created?: string;
+  /** The owner marked it as one to keep at hand. */
+  pinned?: boolean;
   modifiedAt: string;
   size: number;
   /** What to do, when the document is over length. */
@@ -263,6 +265,9 @@ export interface BoardRow {
 
 export interface ProjectSnapshot extends Project {
   tasks: TaskSummary[];
+  /** How many artifacts and memory entries it holds, for the tab counts. */
+  artifacts: number;
+  memory: number;
 }
 
 /** GET /api/state */
