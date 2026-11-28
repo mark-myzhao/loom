@@ -13,7 +13,7 @@ One file per decision, numbered in the order they were made. The design itself i
 | [0007](0007-notes-reach-a-running-thread.md) | One note endpoint, addressed by task, reaches a running Thread | Accepted; amended by 0012 and 0017 | Built |
 | [0008](0008-shuttle-may-send-notes.md) | The Shuttle may send notes on its own judgement | Accepted; amended by 0012 | Built |
 | [0009](0009-five-words.md) | Five words and two marks | Accepted; amended by 0017 and 0019 | Built |
-| [0010](0010-usage-from-session-totals.md) | Usage is recorded per session start, from the transcript's running totals | Accepted | Built |
+| [0010](0010-usage-from-session-totals.md) | Usage is recorded per session start, from the transcript's running totals | Accepted; amended by 0033 | Built |
 | [0011](0011-shuttle-permissions-allow-list.md) | The Shuttle's permissions are an allow-list | Accepted; amended by 0015, 0026 and 0031 | Built |
 | [0012](0012-server-sets-note-author.md) | The server sets a note's author, and only the owner's note starts a session | Accepted | Built |
 | [0013](0013-broken-is-derived.md) | Broken is derived from the run, and blocked keeps its meaning | Accepted; amended by 0020 | Built |
@@ -36,6 +36,8 @@ One file per decision, numbered in the order they were made. The design itself i
 | [0030](0030-shuttle-e2e-tests-under-a-token-budget.md) | The Shuttle's end-to-end tests run real Claude Code, on demand, under a token budget | Accepted | Built |
 | [0031](0031-shuttle-has-loom-tools-not-bash.md) | The Shuttle has a few wide Loom tools, and no Bash | Accepted | Built |
 | [0032](0032-a-thread-that-ends-wakes-the-shuttle.md) | A Thread that ends wakes the Shuttle, which may start only a follow-on the owner approved | Accepted | Built |
+| [0033](0033-estimate-unpriced-stretches.md) | A stretch Claude Code never priced gets a rough, rule-based estimate | Accepted | Built |
+| [0034](0034-a-comment-wakes-threads-only-with-at-loom.md) | An owner's task-page comment reaches or wakes a Thread only when it says @loom | Accepted | Built |
 
 ## Adding one
 

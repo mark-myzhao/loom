@@ -65,4 +65,4 @@ Step 5 built the above, with these choices:
 - **The 100-word cap applies to an agent's note.** The owner's own words are not cut.
 - **A cold note from the owner starts the next Thread** in the earlier one's working directory with no new worktree, told to check the directory and git history first. Its brief carries the earlier Thread's card and every note.
 - **Every start and resume is tracked**, not only the first: task changes are logged under the run's author (a Thread's address), and a Thread's finish event lists what it wrote, read from its Edit and Write calls inside the project. `GRAPH.md` derives "wrote" edges from it.
-- **The task page sends a comment as a note.** "Comment & mark done" only records the comment, so closing a task wakes no Thread.
+- **A task-page comment is a note only when it says `@loom`** ([ADR 0034](../../adr/0034-a-comment-wakes-threads-only-with-at-loom.md)). Without it the comment is recorded on the timeline and reaches no Thread, running or ended; a later Thread still reads it in its brief. "Comment & mark done" only records the comment. The board's Answer, Continue, Unblock and Steer are notes as before.
