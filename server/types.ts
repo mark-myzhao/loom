@@ -140,6 +140,10 @@ export interface RunSpec {
   permissionMode: string;
   allowedTools: string[];
   disallowedTools?: string[];
+  /** The built-in tools the session has at all; unset leaves Claude Code's default set. */
+  tools?: string[];
+  /** MCP servers, as --mcp-config JSON; the session then loads no others. */
+  mcpConfig?: string;
   model?: string;
   addDirs?: string[];
   /** Plugins loaded for this session only, such as the skills Loom gives every Thread. */

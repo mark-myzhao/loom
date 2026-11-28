@@ -1,4 +1,4 @@
-# 0031. A Thread that ends wakes the Shuttle
+# 0032. A Thread that ends wakes the Shuttle
 
 - Status: Accepted
 - Date: 2026-11-27
@@ -13,7 +13,7 @@ ADR 0027 began every Shuttle turn with a message from the owner, so a Thread's e
 
 When a Thread's run ends, fails or stops on a question, Loom gives the Shuttle a turn: the runs that ended since its last reply, and no words from the owner after the `---`. A Thread that ends mid-turn waits for the turn to finish, and the next turn carries it.
 
-In a turn the owner began, the Shuttle may record an approval on a task that waits on another (`after`): `{"approve": true}` on the delegate route writes `approved to start after …` on its timeline. In a woken turn the server accepts a start from the Shuttle only for a task whose approval is newer than its last start and whose `after` names a task whose Thread woke it; it refuses new approvals. The start spends the approval. Anything else a report asks for, the woken Shuttle tells the owner rather than does.
+In a turn the owner began, the Shuttle may record an approval on a task that waits on another (`after`): the `thread` tool's `approve` action writes `approved to start after …` on its timeline. In a woken turn the server accepts a start from the Shuttle only for a task whose approval is newer than its last start and whose `after` names a task whose Thread woke it; it refuses new approvals. The start spends the approval. Anything else a report asks for, the woken Shuttle tells the owner rather than does.
 
 ## Consequences
 

@@ -20,7 +20,7 @@ The Shuttle turns what the owner says into task files. It starts a Thread only w
 4. **Reply and stop.** "Wrote T-012 and started T-012.1; T-013 is on the board for you to start." Links, no waiting.
 5. **Code closes the loop.** Nothing is written to the task when a run ends badly: the task reads as blocked, waiting on human, derived from the run record ([Task status](states.md)), so an assigned `blocked` keeps its one meaning (set with a comment by the owner or by the agent itself). The hook that records what a run changed must fire on every finish, resumes included; today `sendMessage` resumes without it, so a resumed Thread's changes go unlogged.
 
-A Thread that ends, fails or asks wakes the Shuttle ([ADR 0031](../../adr/0031-a-thread-that-ends-wakes-the-shuttle.md)), so its report reaches the conversation without the owner writing first. The woken turn reports what needs the owner and may start only a follow-on they approved in advance; what it may and may not do is R7 in [The Shuttle's context and cache](../shuttle/context.md). A wake-up is a paid pick, cheap on a warm cache and a hand-over on a cold one.
+A Thread that ends, fails or asks wakes the Shuttle ([ADR 0032](../../adr/0032-a-thread-that-ends-wakes-the-shuttle.md)), so its report reaches the conversation without the owner writing first. The woken turn reports what needs the owner and may start only a follow-on they approved in advance; what it may and may not do is R7 in [The Shuttle's context and cache](../shuttle/context.md). A wake-up is a paid pick, cheap on a warm cache and a hand-over on a cold one.
 
 ## The board
 
