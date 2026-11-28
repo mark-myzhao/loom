@@ -1,6 +1,6 @@
 # 0026. The Shuttle changes Loom only through its API
 
-- Status: Accepted
+- Status: Accepted; amended by 0031
 - Date: 2026-11-26
 - Implementation: Built
 - Design: [shuttle/context.md](../design/shuttle/context.md) (R7)

@@ -1,4 +1,4 @@
-# 0030. A stretch Claude Code never priced gets a rough, rule-based estimate
+# 0033. A stretch Claude Code never priced gets a rough, rule-based estimate
 
 - Status: Accepted
 - Date: 2026-11-27

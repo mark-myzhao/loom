@@ -1,4 +1,4 @@
-# 0031. An owner's task-page comment reaches or wakes a Thread only when it says @loom
+# 0034. An owner's task-page comment reaches or wakes a Thread only when it says @loom
 
 - Status: Accepted
 - Date: 2026-11-28

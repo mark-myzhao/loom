@@ -1,6 +1,6 @@
 # 0010. Usage is recorded per session start, from the transcript's running totals
 
-- Status: Accepted; amended by 0030
+- Status: Accepted; amended by 0033
 - Date: 2026-11-23
 - Implementation: Built
 - Design: [usage/tracking.md](../design/usage/tracking.md)

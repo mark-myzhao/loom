@@ -111,7 +111,7 @@ export function TaskPage({ project: p, id, edit }: { project: ProjectSnapshot; i
     setBody(null);
   };
   // A comment is only recorded unless it says @loom; then it is a note that reaches or wakes the
-  // task's Threads (ADR 0031). Closing the task always only records it.
+  // task's Threads (ADR 0034). Closing the task always only records it.
   const send = async (done: boolean) => {
     if (!comment.trim() && !done) return;
     const wake = !done && /@loom\b/i.test(comment);

@@ -227,6 +227,8 @@ function buildArgs(meta: RunMeta, { resume, override }: Job): string[] {
     args.push("--name", `dash: ${meta.title.slice(0, 80)}`);
     if (s.worktree) args.push("--worktree", s.worktree);
   }
+  if (s.tools) args.push("--tools", s.tools.join(","));
+  if (s.mcpConfig) args.push("--mcp-config", s.mcpConfig, "--strict-mcp-config");
   if (s.disallowedTools?.length) args.push("--disallowedTools", s.disallowedTools.join(","));
   // Last, because it is variadic. The prompt goes over stdin, so it cannot be swallowed.
   if (s.allowedTools.length) args.push("--allowedTools", ...s.allowedTools);
