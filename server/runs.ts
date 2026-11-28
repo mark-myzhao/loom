@@ -75,8 +75,9 @@ export function initRuns(changed: () => void, hooks: typeof lifecycle) {
         meta.status = "interrupted";
         meta.endedAt ??= nowIso();
       }
-      // Records written before usage was tracked get it from their transcript, once.
-      const untracked = !meta.usage;
+      // Records written before usage was tracked, or before unpriced stretches were estimated,
+      // get it from their transcript.
+      const untracked = !meta.usage || (meta.turns > 0 && meta.costUsd === 0);
       if (untracked) {
         const lines = readTranscript(meta.id);
         const calls = new Set<string>();
@@ -118,16 +119,39 @@ function track(meta: RunMeta, line: Line, calls: Set<string>): boolean {
 }
 
 /**
+ * Rough list prices in $ per million input / output tokens, by model family; anything else prices
+ * as Opus. Used only for stretches Claude Code never priced, so close is good enough.
+ */
+const PRICES: [string, number, number][] = [["fable", 8, 40], ["sonnet", 2, 10], ["haiku", 0.1, 0.5], ["opus", 4, 20]];
+
+/**
  * Sets a run's usage and cost from its transcript. Every result line carries totals
  * for the whole session, resumes included, so what one start or resume used is the last total
- * before the next message minus the total before it.
+ * before the next message minus the total before it. A stretch with no result line is estimated.
  */
 function account(meta: RunMeta, lines: Line[]) {
   const usage: RunUsage[] = [];
   const totals = new Map<string, RunUsage>();
   let at = meta.createdAt;
   let result: Line | undefined;
+  // Model calls of the current stretch, subagents included; the last line of each call has its latest usage.
+  let calls = new Map<string, Line>();
   const close = () => {
+    // Killed before its result line: estimate from each call's usage, cache reads at 0.1x input
+    // and writes at 2x (Claude Code writes the 1-hour cache).
+    const guessed = new Map<string, RunUsage>();
+    for (const { model = "unknown", usage: u = {} } of result ? [] : calls.values()) {
+      const e = guessed.get(model) ?? { at, model, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, costUsd: 0 };
+      const [, inPrice, outPrice] = PRICES.find(([family]) => model.includes(family)) ?? PRICES[3];
+      e.input += u.input_tokens || 0;
+      e.output += u.output_tokens || 0;
+      e.cacheRead += u.cache_read_input_tokens || 0;
+      e.cacheWrite += u.cache_creation_input_tokens || 0;
+      e.costUsd = ((e.input + 0.1 * e.cacheRead + 2 * e.cacheWrite) * inPrice + e.output * outPrice) / 1e6;
+      guessed.set(model, e);
+    }
+    usage.push(...[...guessed.values()].filter((e) => e.costUsd > 0));
+    calls = new Map();
     for (const [model, u] of Object.entries<Line>(result?.modelUsage ?? {})) {
       const total: RunUsage = {
         at, model, input: u.inputTokens || 0, output: u.outputTokens || 0,
@@ -146,6 +170,7 @@ function account(meta: RunMeta, lines: Line[]) {
       close();
       at = line.time ?? at;
     } else if (line.type === "result") result = line;
+    else if (line.type === "assistant" && line.message?.id) calls.set(line.message.id, line.message);
   }
   close();
   meta.usage = usage;

@@ -13,7 +13,7 @@ One file per decision, numbered in the order they were made. The design itself i
 | [0007](0007-notes-reach-a-running-thread.md) | One note endpoint, addressed by task, reaches a running Thread | Accepted; amended by 0012 and 0017 | Built |
 | [0008](0008-shuttle-may-send-notes.md) | The Shuttle may send notes on its own judgement | Accepted; amended by 0012 | Built |
 | [0009](0009-five-words.md) | Five words and two marks | Accepted; amended by 0017 and 0019 | Built |
-| [0010](0010-usage-from-session-totals.md) | Usage is recorded per session start, from the transcript's running totals | Accepted | Built |
+| [0010](0010-usage-from-session-totals.md) | Usage is recorded per session start, from the transcript's running totals | Accepted; amended by 0030 | Built |
 | [0011](0011-shuttle-permissions-allow-list.md) | The Shuttle's permissions are an allow-list | Accepted; amended by 0015 and 0026 | Built |
 | [0012](0012-server-sets-note-author.md) | The server sets a note's author, and only the owner's note starts a session | Accepted | Built |
 | [0013](0013-broken-is-derived.md) | Broken is derived from the run, and blocked keeps its meaning | Accepted; amended by 0020 | Built |
@@ -33,6 +33,7 @@ One file per decision, numbered in the order they were made. The design itself i
 | [0027](0027-shuttle-starts-a-thread-the-owner-asks-for.md) | The Shuttle starts a Thread the owner asks for, and the ask and generate errands retire | Accepted | Built |
 | [0028](0028-a-thread-opens-a-pull-request.md) | A Thread opens a pull request when its work is ready | Accepted | Built |
 | [0029](0029-a-pin-is-artifact-metadata.md) | A pin is a line of the artifact's own metadata | Accepted | Built |
+| [0030](0030-estimate-unpriced-stretches.md) | A stretch Claude Code never priced gets a rough, rule-based estimate | Accepted | Built |
 
 ## Adding one
 

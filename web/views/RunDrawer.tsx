@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ownerText, type Config, type RunMeta } from "../../server/types";
-import { api, enc, isLive, money, stamp, unpriced, useApp } from "../lib";
+import { api, enc, isLive, money, stamp, useApp } from "../lib";
 import { Composer, Markdown, RunPill } from "../ui";
 
 type Line = Record<string, any>;
@@ -191,7 +191,7 @@ export function RunDrawer({ id, onClose }: { id: string; onClose: () => void }) 
     <Drawer
       onClose={onClose}
       title={run.title}
-      label={<><RunPill run={run} /> {run.kind} · {stamp(run.createdAt)}{run.costUsd > 0 && ` · ${money(run.costUsd)}`}{unpriced(run) && " · cost unknown"}{run.turns > 0 && ` · ${run.turns} turns`}</>}
+      label={<><RunPill run={run} /> {run.kind} · {stamp(run.createdAt)}{run.costUsd > 0 && ` · ${money(run.costUsd)}`}{run.turns > 0 && ` · ${run.turns} turns`}</>}
       foot={
         live ? (
           <button className="danger" onClick={() => act(() => api("POST", `/runs/${enc(id)}/stop`))}>Stop</button>

@@ -4,7 +4,7 @@ import { useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type Re
 import { Select } from "./controls";
 import { EFFORTS, isClosed, MODELS, type BoardRow, type Override, type Priority, type RunMeta, type TaskStatus, type TaskSummary } from "../server/types";
 import {
-  agentRun, ago, api, buildTree, descendants, docHref, dueLabel, enc, GROUPS, isLive, money, onSubmitKey, unpriced, sortTasks, STATUS_LABEL, taskHref, useApp,
+  agentRun, ago, api, buildTree, descendants, docHref, dueLabel, enc, GROUPS, isLive, money, onSubmitKey, sortTasks, STATUS_LABEL, taskHref, useApp,
   type Tree,
 } from "./lib";
 
@@ -320,7 +320,6 @@ export function RunRow({ run, projectName }: { run: RunMeta; projectName?: strin
       <span className="row-meta">
         {projectName && <span className="tag">{projectName}</span>}
         {run.costUsd > 0 && <span>{money(run.costUsd)}</span>}
-        {unpriced(run) && <span>cost unknown</span>}
         <span>{ago(run.endedAt ?? run.startedAt ?? run.createdAt)}</span>
       </span>
     </button>
@@ -331,10 +330,9 @@ export function RunList({ runs, withProject }: { runs: RunMeta[]; withProject?: 
   const { snap } = useApp();
   if (!runs.length) return <Empty>No runs yet. Drops, automations and Threads will appear here.</Empty>;
   const names = new Map(snap.projects.map((p) => [p.slug, p.name]));
-  const unknown = runs.filter(unpriced).length;
   return (
     <>
-      <p className="label">{runs.length} run{runs.length === 1 ? "" : "s"} · {money(runs.reduce((s, r) => s + r.costUsd, 0))}{unknown > 0 && ` + ${unknown} unpriced`}</p>
+      <p className="label">{runs.length} run{runs.length === 1 ? "" : "s"} · {money(runs.reduce((s, r) => s + r.costUsd, 0))}</p>
       {runs.map((r) => <RunRow key={r.id} run={r} projectName={withProject && r.project ? names.get(r.project) ?? r.project : undefined} />)}
     </>
   );

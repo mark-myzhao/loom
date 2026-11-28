@@ -210,3 +210,14 @@ test("a session the API overloads carries on once, in the same run", async () =>
   expect((await call("GET", `/runs/${id}`)).status).toBe("done");
   expect(readFileSync(sent, "utf8")).toContain("The API was overloaded; carry on from where you stopped.");
 });
+
+test("a run stopped before its result line is priced from its model calls' usage", async () => {
+  await stop();
+  const id = "20261125215611-hveh";
+  const call1 = (output: number) => ({ type: "assistant", message: { id: "m1", model: "claude-opus-5-5", usage: { input_tokens: 0, cache_creation_input_tokens: 100_000, cache_read_input_tokens: 1_000_000, output_tokens: output } } });
+  writeFileSync(join(data, "runs", `${id}.json`), JSON.stringify({ id, kind: "shuttle", title: "Stopped", status: "stopped", createdAt: "2026-11-25T21:56:11Z", costUsd: 0, turns: 1, usage: [] }));
+  writeFileSync(join(data, "runs", `${id}.jsonl`), [{ type: "dash_prompt", text: "go" }, call1(5), call1(10_000)].map((l) => JSON.stringify(l)).join("\n") + "\n");
+  await start();
+  // (100K writes x 2 + 1M reads x 0.1) x $4/M + 10K output x $20/M, counting the call's last line once.
+  expect((await call("GET", `/runs/${id}`)).costUsd).toBeCloseTo(1.4);
+});

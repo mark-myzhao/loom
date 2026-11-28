@@ -245,8 +245,6 @@ export const stamp = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 export const money = (n: number) => `$${n.toFixed(2)}`;
 export const isLive = (r: RunMeta) => r.status === "queued" || r.status === "running";
-/** A session killed before its result line made model calls Claude Code never priced: unknown, not $0. */
-export const unpriced = (r: RunMeta) => !isLive(r) && r.turns > 0 && r.costUsd === 0;
 
 // ---------- hierarchy ----------
 
