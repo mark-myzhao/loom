@@ -1,6 +1,6 @@
 # 0027. The Shuttle starts a Thread the owner asks for
 
-- Status: Accepted
+- Status: Accepted; amended by 0032
 - Date: 2026-11-27
 - Implementation: Built
 - Design: [shuttle/context.md](../design/shuttle/context.md) (R7), [threads/dispatch.md](../design/threads/dispatch.md)

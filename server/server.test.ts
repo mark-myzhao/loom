@@ -186,6 +186,39 @@ test("while answering the owner, the Shuttle starts a Thread, signed by it, in t
   expect(timeline.find((e: any) => e.type === "run" && e.detail.startsWith("started"))?.by).toBe("shuttle");
 });
 
+test("a Thread that ends wakes the Shuttle, which may start only the follow-on the owner approved", async () => {
+  const p = await call("POST", "/projects", { name: "Follow" });
+  const tasks = `/projects/${p.slug}/tasks`;
+  const first = await call("POST", tasks, { title: "SLOW first" });
+  const approved = await call("POST", tasks, { title: "Second", after: first.id });
+  const other = await call("POST", tasks, { title: "Third", after: first.id });
+  const { token } = (await (await fetch(`${base}/owner`, { headers: { "Sec-Fetch-Site": "same-origin" } })).json()) as any;
+
+  // In a turn the owner began, the Shuttle records the approval; the follow-on does not start yet.
+  const asked = await call("POST", "/shuttle", { text: "SLOW start the second when the first ends" });
+  await until(asked.id, "running");
+  expect((await tool("thread", { action: "approve", project: p.slug, task: approved.id })).text).toBe(`${approved.id} approved to start after ${first.id}`);
+  await until(asked.id, "done");
+
+  const thread = await call("POST", `${tasks}/${first.id}/delegate`, {}, token);
+  await until(thread.id, "done");
+  const shuttle = (await call("GET", "/state")).shuttle;
+  expect(shuttle.status).toBe("running");
+  expect(readFileSync(join(data, "runs", `${shuttle.id}.jsonl`), "utf8")).toContain("Loom woke you");
+
+  // Woken: no new approval, no start the owner did not approve; the approved one starts.
+  expect((await tool("thread", { action: "approve", project: p.slug, task: other.id })).text).toContain("only while answering the owner");
+  expect((await tool("thread", { action: "start", project: p.slug, task: other.id })).text).toContain("the owner approved");
+  const started = (await tool("thread", { action: "start", project: p.slug, task: approved.id })).text;
+  const next = { id: started.split("run ")[1] };
+  expect(started).toStartWith(`${approved.id}.1 started`);
+  await until(shuttle.id, "done");
+  await until(next.id, "done");
+  const { timeline } = await call("GET", `${tasks}/${approved.id}`);
+  expect(timeline.filter((e: any) => e.type === "run").map((e: any) => [e.by, e.detail.split(" · ")[0]]))
+    .toEqual([["shuttle", `approved to start after ${first.id}`], ["shuttle", `started in ${join(data, "projects", p.slug)}`], ["T-002.1", "done"]]);
+}, 30_000);
+
 test("without the owner's token, task changes are signed by the Shuttle, and config, automations and deletes are refused", async () => {
   const p = await call("POST", "/projects", { name: "Signed" });
   const t = await call("POST", `/projects/${p.slug}/tasks`, { title: "Draft", comment: "from the call" });
