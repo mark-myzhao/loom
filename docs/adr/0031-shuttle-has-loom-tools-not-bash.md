@@ -1,6 +1,6 @@
 # 0031. The Shuttle has a few wide Loom tools, and no Bash
 
-- Status: Accepted
+- Status: Accepted; amended by 0035
 - Date: 2026-11-27
 - Implementation: Built
 - Design: [shuttle/context.md](../design/shuttle/context.md#R7-The-Shuttles-permissions-are-an-allow-list)

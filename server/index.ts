@@ -440,11 +440,13 @@ function talkToShuttle(textIn: unknown, fresh: unknown, override: Override, wake
 
   const spec: RunSpec = {
     cwd: DATA,
-    // It reads files and changes them only through Loom's tools: no shell, no web (ADR 0031).
+    // It changes files only through Loom's tools (ADR 0031). Bash runs only the read-only commands
+    // listed; any other is refused (ADR 0035). No find, sed, awk, rg or git log: each can write a file or run a program.
     permissionMode: "default",
-    tools: ["Read", "Glob", "Grep"],
+    tools: ["Read", "Glob", "Grep", "Bash"],
     mcpConfig: JSON.stringify({ mcpServers: { loom: { type: "http", url: `http://127.0.0.1:${PORT}/api/mcp` } } }),
-    allowedTools: ["Read", "Glob", "Grep", "mcp__loom"],
+    allowedTools: ["Read", "Glob", "Grep", "mcp__loom",
+      ...["ls", "cat", "head", "tail", "wc", "grep", "jq", "diff", "stat", "git status"].map((c) => `Bash(${c}:*)`)],
     systemPrompt: shuttlePrompt(cfg),
     ...(cfg.shuttleModel ? { model: cfg.shuttleModel } : {}),
   };
