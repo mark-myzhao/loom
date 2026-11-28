@@ -400,18 +400,22 @@ function writeShuttleSessions() {
  * an idle hour starts a fresh session instead, opened with a hand-over that code writes from the
  * files: standing instructions, open work and the last exchanges (rules R2 and R3).
  */
-function talkToShuttle(textIn: unknown, fresh: unknown, override: Override): RunMeta {
-  const text = needText(textIn);
+function talkToShuttle(textIn: unknown, fresh: unknown, override: Override, wake = false): RunMeta {
+  // Woken, the Shuttle gets Loom's lines and no words from the owner after the "---".
+  const text = wake ? "" : needText(textIn);
   const cfg = store.loadConfig();
   const last = getRun(store.loadState().shuttle ?? "");
   if (last && (last.status === "queued" || last.status === "running")) bad("the Shuttle is still answering", 409);
   writeShuttleSessions();
+  const ended = listRuns().filter((r) => r.kind !== "shuttle" && r.endedAt && r.endedAt > (last?.endedAt ?? "")).slice(0, 10);
+  woken = wake ? ended.filter((r) => r.kind === "task").map((r) => `${r.project}/${r.taskId}`) : undefined;
+  const news = [
+    ...(ended.length ? ["Since your last reply these runs ended:"] : []),
+    ...ended.map((r) => `- run ${r.id} (${r.kind}, "${r.title}") ${r.status}${r.error ? `: ${firstLine(r.error, 200)}` : ""}`),
+    ...(wake ? ["The owner has not written: Loom woke you because these Threads ended."] : []),
+  ];
   const cold = !last?.endedAt || Date.now() - Date.parse(last.endedAt) > CACHE_COLD_MS;
-  if (last?.sessionId && fresh !== true && !cold) {
-    const ended = listRuns().filter((r) => r.kind !== "shuttle" && r.endedAt && r.endedAt > (last.endedAt ?? ""));
-    const news = ended.map((r) => `- run ${r.id} (${r.kind}, "${r.title}") ${r.status}${r.error ? `: ${firstLine(r.error, 200)}` : ""}`);
-    return sendMessage(last.id, [...(news.length ? ["Since your last reply these runs ended:", ...news] : []), "---", text].join("\n"), override);
-  }
+  if (last?.sessionId && fresh !== true && !cold) return sendMessage(last.id, [...news, "---", text].join("\n"), override);
 
   const notebook = (store.readText(join(DATA, "SHUTTLE.md")) ?? "").trim().split("\n").slice(0, 40).join("\n");
   const exchanges: { me: string; shuttle: string }[] = [];
@@ -427,6 +431,7 @@ function talkToShuttle(textIn: unknown, fresh: unknown, override: Override): Run
     ...(notebook ? ["Standing instructions (SHUTTLE.md):", ...indent(notebook)] : []),
     "Open work:", ...(work.length ? indent(work.join("\n")) : ["  none"]),
     ...(earlier.length ? ["The last exchanges before this conversation, verbatim:", ...earlier] : []),
+    ...(wake ? news.map((l) => `  ${l}`) : []),
     "---", text,
   ].join("\n");
 
@@ -443,9 +448,40 @@ function talkToShuttle(textIn: unknown, fresh: unknown, override: Override): Run
     systemPrompt: shuttlePrompt(cfg, api),
     ...(cfg.shuttleModel ? { model: cfg.shuttleModel } : {}),
   };
-  const run = startRun({ kind: "shuttle", title: `Shuttle: ${firstLine(text, 100)}` }, spec, envelope, undefined, override);
+  const run = startRun({ kind: "shuttle", title: `Shuttle: ${firstLine(text, 100) || "Threads ended"}` }, spec, envelope, undefined, override);
   store.saveState({ shuttle: run.id });
   return run;
+}
+
+/** The tasks whose Threads ending woke the Shuttle's current turn; undefined in a turn the owner began. */
+let woken: string[] | undefined;
+
+/**
+ * A Thread that ends, fails or asks gives the Shuttle a turn of its own, so its report reaches the
+ * owner without them writing first. One that ends mid-turn waits for the turn to finish (ADR 0030).
+ */
+function wakeShuttle() {
+  const last = getRun(store.loadState().shuttle ?? "");
+  if (last && (last.status === "queued" || last.status === "running")) return;
+  if (!listRuns().some((r) => r.kind === "task" && r.endedAt && r.endedAt > (last?.endedAt ?? ""))) return;
+  talkToShuttle("", false, {}, true);
+}
+
+/**
+ * Without the owner's token a start is the Shuttle's: allowed in a turn the owner began, or, woken,
+ * for a task the owner approved in advance that waits on one whose Thread woke it (ADR 0030). An
+ * approval is recorded only in a turn the owner began, and the next start spends it.
+ */
+function shuttleMayStart(slug: string, taskId: string, approve: boolean) {
+  if (getRun(store.loadState().shuttle ?? "")?.status !== "running") bad("the Shuttle starts a Thread only while answering the owner", 403);
+  if (!woken) return;
+  if (approve) bad("the Shuttle records an approval only while answering the owner", 403);
+  const log = store.readTimeline(slug, taskId);
+  const approved = log.findLastIndex((e) => e.type === "run" && e.detail.startsWith("approved"));
+  const started = log.findLastIndex((e) => e.type === "run" && e.detail.startsWith("started"));
+  const waitsOnWoken = (store.readTask(slug, taskId)?.after ?? []).some((a) => woken!.includes(a.includes("/") ? a : `${slug}/${a}`));
+  if (approved < 0 || approved < started || !waitsOnWoken)
+    bad("woken, the Shuttle starts only a Thread the owner approved to follow one that ended", 403);
 }
 
 // ---------- daily schedule ----------
@@ -701,10 +737,13 @@ async function api(req: Request, url: URL): Promise<Response> {
       if (P("POST", "tasks", null, "unblock")) return json(unblock(slug, id, (await readBody(req)).text, isOwner(req)));
       if (P("POST", "tasks", null, "delegate")) {
         // Any other caller is taken for the Shuttle, which starts a Thread only while answering a message
-        // in which the owner asked for it (ADR 0027).
-        if (!isOwner(req) && getRun(store.loadState().shuttle ?? "")?.status !== "running")
-          bad("the Shuttle starts a Thread only while answering the owner", 403);
-        return json(delegate(slug, id, await readBody(req), by));
+        // in which the owner asked for it (ADR 0027), or, woken, one they approved in advance (ADR 0030).
+        const b = await readBody(req);
+        if (!isOwner(req)) shuttleMayStart(slug, id, b.approve === true);
+        if (b.approve !== true) return json(delegate(slug, id, b, by));
+        const after = store.readTask(slug, id)?.after ?? bad("an approval is for a task that waits on another (after)");
+        store.appendEvent(slug, id, { by, type: "run", detail: `approved to start after ${after.join(", ")}` });
+        return json({ ok: true });
       }
     }
 
@@ -744,7 +783,13 @@ async function api(req: Request, url: URL): Promise<Response> {
 // ---------- startup ----------
 
 store.initStorage();
-initRuns(notify, { started: runStarted, finished: runFinished });
+initRuns(notify, {
+  started: runStarted,
+  finished: (m, lines) => {
+    runFinished(m, lines);
+    if (m.kind === "task" || m.kind === "shuttle") wakeShuttle();
+  },
+});
 // After the run records, so a Thread that died with the last server shows as interrupted.
 for (const slug of store.listProjectSlugs()) store.writeGraph(slug);
 await initBackup(hasLiveRuns);

@@ -121,6 +121,8 @@ export function Transcript({ lines, chat }: { lines: Line[]; chat?: boolean }) {
             // In a chat the owner's words are the bubble; what Loom sent with them folds above.
             const text = String(l.text ?? "");
             const own = chat ? ownerText(text) : text;
+            // A turn Loom began, when Threads ended, has no words from the owner.
+            if (!own.trim()) return <details key={i} className="prompt"><summary className="label">From Loom: Threads ended</summary><pre>{text}</pre></details>;
             return (
               <div key={i} className="owner-msg">
                 {own !== text && <details className="prompt"><summary className="label">From Loom</summary><pre>{text.slice(0, -own.length - 5)}</pre></details>}
