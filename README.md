@@ -47,7 +47,10 @@ bun run typecheck
 
 To keep it running after login on macOS: `scripts/launchd.sh install` (and `uninstall`).
 
-There is no test suite. Verify a change against a throwaway data directory:
+`bun test` runs the server against a stand-in for Claude Code. `bun run e2e` sends real
+Shuttle messages to a throwaway data directory under a token budget (default 2M,
+`--budget`) and prints what each one got done and cost; it spends real tokens, so run it
+on demand. Verify a change by hand against a throwaway data directory:
 
 ```sh
 DASH_DATA_DIR=/tmp/dash-test PORT=4411 bun server/index.ts
@@ -72,6 +75,7 @@ tools to "Allowed tools" there and say how to use them in "How to fetch sources"
 | `server/conventions.md` | The file formats; copied to `<data>/CLAUDE.md` on every start |
 | `web/` | The React app (hash routes, one root state snapshot) |
 | `scripts/launchd.sh` | macOS login service |
+| `scripts/e2e.ts` | `bun run e2e`: the Shuttle's end-to-end tests on real Claude Code |
 | `scripts/usage.ts` | `bun run usage [days]`: a token-usage report in markdown |
 | `docs/design/` | How Loom is designed, one subject per page; start at its README |
 | `docs/adr/` | Design decisions, one per file |

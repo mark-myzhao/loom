@@ -458,7 +458,7 @@ let woken: string[] | undefined;
 
 /**
  * A Thread that ends, fails or asks gives the Shuttle a turn of its own, so its report reaches the
- * owner without them writing first. One that ends mid-turn waits for the turn to finish (ADR 0030).
+ * owner without them writing first. One that ends mid-turn waits for the turn to finish (ADR 0031).
  */
 function wakeShuttle() {
   const last = getRun(store.loadState().shuttle ?? "");
@@ -469,7 +469,7 @@ function wakeShuttle() {
 
 /**
  * Without the owner's token a start is the Shuttle's: allowed in a turn the owner began, or, woken,
- * for a task the owner approved in advance that waits on one whose Thread woke it (ADR 0030). An
+ * for a task the owner approved in advance that waits on one whose Thread woke it (ADR 0031). An
  * approval is recorded only in a turn the owner began, and the next start spends it.
  */
 function shuttleMayStart(slug: string, taskId: string, approve: boolean) {
@@ -737,7 +737,7 @@ async function api(req: Request, url: URL): Promise<Response> {
       if (P("POST", "tasks", null, "unblock")) return json(unblock(slug, id, (await readBody(req)).text, isOwner(req)));
       if (P("POST", "tasks", null, "delegate")) {
         // Any other caller is taken for the Shuttle, which starts a Thread only while answering a message
-        // in which the owner asked for it (ADR 0027), or, woken, one they approved in advance (ADR 0030).
+        // in which the owner asked for it (ADR 0027), or, woken, one they approved in advance (ADR 0031).
         const b = await readBody(req);
         if (!isOwner(req)) shuttleMayStart(slug, id, b.approve === true);
         if (b.approve !== true) return json(delegate(slug, id, b, by));

@@ -1,4 +1,4 @@
-# 0030. A Thread that ends wakes the Shuttle
+# 0031. A Thread that ends wakes the Shuttle
 
 - Status: Accepted
 - Date: 2026-11-27
