@@ -290,11 +290,10 @@ function delegate(slug: string, taskId: string, body: { repoPath?: unknown; inst
 /**
  * A note goes on the task's timeline first, then into every running Thread of the task, or the one
  * it names, at its next step. Only the owner's note starts a session: it resumes the latest ended
- * Thread while its cache is warm, and starts the next Thread in the same directory when it is cold;
- * on a done or cancelled task it starts nothing.
+ * Thread while its cache is warm, and starts the next Thread in the same directory when it is cold.
  */
 function note(slug: string, taskId: string, body: { text?: unknown; thread?: unknown }, owner: boolean): { delivered: number; run?: RunMeta } {
-  const task = store.readTask(slug, taskId) ?? bad("no such task", 404);
+  if (!store.readTask(slug, taskId)) bad("no such task", 404);
   const text = needText(body.text);
   if (!owner && text.split(/\s+/).length > 100) bad("a note is at most 100 words; name a file for the rest");
   const thread = typeof body.thread === "string" && body.thread ? body.thread : undefined;
@@ -304,8 +303,7 @@ function note(slug: string, taskId: string, body: { text?: unknown; thread?: unk
   store.appendEvent(slug, taskId, { by, type: "note", detail: thread ?? "", body: text });
   const delivered = threads.filter((t) => sendNote(t.run.id, noteText(by, text))).length;
   const last = threads.at(-1);
-  // A closed task keeps its status: the note is recorded and starts nothing (threads/states.md).
-  if (delivered || !owner || isClosed(task.status) || !last || last.run.status === "queued" || last.run.status === "running") return { delivered };
+  if (delivered || !owner || !last || last.run.status === "queued" || last.run.status === "running") return { delivered };
   // The note is on the timeline after the Thread's last result, so the resume or the brief carries it.
   if (last.run.endedAt && Date.now() - Date.parse(last.run.endedAt) < CACHE_COLD_MS && last.run.sessionId)
     return { delivered: 1, run: sendMessage(last.run.id, "") };

@@ -144,11 +144,12 @@ test("a note reaches a running Thread; only the owner's note wakes an ended one"
   await until(run.id, "done");
   expect(readFileSync(taskFile, "utf8")).toContain("status: in-progress");
 
-  // On a done task the owner's note is recorded, leaves the status alone and starts no Thread.
+  // The task page sends a comment without @loom as a comment: recorded, status alone, no Thread.
   writeFileSync(taskFile, readFileSync(taskFile, "utf8").replace(/^status: .*$/m, "status: done"));
-  expect(await call("POST", `${tasks}/note`, { text: "not going to implement this" }, token)).toEqual({ delivered: 0 });
+  await call("POST", `${tasks}/comments`, { text: "not going to implement this" }, token);
+  expect((await call("GET", `/runs/${run.id}`)).status).toBe("done");
   expect(readFileSync(taskFile, "utf8")).toContain("status: done");
-  expect(readFileSync(join(data, "projects", p.slug, "tasks", "T-001.log.md"), "utf8")).toContain("| me | note -->\nnot going to implement this");
+  expect(readFileSync(join(data, "projects", p.slug, "tasks", "T-001.log.md"), "utf8")).toContain("| me | comment -->\nnot going to implement this");
 }, 30_000);
 
 test("a pin is one line of the document's metadata, counted on the project, and leaves its modified time alone", async () => {

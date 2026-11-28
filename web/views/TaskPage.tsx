@@ -110,10 +110,12 @@ export function TaskPage({ project: p, id, edit }: { project: ProjectSnapshot; i
     if (body !== null && body !== task.body) await patch({ body });
     setBody(null);
   };
-  // A comment is a note to the task's Threads; one that closes the task is only recorded, so it wakes none.
+  // A comment is only recorded unless it says @loom; then it is a note that reaches or wakes the
+  // task's Threads (ADR 0031). Closing the task always only records it.
   const send = async (done: boolean) => {
     if (!comment.trim() && !done) return;
-    const sent = await act(() => (done ? api("POST", `${base}/comments`, { text: comment, done }) : api("POST", `${base}/note`, { text: comment })));
+    const wake = !done && /@loom\b/i.test(comment);
+    const sent = await act(() => (wake ? api("POST", `${base}/note`, { text: comment }) : api("POST", `${base}/comments`, { text: comment, done })));
     if (sent) setComment("");
   };
   const addSub = async () => {
@@ -224,9 +226,9 @@ export function TaskPage({ project: p, id, edit }: { project: ProjectSnapshot; i
               {data.timeline.map((ev, i) => <Event key={i} ev={ev} slug={p.slug} />)}
             </ul>
             <div className="compose">
-              <textarea rows={2} value={comment} aria-label="Note" placeholder="Note for this task's Threads…" onChange={(e) => setComment(e.target.value)} onKeyDown={onSubmitKey(() => send(false))} />
+              <textarea rows={2} value={comment} aria-label="Comment" placeholder="Comment; write @loom to send it to this task's Threads…" onChange={(e) => setComment(e.target.value)} onKeyDown={onSubmitKey(() => send(false))} />
               <span className="btn-row">
-                <button disabled={!comment.trim()} onClick={() => send(false)}>Send note</button>
+                <button disabled={!comment.trim()} onClick={() => send(false)}>Comment</button>
                 {!isClosed(task.status) && <button onClick={() => send(true)}>{comment.trim() ? "Comment & mark done" : "Mark done"}</button>}
               </span>
             </div>
