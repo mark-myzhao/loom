@@ -106,3 +106,9 @@ The Shuttle reads text it did not write: Thread questions and report lines, and 
 Change: `allowedTools` in `talkToShuttle` is `Read`, `Glob`, `Grep` and one curl rule per route. Each rule puts the method before the URL, but a crafted command can still bend a wildcard rule to another route (a second URL, a second `-X`). So the server, not the list, holds what matters: without the owner's token it refuses delegate outside a Shuttle turn, `PUT /api/config`, creating or editing an automation, and every `DELETE`. The token is not a boundary against a deliberate forgery ([Notes](../threads/notes.md)); it stops a Shuttle that followed text it read.
 
 The write rules it replaced, `Edit(projects/**)` and friends, stopped matching after a `cd` in Bash for the rest of that turn (cause unconfirmed), so a Shuttle that had `cd`-ed refused every write.
+
+## End-to-end tests
+
+`bun run e2e [case ...] [--budget tokens] [--model id]` checks that the Shuttle gets a request done and measures what that costs ([ADR 0030](../../adr/0030-shuttle-e2e-tests-under-a-token-budget.md)). It runs the real server and real Claude Code on a throwaway data directory seeded with one project of three tasks. Each case is one message in a fresh conversation, checked against the files afterwards: create a task, set a status, tick a checklist item, add a memory entry, write the notebook, answer without writing, start a Thread, file a link.
+
+The budget counts every token, cache reads included, from the live transcripts; past it the live runs stop and the rest are not run. A Thread or ingest run the Shuttle starts is stopped at once. The report gives per case: done or why not, turns, tool calls (errors), tokens by kind, cost and time. Its first run, the baseline for the Shuttle on curl, is kept with task T-022.
