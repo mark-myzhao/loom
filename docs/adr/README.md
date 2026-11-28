@@ -34,10 +34,11 @@ One file per decision, numbered in the order they were made. The design itself i
 | [0028](0028-a-thread-opens-a-pull-request.md) | A Thread opens a pull request when its work is ready | Accepted | Built |
 | [0029](0029-a-pin-is-artifact-metadata.md) | A pin is a line of the artifact's own metadata | Accepted | Built |
 | [0030](0030-shuttle-e2e-tests-under-a-token-budget.md) | The Shuttle's end-to-end tests run real Claude Code, on demand, under a token budget | Accepted | Built |
-| [0031](0031-shuttle-has-loom-tools-not-bash.md) | The Shuttle has a few wide Loom tools, and no Bash | Accepted | Built |
+| [0031](0031-shuttle-has-loom-tools-not-bash.md) | The Shuttle has a few wide Loom tools, and no Bash | Accepted; amended by 0035 | Built |
 | [0032](0032-a-thread-that-ends-wakes-the-shuttle.md) | A Thread that ends wakes the Shuttle, which may start only a follow-on the owner approved | Accepted | Built |
 | [0033](0033-estimate-unpriced-stretches.md) | A stretch Claude Code never priced gets a rough, rule-based estimate | Accepted | Built |
 | [0034](0034-a-comment-wakes-threads-only-with-at-loom.md) | An owner's task-page comment reaches or wakes a Thread only when it says @loom | Accepted | Built |
+| [0035](0035-shuttle-has-read-only-bash.md) | The Shuttle has Bash for read-only commands | Accepted | Built |
 
 ## Adding one
 
