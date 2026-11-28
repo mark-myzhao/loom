@@ -5,7 +5,7 @@ import { homedir } from "node:os";
 import { join, sep } from "node:path";
 import index from "../web/index.html";
 import { initBackup, pushIfDue, scheduleBackup } from "./backup";
-import { automationPrompt, ingestPrompt, SHUTTLE_ROUTES, shuttlePrompt, taskPrompt } from "./prompts";
+import { automationPrompt, ingestPrompt, SHUTTLE_TOOLS, shuttlePrompt, taskPrompt } from "./prompts";
 import { findLiveRun, getRun, hasLiveRuns, initRuns, listRuns, noteText, readTranscript, sendMessage, sendNote, startRun, stopRun, subscribe, type RunInit } from "./runs";
 import * as store from "./store";
 import { DATA, HttpError } from "./store";
@@ -249,6 +249,9 @@ async function ingest(textIn: unknown, slugIn?: unknown): Promise<RunMeta> {
 }
 
 function delegate(slug: string, taskId: string, body: { repoPath?: unknown; instructions?: unknown; worktree?: unknown; model?: unknown; effort?: unknown }, by = "me"): RunMeta {
+  // Any caller but the owner is taken for the Shuttle, which starts a Thread only while answering a
+  // message in which the owner asked for it (ADR 0027).
+  if (by !== "me" && getRun(store.loadState().shuttle ?? "")?.status !== "running") bad("the Shuttle starts a Thread only while answering the owner", 403);
   const p = readableProject(slug);
   const tasks = store.listTasks(slug);
   const task = tasks.find((t) => t.id === taskId) ?? bad("no such task", 404);
@@ -430,22 +433,98 @@ function talkToShuttle(textIn: unknown, fresh: unknown, override: Override): Run
     "---", text,
   ].join("\n");
 
-  const api = `http://127.0.0.1:${PORT}`;
-  // The method comes before the URL, so a rule cannot match a route it does not name (POST .../delegate
-  // under GET .../tasks/*). A wildcard can still be abused; the server's own checks are the hard stop.
-  const routes = SHUTTLE_ROUTES.map(([, method, path, body]) => `Bash(curl -s -X ${method} ${api}${path.replace(/<[^>]+>/g, "*")}${body ? " *" : ""})`);
   const spec: RunSpec = {
     cwd: DATA,
-    // Anything not allowed below is refused: it reads files and changes them only through its routes (ADR 0026).
+    // It reads files and changes them only through Loom's tools: no shell, no web (ADR 0031).
     permissionMode: "default",
-    // Links go to ingest runs, so the Shuttle never reads the web.
-    allowedTools: ["Read", "Glob", "Grep", ...routes],
-    systemPrompt: shuttlePrompt(cfg, api),
+    tools: ["Read", "Glob", "Grep"],
+    mcpConfig: JSON.stringify({ mcpServers: { loom: { type: "http", url: `http://127.0.0.1:${PORT}/api/mcp` } } }),
+    allowedTools: ["Read", "Glob", "Grep", "mcp__loom"],
+    systemPrompt: shuttlePrompt(cfg),
     ...(cfg.shuttleModel ? { model: cfg.shuttleModel } : {}),
   };
   const run = startRun({ kind: "shuttle", title: `Shuttle: ${firstLine(text, 100)}` }, spec, envelope, undefined, override);
   store.saveState({ shuttle: run.id });
   return run;
+}
+
+// ---------- the Shuttle's Loom tools (ADR 0031) ----------
+
+const show = (v: unknown) => (Array.isArray(v) ? v.join(",") : v) || "none";
+
+/** One call of a Shuttle tool. A write answers with only the id and what changed, never a task body. */
+async function shuttleTool(name: string, a: Record<string, any>): Promise<string> {
+  const slug = () => store.checkSlug(a.project);
+  const runLine = (r: RunMeta) => `run ${r.id} ${r.kind} ${r.status} "${r.title}"${r.error ? ` error: ${firstLine(r.error, 200)}` : ""}`;
+  if (name === "task") {
+    const { project: _, id, check = [], ...fields } = a;
+    if (!id) return `${store.createTask(slug(), fields, "shuttle").id} created`;
+    const before = store.readTask(slug(), store.checkTaskId(id)) ?? bad("no such task", 404);
+    if (!Array.isArray(check) || check.some((c) => !Number.isInteger(c?.index) || typeof c?.checked !== "boolean"))
+      bad("check is a list of {index, checked}");
+    const after: Record<string, any> = Object.keys(fields).length ? store.patchTask(slug(), id, fields, "shuttle") : before;
+    for (const c of check) store.toggleChecklist(slug(), id, c.index, c.checked);
+    const changes = Object.keys(fields).map((k) =>
+      k === "body" || k === "comment" ? `${k} written` : `${k} ${show((before as Record<string, any>)[k])} -> ${show(after[k])}`);
+    for (const c of check) changes.push(`item ${c.index} ${c.checked ? "ticked" : "unticked"}`);
+    return `${id}: ${changes.join("; ") || "nothing changed"}`;
+  }
+  if (name === "memory") {
+    if (!a.project) {
+      const text = needText(a.body);
+      if (text.split("\n").length > 40) bad("the notebook is at most 40 lines");
+      store.writeAtomic(join(DATA, "SHUTTLE.md"), text + "\n");
+      return "notebook replaced";
+    }
+    const file = `${a.name}.md`;
+    const exists = store.listMemory(slug()).some((e) => e.file === file);
+    return `memory ${store.saveMemory(slug(), exists ? file : undefined, a).file} ${exists ? "replaced" : "added"}`;
+  }
+  if (name === "thread") {
+    if (a.action === "stop") {
+      if (!stopRun(String(a.run))) bad("the run is not in progress", 409);
+      return `run ${a.run} stopping`;
+    }
+    const id = store.checkTaskId(a.task);
+    if (a.action === "note") return `note on ${id}, delivered to ${note(slug(), id, a, false).delivered} running Thread(s)`;
+    if (a.action !== "start") bad("action must be start, note or stop");
+    const run = delegate(slug(), id, { instructions: a.text }, "shuttle");
+    return `${threadsOf(slug(), id).find((t) => t.run.id === run.id)?.address ?? id} started, run ${run.id}`;
+  }
+  if (name === "ingest") return `ingest started, run ${(await ingest(a.text, a.project)).id}`;
+  if (name === "look") {
+    if (a.run) {
+      const r = getRun(String(a.run)) ?? bad("no such run", 404);
+      return [runLine(r), ...(r.result ? [cut(r.result, 1500)] : [])].join("\n");
+    }
+    const t = store.readTask(slug(), store.checkTaskId(a.task)) ?? bad("no such task", 404);
+    const runs = threadsOf(slug(), t.id).map((th) => `${th.address} ${runLine(th.run)}`);
+    return [`${t.id} ${t.status} ${t.priority}${t.due ? ` due ${t.due}` : ""} "${t.title}"`, ...runs].join("\n");
+  }
+  return bad(`no tool ${name}`);
+}
+
+/**
+ * Loom's MCP endpoint, which serves the Shuttle's tools: JSON-RPC, one POST per message and a plain
+ * JSON answer, so it keeps no session and no stream (MCP's streamable HTTP transport allows both).
+ */
+async function mcp(req: Request): Promise<Response> {
+  if (req.method !== "POST") return new Response(null, { status: 405 });
+  const { id, method, params } = await readBody(req);
+  // A notification gets no answer.
+  if (id === undefined) return new Response(null, { status: 202 });
+  const reply = (result: unknown) => json({ jsonrpc: "2.0", id, result });
+  if (method === "initialize")
+    return reply({ protocolVersion: params?.protocolVersion ?? "2025-06-18", capabilities: { tools: {} }, serverInfo: { name: "loom", version: "1" } });
+  if (method === "ping") return reply({});
+  if (method === "tools/list") return reply({ tools: SHUTTLE_TOOLS });
+  if (method !== "tools/call") return json({ jsonrpc: "2.0", id, error: { code: -32601, message: `no method ${method}` } });
+  try {
+    return reply({ content: [{ type: "text", text: await shuttleTool(params?.name, params?.arguments ?? {}) }] });
+  } catch (e) {
+    if (!(e instanceof HttpError)) throw e;
+    return reply({ content: [{ type: "text", text: e.message }], isError: true });
+  }
 }
 
 // ---------- daily schedule ----------
@@ -609,12 +688,7 @@ async function api(req: Request, url: URL): Promise<Response> {
     return json(await ingest(b.text, b.project));
   }
 
-  if (is("PUT", "shuttle", "notebook")) {
-    const text = needText((await readBody(req)).text);
-    if (text.split("\n").length > 40) bad("the notebook is at most 40 lines");
-    store.writeAtomic(join(DATA, "SHUTTLE.md"), text + "\n");
-    return json({ ok: true });
-  }
+  if (seg.length === 1 && seg[0] === "mcp") return mcp(req);
   if (is("POST", "shuttle")) {
     const b = await readBody(req);
     // Only listed values pass, since they become CLI arguments.
@@ -699,13 +773,7 @@ async function api(req: Request, url: URL): Promise<Response> {
       }
       if (P("POST", "tasks", null, "note")) return json(note(slug, id, await readBody(req), isOwner(req)));
       if (P("POST", "tasks", null, "unblock")) return json(unblock(slug, id, (await readBody(req)).text, isOwner(req)));
-      if (P("POST", "tasks", null, "delegate")) {
-        // Any other caller is taken for the Shuttle, which starts a Thread only while answering a message
-        // in which the owner asked for it (ADR 0027).
-        if (!isOwner(req) && getRun(store.loadState().shuttle ?? "")?.status !== "running")
-          bad("the Shuttle starts a Thread only while answering the owner", 403);
-        return json(delegate(slug, id, await readBody(req), by));
-      }
+      if (P("POST", "tasks", null, "delegate")) return json(delegate(slug, id, await readBody(req), by));
     }
 
     if (P("GET", "artifacts")) return json(store.listArtifacts(slug));

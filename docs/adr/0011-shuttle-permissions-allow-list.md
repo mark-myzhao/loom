@@ -1,6 +1,6 @@
 # 0011. The Shuttle's permissions are an allow-list
 
-- Status: Accepted; amended by 0015 and 0026
+- Status: Accepted; amended by 0015, 0026 and 0031
 - Date: 2026-11-23
 - Implementation: Built
 - Design: [shuttle/context.md](../design/shuttle/context.md)

@@ -194,9 +194,30 @@ test("without the owner's token, task changes are signed by the Shuttle, and con
   expect(timeline.map((e: any) => e.by)).toEqual(["shuttle", "shuttle", "shuttle", "shuttle"]);
   for (const [method, path] of [["DELETE", `/projects/${p.slug}/tasks/${t.id}`], ["PUT", "/config"], ["POST", "/automations"]])
     expect((await call(method!, path!, {})).error).toBe("only the owner can do that");
-  expect((await call("PUT", "/shuttle/notebook", { text: "Reply in bullets." })).ok).toBe(true);
+});
+
+/** Calls one of the Shuttle's Loom tools over the MCP endpoint, as Claude Code does. */
+async function tool(name: string, args: Record<string, unknown>): Promise<{ text: string; isError?: boolean }> {
+  const { result } = await call("POST", "/mcp", { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } });
+  return { text: result.content[0].text, isError: result.isError };
+}
+
+test("the Shuttle's tools answer a write with only the id and what changed", async () => {
+  const { result } = await call("POST", "/mcp", { jsonrpc: "2.0", id: 1, method: "tools/list" });
+  expect(result.tools.map((t: any) => t.name)).toEqual(["task", "memory", "thread", "ingest", "look"]);
+  const p = await call("POST", "/projects", { name: "Tools" });
+  const body = "## Context\nA long body the answer leaves out.\n\n## Things to do\n- [ ] Book the venue\n";
+  expect(await tool("task", { project: p.slug, title: "Plan the party", body })).toEqual({ text: "T-001 created" });
+  expect((await tool("task", { project: p.slug, id: "T-001", status: "done", comment: "booked", check: [{ index: 0, checked: true }] })).text)
+    .toBe("T-001: status todo -> done; comment written; item 0 ticked");
+  expect((await call("GET", `/projects/${p.slug}/tasks/T-001`)).task.body).toContain("- [x] Book the venue");
+  expect(await tool("task", { project: p.slug, id: "T-009", status: "done" })).toEqual({ text: "no such task", isError: true });
+  expect((await tool("memory", { project: p.slug, name: "organic", description: "Only organic fertiliser.", body: "" })).text).toBe("memory organic.md added");
+  expect((await tool("memory", { project: p.slug, name: "organic", description: "Only organic feed.", body: "" })).text).toBe("memory organic.md replaced");
+  expect((await tool("memory", { body: "Reply in bullets." })).text).toBe("notebook replaced");
   expect(readFileSync(join(data, "SHUTTLE.md"), "utf8")).toBe("Reply in bullets.\n");
-  expect((await call("PUT", "/shuttle/notebook", { text: "x\n".repeat(41) })).error).toBe("the notebook is at most 40 lines");
+  expect((await tool("memory", { body: "x\n".repeat(41) })).text).toBe("the notebook is at most 40 lines");
+  expect((await tool("thread", { action: "start", project: p.slug, task: "T-001", text: "go" })).text).toBe("the Shuttle starts a Thread only while answering the owner");
 });
 
 test("a session the API overloads carries on once, in the same run", async () => {
